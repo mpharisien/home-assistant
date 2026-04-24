@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const HA_URL = (process.env.HA_URL || 'http://supervisor/core') + '/api';
+const HA_URL = process.env.HA_URL || 'http://supervisor/core';
 const HA_TOKEN = process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN;
 
 const ROUTINES = {
@@ -25,7 +25,7 @@ const ROUTINES = {
   },
   ecole: {
     id: 'ecole',
-    titre: 'Retour de l\'école',
+    titre: "Retour de l'école",
     taches: [
       { id: 'input_boolean.re_ecole_chaussures', label: 'Ranger chaussures et manteau', icone: '👟' },
       { id: 'input_boolean.re_ecole_mains',      label: 'Se laver les mains',           icone: '🧼' },
@@ -37,27 +37,23 @@ const ROUTINES = {
     id: 'soir',
     titre: 'Bonsoir !',
     taches: [
-      { id: 'media_player.shield_2',             label: 'Fin de la TV',                 icone: '📺', special: 'tv', finH: 19, finM: 40 },
-      { id: 'input_boolean.re_soir_manger',      label: 'Finir de manger',              icone: '🍽️' },
-      { id: 'input_boolean.re_soir_couleur',     label: 'Couleur du jour',              icone: '🎨' },
-      { id: 'input_boolean.re_soir_maman',       label: 'Bonne nuit à maman',           icone: '💋' },
-      { id: 'input_boolean.re_soir_toilettes',   label: 'Toilettes et dents',           icone: '🪥' },
+      { id: 'media_player.shield_2',           label: 'Fin de la TV',                 icone: '📺', special: 'tv', finH: 19, finM: 40 },
+      { id: 'input_boolean.re_soir_manger',    label: 'Finir de manger',              icone: '🍽️' },
+      { id: 'input_boolean.re_soir_couleur',   label: 'Couleur du jour',              icone: '🎨' },
+      { id: 'input_boolean.re_soir_maman',     label: 'Bonne nuit à maman',           icone: '💋' },
+      { id: 'input_boolean.re_soir_toilettes', label: 'Toilettes et dents',           icone: '🪥' },
     ]
   }
 };
 
-// Détermine la routine active selon l'heure
 function routineActive() {
   const now = new Date();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const total = h * 60 + m;
+  const total = now.getHours() * 60 + now.getMinutes();
   if (total >= 6 * 60 && total < 16 * 60 + 30) return 'matin';
   if (total >= 16 * 60 + 30 && total < 19 * 60) return 'ecole';
   return 'soir';
 }
 
-// Récupère l'état d'une entité HA
 async function getEtat(entityId) {
   const response = await fetch(`${HA_URL}/api/states/${entityId}`, {
     headers: { Authorization: `Bearer ${HA_TOKEN}` }
@@ -66,7 +62,6 @@ async function getEtat(entityId) {
   return data.state;
 }
 
-// API : infos de la routine active
 app.get('/api/routine', async (req, res) => {
   try {
     const id = routineActive();
@@ -81,18 +76,24 @@ app.get('/api/routine', async (req, res) => {
       }
       return { ...t, etat, stateRaw: state };
     }));
-    res.json({ id, titre: routine.titre, departLabel: routine.departLabel || null, departH: routine.departH || null, departM: routine.departM || null, taches });
+    res.json({
+      id,
+      titre: routine.titre,
+      departLabel: routine.departLabel || null,
+      departH: routine.departH || null,
+      departM: routine.departM || null,
+      taches
+    });
   } catch (err) {
     console.log('ERREUR /api/routine:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// API : toggle une tâche
 app.post('/api/taches/:entityId/toggle', async (req, res) => {
   const { entityId } = req.params;
   try {
-    const response = await fetch(`${HA_URL}/api/services/input_boolean/toggle`, {
+    await fetch(`${HA_URL}/api/services/input_boolean/toggle`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${HA_TOKEN}`,
@@ -106,13 +107,13 @@ app.post('/api/taches/:entityId/toggle', async (req, res) => {
   }
 });
 
-// API : état de la Shield (compteur TV)
 app.get('/api/shield', async (req, res) => {
   try {
     const tvState = await getEtat('media_player.shield_2');
     const shieldToday = await getEtat('sensor.shield_on_today');
     res.json({ tvState, shieldToday });
   } catch (err) {
+    console.log('ERREUR /api/shield:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
