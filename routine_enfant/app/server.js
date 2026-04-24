@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const HA_URL = (process.env.HA_URL || 'http://supervisor/core') + '/api';
+const HA_URL = (process.env.HA_URL || 'http://supervisor/core');
 const HA_TOKEN = process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN;
 
 // DEBUG - à retirer après
@@ -25,7 +25,7 @@ const TACHES = [
 app.get('/api/taches', async (req, res) => {
   try {
     const etats = await Promise.all(TACHES.map(async (tache) => {
-      const response = await fetch(`${HA_URL}/api/states/${tache.id}`, {
+      const response = await fetch(`${HA_URL}/states/${tache.id}`, {
         headers: { Authorization: `Bearer ${HA_TOKEN}` }
       });
       const data = await response.json();
@@ -41,7 +41,7 @@ app.get('/api/taches', async (req, res) => {
 app.post('/api/taches/:entityId/toggle', async (req, res) => {
   const { entityId } = req.params;
   try {
-    await fetch(`${HA_URL}/api/services/input_boolean/toggle`, {
+    await fetch(`${HA_URL}/services/input_boolean/toggle`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${HA_TOKEN}`,
