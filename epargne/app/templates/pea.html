@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+{% block title %}PEA — Epargne{% endblock %}
+{% block content %}
+<h1>PEA</h1>
+<p class="subtitle">Boursobank — Plan d'Épargne en Actions</p>
+
+<style>
+  .tab { padding:10px 20px;font-size:14px;font-weight:500;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent);border-bottom-color:var(--accent); }
+  .danger { color: #c0392b; }
+  .pos { color: var(--accent); }
+  .neg { color: #c0392b; }
+  canvas { max-height: 320px; }
+  .badge-blue { background:#e8f0fb;color:#1a5fa8; }
+  .edit-row { display:none; background:var(--accent-light); }
+  .edit-row td { padding:12px 10px; }
+  .edit-row.open { display:table-row; }
+  .edit-form { display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end; }
+  .edit-form .form-group { display:flex;flex-direction:column;gap:3px; }
+  .edit-form label { font-size:11px;color:var(--muted);font-weight:500; }
+  .edit-form input, .edit-form select { padding:6px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:white;font-family:inherit; }
+  .btn-edit { background:#e8f0fb;color:#1a5fa8;border:1px solid #b8d0f0;font-size:12px;padding:5px 10px; }
+</style>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Valeur du portefeuille</div>
+    <div class="kpi-value neutral">{{ "%.2f"|format(stats.valeur_totale) }} €</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Liquidités apportées</div>
+    <div class="kpi-value neutral">{{ "%.2f"|format(stats.total_apports) }} €</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Performance nette</div>
+    <div class="kpi-value {% if stats.performance < 0 %}danger{% endif %}">
+      {% if stats.performance >= 0 %}+{% endif %}{{ "%.2f"|format(stats.performance) }} €
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Performance %</div>
+    <div class="kpi-value {% if stats.performance_pct < 0 %}danger{% endif %}">
+      {% if stats.performance_pct >= 0 %}+{% endif %}{{ "%.2f"|format(stats.performance_pct) }} %
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Dividendes reçus</div>
+    <div class="kpi-value">{{ "%.2f"|format(stats.total_dividendes) }} €</div>
+  </div>
+</div>
+
+<!-- Onglets -->
+<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:24px">
+  <a href="/pea" class="tab {% if not tab or tab == 'portefeuille' %}active{% endif %}">Portefeuille</a>
+  <a href="/pea?tab=historique" class="tab {% if tab == 'historique' %}active{% endif %}">Historique</a>
+  <a href="/pea?tab=performance" class="tab {% if tab == 'performance' %}active{% endif %}">Performance</a>
+  <a href="/pea?tab=import" class="tab {% if tab == 'import' %}active{% endif %}">Import / Saisie</a>
+</div>
+
+<!-- ═══════════════ PORTEFEUILLE ═══════════════ -->
+{% if not tab or tab == 'portefeuille' %}
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Positions actuelles</h2></div>
+  <div class="card-body" style="padding:0">
+    {% if positions %}
+    <table>
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th style="text-align:right">Qté</th>
+          <th style="text-align:right">PRU</th>
+          <th style="text-align:right">Investi</th>
+          <th style="text-align:right">Cours actuel</th>
+          <th style="text-align:right">Valeur</th>
+          <th style="text-align:right">+/- value</th>
+          <th style="text-align:right">+/- %</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in positions %}
+      <tr>
+        <td>
+          <div style="font-weight:500">{{ p.nom }}</div>
+          <div style="font-size:11px;color:var(--muted)">{{ p.ticker }}</div>
+        </td>
+        <td style="text-align:right">{{ p.quantite }}</td>
+        <td style="text-align:right">{{ "%.4f"|format(p.pru) }} €</td>
+        <td style="text-align:right">{{ "%.2f"|format(p.investi) }} €</td>
+        <td style="text-align:right">
+          {% if p.cours %}{{ "%.2f"|format(p.cours) }} €{% else %}<span style="color:var(--muted)">—</span>{% endif %}
+        </td>
+        <td style="text-align:right">
+          {% if p.valeur %}{{ "%.2f"|format(p.valeur) }} €{% else %}<span style="color:var(--muted)">—</span>{% endif %}
+        </td>
+        <td style="text-align:right" class="{% if p.pv is not none %}{% if p.pv >= 0 %}pos{% else %}neg{% endif %}{% endif %}">
+          {% if p.pv is not none %}{% if p.pv >= 0 %}+{% endif %}{{ "%.2f"|format(p.pv) }} €{% else %}—{% endif %}
+        </td>
+        <td style="text-align:right" class="{% if p.pv_pct is not none %}{% if p.pv_pct >= 0 %}pos{% else %}neg{% endif %}{% endif %}">
+          {% if p.pv_pct is not none %}{% if p.pv_pct >= 0 %}+{% endif %}{{ "%.1f"|format(p.pv_pct) }} %{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Aucune position. Importez vos mouvements dans l'onglet "Import / Saisie".</div>
+    {% endif %}
+  </div>
+</div>
+
+{% if positions %}
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Répartition du portefeuille</h2></div>
+  <div class="card-body" style="display:flex;justify-content:center">
+    <canvas id="camembert" width="340" height="340"></canvas>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const labels = {{ positions | map(attribute='nom') | list | tojson }};
+const values = {{ positions | map(attribute='valeur_ou_investi') | list | tojson }};
+const colors = ['#1a7a4a','#2ecc71','#27ae60','#16a085','#1abc9c','#0e6655','#145a32','#1d8348','#117a65','#0b5345'];
+new Chart(document.getElementById('camembert'), {
+  type: 'doughnut',
+  data: { labels, datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderWidth: 2 }] },
+  options: { plugins: { legend: { position: 'right' } }, cutout: '55%' }
+});
+</script>
+{% endif %}
+
+<!-- ═══════════════ HISTORIQUE ═══════════════ -->
+{% elif tab == 'historique' %}
+<div class="card">
+  <div class="card-header">
+    <h2 style="margin:0">Tous les mouvements</h2>
+    <form method="GET" action="/pea" style="display:flex;gap:8px;align-items:center">
+      <input type="hidden" name="tab" value="historique">
+      <select name="filtre_action" onchange="this.form.submit()" style="font-size:13px;padding:6px 8px">
+        <option value="">Toutes les actions</option>
+        {% for a in actions_liste %}
+        <option value="{{ a }}" {% if filtre_action == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+      <select name="filtre_type" onchange="this.form.submit()" style="font-size:13px;padding:6px 8px">
+        <option value="">Tous les types</option>
+        {% for t in types_liste %}
+        <option value="{{ t }}" {% if filtre_type == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="card-body" style="padding:0">
+    {% if mouvements %}
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Type</th><th>Action</th><th>Ticker</th>
+          <th style="text-align:right">Qté</th>
+          <th style="text-align:right">Prix unit.</th>
+          <th style="text-align:right">Montant</th>
+          <th>Notes</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for m in mouvements %}
+      <tr id="row-{{ m.id }}">
+        <td>{{ m.date }}</td>
+        <td><span class="badge {% if m.type == 'achat' %}badge-green{% elif m.type == 'vente' %}badge-orange{% elif m.type == 'coupon' %}badge-blue{% else %}badge-gray{% endif %}">{{ m.type|capitalize }}</span></td>
+        <td>{{ m.nom_action or '—' }}</td>
+        <td style="font-size:12px;color:var(--muted)">{{ m.ticker or '—' }}</td>
+        <td style="text-align:right">{{ "%.4f"|format(m.quantite) if m.quantite else '—' }}</td>
+        <td style="text-align:right">{{ "%.4f"|format(m.prix_unitaire) if m.prix_unitaire else '—' }}</td>
+        <td style="text-align:right">{{ "%.2f"|format(m.montant) }} €</td>
+        <td style="color:var(--muted);font-size:13px">{{ m.notes or '' }}</td>
+        <td style="white-space:nowrap">
+          <button type="button" class="btn btn-edit" onclick="toggleEdit({{ m.id }})">Modifier</button>
+          <form method="POST" action="/pea/mouvement/supprimer/{{ m.id }}" style="display:inline">
+            <button type="submit" class="btn btn-danger">×</button>
+          </form>
+        </td>
+      </tr>
+      <tr class="edit-row" id="edit-{{ m.id }}">
+        <td colspan="9">
+          <form method="POST" action="/pea/mouvement/modifier/{{ m.id }}" class="edit-form">
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" name="date" value="{{ m.date }}" required>
+            </div>
+            <div class="form-group">
+              <label>Type</label>
+              <select name="type">
+                {% for t in ['achat','vente','coupon','apport','retrait','remboursement'] %}
+                <option value="{{ t }}" {% if m.type == t %}selected{% endif %}>{{ t|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nom action</label>
+              <input type="text" name="nom_action" value="{{ m.nom_action or '' }}" style="width:160px">
+            </div>
+            <div class="form-group">
+              <label>Ticker</label>
+              <input type="text" name="ticker" value="{{ m.ticker or '' }}" style="width:90px" placeholder="ACA.PA">
+            </div>
+            <div class="form-group">
+              <label>Quantité</label>
+              <input type="number" name="quantite" value="{{ m.quantite or '' }}" step="0.0001" style="width:90px">
+            </div>
+            <div class="form-group">
+              <label>Prix unit.</label>
+              <input type="number" name="prix_unitaire" value="{{ m.prix_unitaire or '' }}" step="0.0001" style="width:90px">
+            </div>
+            <div class="form-group">
+              <label>Montant (€)</label>
+              <input type="number" name="montant" value="{{ m.montant }}" step="0.01" required style="width:100px">
+            </div>
+            <div class="form-group">
+              <label>Notes</label>
+              <input type="text" name="notes" value="{{ m.notes or '' }}" style="width:140px">
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <div style="display:flex;gap:6px">
+                <button type="submit" class="btn btn-primary" style="font-size:13px;padding:6px 12px">Enregistrer</button>
+                <button type="button" class="btn btn-secondary" style="font-size:13px;padding:6px 12px" onclick="toggleEdit({{ m.id }})">Annuler</button>
+              </div>
+            </div>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Aucun mouvement.</div>
+    {% endif %}
+  </div>
+</div>
+<script>
+function toggleEdit(id) {
+  const row = document.getElementById('edit-' + id);
+  row.classList.toggle('open');
+}
+</script>
+
+<!-- ═══════════════ PERFORMANCE ═══════════════ -->
+{% elif tab == 'performance' %}
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Évolution du portefeuille (hors apports)</h2></div>
+  <div class="card-body">
+    {% if snapshots %}
+    <canvas id="graphPerf"></canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script>
+    const snapData = {{ snapshots | tojson }};
+    new Chart(document.getElementById('graphPerf'), {
+      type: 'line',
+      data: {
+        labels: snapData.map(s => s.date),
+        datasets: [
+          { label: 'Valeur portefeuille', data: snapData.map(s => s.valeur), borderColor: '#1a7a4a', backgroundColor: 'rgba(26,122,74,.08)', tension: .3, fill: true },
+          { label: 'Liquidités apportées', data: snapData.map(s => s.apports), borderColor: '#aaa', borderDash: [5,5], tension: .3, fill: false },
+        ]
+      },
+      options: { scales: { y: { ticks: { callback: v => v + ' €' } } }, plugins: { legend: { position: 'bottom' } } }
+    });
+    </script>
+    {% else %}
+    <div class="empty">Ajoutez des snapshots de valeur pour voir l'évolution.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Coupons par année</h2></div>
+  <div class="card-body">
+    {% if dividendes_annuels %}
+    <table>
+      <thead><tr><th>Année</th><th style="text-align:right">Coupons reçus</th><th style="text-align:right">Capital investi</th><th style="text-align:right">Rendement</th></tr></thead>
+      <tbody>
+      {% for d in dividendes_annuels %}
+      <tr>
+        <td>{{ d.annee }}</td>
+        <td style="text-align:right" class="pos">{{ "%.2f"|format(d.dividendes) }} €</td>
+        <td style="text-align:right">{{ "%.2f"|format(d.capital) }} €</td>
+        <td style="text-align:right" class="pos">{{ "%.2f"|format(d.rendement) }} %</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Aucun coupon enregistré.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="add-section">
+  <h2>Ajouter un snapshot de valeur</h2>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Enregistrez la valeur totale du portefeuille à une date donnée pour alimenter le graphique.</p>
+  <form method="POST" action="/pea/snapshot/ajouter">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" name="date" required>
+      </div>
+      <div class="form-group">
+        <label>Valeur totale (€)</label>
+        <input type="number" name="valeur" step="0.01" min="0" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </form>
+</div>
+
+<!-- ═══════════════ IMPORT / SAISIE ═══════════════ -->
+{% elif tab == 'import' %}
+<div class="add-section">
+  <h2>Importer un fichier CSV</h2>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+    Format attendu : <code>date;type;nom_action;ticker;quantite;prix_unitaire;montant;notes</code><br>
+    Types valides : <strong>achat, vente, coupon, apport, retrait, remboursement</strong><br>
+    Séparateur : point-virgule (export Google Sheets FR) ou virgule acceptés.<br>
+    Exemple : <code>2023-05-12;achat;Crédit Agricole;ACA.PA;10;12,50;125,00;</code>
+  </p>
+  <form method="POST" action="/pea/import" enctype="multipart/form-data">
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Fichier CSV</label>
+        <input type="file" name="fichier" accept=".csv" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Importer</button>
+  </form>
+</div>
+
+<div class="add-section">
+  <h2>Ajouter un mouvement manuellement</h2>
+  <form method="POST" action="/pea/mouvement/ajouter">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" name="date" required>
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select name="type" id="type-select" onchange="toggleActionFields()">
+          <option value="achat">Achat</option>
+          <option value="vente">Vente</option>
+          <option value="coupon">Coupon</option>
+          <option value="apport">Apport de liquidités</option>
+          <option value="retrait">Retrait</option>
+          <option value="remboursement">Remboursement</option>
+        </select>
+      </div>
+      <div class="form-group" id="field-nom">
+        <label>Nom de l'action</label>
+        <input type="text" name="nom_action" placeholder="Ex : Crédit Agricole" list="actions-list">
+        <datalist id="actions-list">
+          {% for a in actions_liste %}<option value="{{ a }}">{% endfor %}
+        </datalist>
+      </div>
+      <div class="form-group" id="field-ticker">
+        <label>Ticker Yahoo (ex: ACA.PA)</label>
+        <input type="text" name="ticker" placeholder="ACA.PA">
+      </div>
+      <div class="form-group" id="field-qte">
+        <label>Quantité</label>
+        <input type="number" name="quantite" step="0.0001" min="0" id="qte">
+      </div>
+      <div class="form-group" id="field-prix">
+        <label>Prix unitaire (€)</label>
+        <input type="number" name="prix_unitaire" step="0.0001" min="0" id="prix">
+      </div>
+      <div class="form-group">
+        <label>Montant total (€)</label>
+        <input type="number" name="montant" step="0.01" required id="montant">
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <input type="text" name="notes" placeholder="Optionnel">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter</button>
+  </form>
+</div>
+
+<script>
+function toggleActionFields() {
+  const type = document.getElementById('type-select').value;
+  const needsAction = ['achat','vente','coupon'].includes(type);
+  ['field-nom','field-ticker','field-qte','field-prix'].forEach(id => {
+    document.getElementById(id).style.opacity = needsAction ? '1' : '0.4';
+  });
+}
+// Calcul automatique du montant
+document.getElementById('qte').addEventListener('input', calcMontant);
+document.getElementById('prix').addEventListener('input', calcMontant);
+function calcMontant() {
+  const q = parseFloat(document.getElementById('qte').value);
+  const p = parseFloat(document.getElementById('prix').value);
+  if (q && p) document.getElementById('montant').value = (q * p).toFixed(2);
+}
+toggleActionFields();
+</script>
+{% endif %}
+
+{% endblock %}
