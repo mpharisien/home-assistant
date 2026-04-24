@@ -1,4 +1,4 @@
-#!/usr/bin/env bashio
-export HA_TOKEN=$(bashio::config 'ha_token')
-export HA_URL=$(bashio::config 'ha_url')
+#!/usr/bin/with-contenv bashio
+export HA_TOKEN="${SUPERVISOR_TOKEN}"
+export HA_URL="http://supervisor/core"
 node /app/server.js
