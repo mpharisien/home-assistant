@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Épargne{% endblock %}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f0; --card: #ffffff; --border: #e2e1da;
+    --text: #1a1a18; --muted: #6b6b66; --accent: #1a7a4a;
+    --accent-light: #e6f4ec; --danger: #c0392b; --danger-light: #fdf0ef;
+    --warning: #b7760d; --warning-light: #fef9ee;
+    --nav-bg: #1a1a18; --nav-text: #f0efe8; --nav-active: #1a7a4a;
+    --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,.07);
+  }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+
+  nav {
+    background: var(--nav-bg); color: var(--nav-text);
+    padding: 0 24px; display: flex; align-items: center; gap: 0;
+    height: 52px; position: sticky; top: 0; z-index: 100;
+  }
+  .nav-brand { font-weight: 600; font-size: 16px; color: var(--nav-text); text-decoration: none; margin-right: 32px; }
+  .nav-links { display: flex; gap: 0; height: 100%; }
+  .nav-links a {
+    color: #a0a09a; text-decoration: none; font-size: 14px; font-weight: 500;
+    padding: 0 16px; display: flex; align-items: center; border-bottom: 2px solid transparent;
+    transition: color .15s;
+  }
+  .nav-links a:hover { color: var(--nav-text); }
+  .nav-links a.active { color: var(--nav-text); border-bottom-color: var(--nav-active); }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 28px 16px; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  h2 { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 32px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+  .kpi-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+  .kpi-value { font-size: 26px; font-weight: 600; color: var(--accent); }
+  .kpi-value.neutral { color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; box-shadow: var(--shadow); overflow: hidden; }
+  .card-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .card-body { padding: 18px 20px; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge-green { background: var(--accent-light); color: var(--accent); }
+  .badge-gray { background: #f0eeea; color: var(--muted); }
+  .badge-orange { background: var(--warning-light); color: var(--warning); }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--bg); border-radius: 8px; padding: 12px 14px; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .stat-value { font-size: 18px; font-weight: 600; margin-top: 2px; }
+  .stat-value.green { color: var(--accent); }
+
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .type-interet { color: var(--accent); font-weight: 500; }
+  .type-remboursement { color: #1a5fa8; font-weight: 500; }
+
+  details summary { cursor: pointer; padding: 10px 0; font-size: 13px; color: var(--muted); user-select: none; }
+  details summary:hover { color: var(--text); }
+  details[open] summary { margin-bottom: 12px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  input, select, textarea {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+    font-size: 14px; background: white; color: var(--text); outline: none; font-family: inherit;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 60px; width: 100%; }
+
+  .btn { padding: 8px 16px; border-radius: 7px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid #f5c6c3; font-size: 12px; padding: 5px 10px; }
+
+  .flash { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+  .flash-success { background: var(--accent-light); color: var(--accent); border: 1px solid #b8e0cb; }
+  .flash-info { background: #e8f0fb; color: #1a5fa8; border: 1px solid #b8d0f0; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+  .add-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow); }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .form-full { grid-column: 1 / -1; }
+  .form-inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-brand" href="/">Épargne</a>
+  <div class="nav-links">
+    <a href="/" class="{{ 'active' if active_page == 'dashboard' }}">Tableau de bord</a>
+    <a href="/enerfip" class="{{ 'active' if active_page == 'enerfip' }}">Enerfip</a>
+    <a href="/pea" class="{{ 'active' if active_page == 'pea' }}">PEA</a>
+    <a href="/epsor" class="{{ 'active' if active_page == 'epsor' }}">Epsor</a>
+    <a href="/binance" class="{{ 'active' if active_page == 'binance' }}">Binance</a>
+  </div>
+</nav>
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>
