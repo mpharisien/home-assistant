@@ -25,14 +25,20 @@ const TACHES = [
 app.get('/api/taches', async (req, res) => {
   try {
     const etats = await Promise.all(TACHES.map(async (tache) => {
-      const response = await fetch(`${HA_URL}/states/${tache.id}`, {
+      const url = `${HA_URL}/api/states/${tache.id}`;
+      console.log('Appel URL:', url);
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${HA_TOKEN}` }
       });
-      const data = await response.json();
+      console.log('Status HTTP:', response.status);
+      const text = await response.text();
+      console.log('Réponse brute:', text.substring(0, 200));
+      const data = JSON.parse(text);
       return { ...tache, etat: data.state === 'on' };
     }));
     res.json(etats);
   } catch (err) {
+    console.log('ERREUR:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
