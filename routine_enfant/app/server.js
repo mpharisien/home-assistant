@@ -48,7 +48,7 @@ app.post('/api/taches/:entityId/toggle', async (req, res) => {
   const { entityId } = req.params;
   console.log('Toggle demandé pour:', entityId);
   try {
-    const url = `${HA_URL}/services/input_boolean/toggle`;
+    const url = `${HA_URL}/api/services/input_boolean/toggle`;
     console.log('Appel toggle URL:', url);
     const response = await fetch(url, {
       method: 'POST',
