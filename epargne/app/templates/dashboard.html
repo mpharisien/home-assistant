@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord — Épargne{% endblock %}
+{% block content %}
+<h1>Tableau de bord</h1>
+<p class="subtitle">Vue globale de votre portefeuille</p>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Patrimoine total</div>
+    <div class="kpi-value neutral">{{ "%.2f"|format(total_patrimoine) }} €</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Total investi</div>
+    <div class="kpi-value neutral">{{ "%.2f"|format(total_investi) }} €</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Gains totaux</div>
+    <div class="kpi-value">{{ "%.2f"|format(total_gains) }} €</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Répartition par poche</h2></div>
+  <div class="card-body">
+    <table>
+      <thead>
+        <tr>
+          <th>Poche</th>
+          <th>Capital investi</th>
+          <th>Valeur actuelle</th>
+          <th>Gains</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="/enerfip" style="color:var(--accent);text-decoration:none;font-weight:500">Enerfip</a></td>
+          <td>{{ "%.2f"|format(enerfip.investi) }} €</td>
+          <td>{{ "%.2f"|format(enerfip.valeur) }} €</td>
+          <td class="type-interet">+{{ "%.2f"|format(enerfip.gains) }} €</td>
+        </tr>
+        <tr>
+          <td><a href="/pea" style="color:var(--accent);text-decoration:none;font-weight:500">PEA</a></td>
+          <td>— €</td>
+          <td>— €</td>
+          <td>— €</td>
+        </tr>
+        <tr>
+          <td><a href="/epsor" style="color:var(--accent);text-decoration:none;font-weight:500">Epsor</a></td>
+          <td>— €</td>
+          <td>— €</td>
+          <td>— €</td>
+        </tr>
+        <tr>
+          <td><a href="/binance" style="color:var(--accent);text-decoration:none;font-weight:500">Binance</a></td>
+          <td>— €</td>
+          <td>— €</td>
+          <td>— €</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
