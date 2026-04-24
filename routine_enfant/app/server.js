@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const HA_URL = process.env.HA_URL || 'http://supervisor/core';
+const HA_URL = (process.env.HA_URL || 'http://supervisor/core') + '/api';
 const HA_TOKEN = process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN;
 
 // DEBUG - à retirer après
