@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const HA_URL = process.env.HA_URL || 'http://supervisor/core/api';
+const HA_URL = (process.env.HA_URL || 'http://supervisor/core') + '/api';
 const HA_TOKEN = process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN;
 
 const ROUTINES = {
@@ -59,7 +59,7 @@ function routineActive() {
 
 // Récupère l'état d'une entité HA
 async function getEtat(entityId) {
-  const response = await fetch(`${HA_URL}/states/${entityId}`, {
+  const response = await fetch(`${HA_URL}/api/states/${entityId}`, {
     headers: { Authorization: `Bearer ${HA_TOKEN}` }
   });
   const data = await response.json();
