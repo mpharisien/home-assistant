@@ -14,11 +14,11 @@ console.log('HA_URL:', HA_URL);
 console.log('HA_TOKEN défini:', HA_TOKEN ? 'OUI (longueur: ' + HA_TOKEN.length + ')' : 'NON - VIDE');
 
 const TACHES = [
-  { id: 'input_boolean.re_matin_manger',   label: '🍳 Manger' },
-  { id: 'input_boolean.re_matin_habiller', label: '👕 S\'habiller' },
-  { id: 'input_boolean.re_matin_dents',    label: '🦷 Se laver les dents' },
-  { id: 'input_boolean.re_matin_sac',      label: '🎒 Vérifier le sac' },
-  { id: 'input_boolean.re_matin_papa',     label: '⏳ Laisser papa se préparer' },
+  { id: 'input_boolean.re_matin_manger',   label: 'Manger',                   icone: '🍳' },
+  { id: 'input_boolean.re_matin_habiller', label: "S'habiller",               icone: '👕' },
+  { id: 'input_boolean.re_matin_dents',    label: 'Laver les dents',       icone: '🦷' },
+  { id: 'input_boolean.re_matin_sac',      label: 'Vérifier le sac',          icone: '🎒' },
+  { id: 'input_boolean.re_matin_papa',     label: 'Laisser papa se préparer', icone: '⏳' },
 ];
 
 // Récupère l'état de toutes les tâches
