@@ -1,6 +1,6 @@
 {
   "name": "Routine Enfant",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "slug": "routine_enfant",
   "description": "Tableau de suivi des routines pour enfant",
   "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
@@ -9,14 +9,13 @@
   "ports": {
     "3000/tcp": 3000
   },
+  "hassio_api": true,
+  "hassio_role": "default",
+  "homeassistant_api": true,
   "options": {
-    "ha_token": "",
-    "ha_url": "http://homeassistant:8123"
+    "ha_url": "http://supervisor/core"
   },
   "schema": {
-    "ha_token": "str",
     "ha_url": "str"
-  },
-  "panel_icon": "mdi:checkbox-marked-circle",
-  "panel_title": "Routine Enfant"
+  }
 }
