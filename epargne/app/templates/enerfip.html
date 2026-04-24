@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Enerfip — Épargne{% endblock %}
+{% block content %}
+<h1>Enerfip</h1>
+<p class="subtitle">Financement participatif</p>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Capital investi</div>
+    <div class="kpi-value neutral">{{ "%.2f"|format(total_investi) }} €</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Intérêts reçus</div>
+    <div class="kpi-value">{{ "%.2f"|format(total_interets) }} €</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Projets</div>
+    <div class="kpi-value neutral">{{ projets|length }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Rendement global</div>
+    <div class="kpi-value">
+      {% if total_investi > 0 %}{{ "%.2f"|format(total_interets / total_investi * 100) }} %{% else %}—{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="add-section">
+  <h2>Ajouter un projet</h2>
+  <form method="POST" action="/enerfip/projet/ajouter">
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Nom du projet</label>
+        <input type="text" name="nom" placeholder="Ex : Centrale solaire Occitanie" required>
+      </div>
+      <div class="form-group">
+        <label>Date de début du projet</label>
+        <input type="date" name="date_investissement" required>
+      </div>
+      <div class="form-group">
+        <label>Montant investi (€)</label>
+        <input type="number" name="montant_investi" step="0.01" min="0" required>
+      </div>
+      <div class="form-group">
+        <label>Taux d'intérêt (%)</label>
+        <input type="number" name="taux_interet" step="0.01" min="0" required>
+      </div>
+      <div class="form-group">
+        <label>Durée (mois)</label>
+        <input type="number" name="duree_mois" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Statut</label>
+        <select name="statut">
+          <option value="en cours">En cours</option>
+          <option value="terminé">Terminé</option>
+          <option value="en défaut">En défaut</option>
+        </select>
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Informations complémentaires..."></textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter le projet</button>
+  </form>
+</div>
+
+{% if projets %}
+  {% for item in projets %}
+  {% set p = item.projet %}
+  {% set s = item.stats %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div style="font-size:17px;font-weight:600">{{ p.nom }}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">
+          Début le {{ p.date_investissement }} &nbsp;·&nbsp;
+          {{ "%.0f"|format(p.montant_investi) }} € &nbsp;·&nbsp;
+          {{ p.taux_interet }} % &nbsp;·&nbsp;
+          {{ p.duree_mois }} mois
+          {% if p.date_fin %}&nbsp;·&nbsp; Fin : {{ p.date_fin }}{% endif %}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        {% if p.statut == "en cours" %}<span class="badge badge-green">En cours</span>
+        {% elif p.statut == "terminé" %}<span class="badge badge-gray">Terminé</span>
+        {% else %}<span class="badge badge-orange">{{ p.statut }}</span>{% endif %}
+        <form method="POST" action="/enerfip/projet/supprimer/{{ p.id }}" onsubmit="return confirm('Supprimer ce projet ?')">
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-label">Intérêts reçus</div><div class="stat-value green">{{ "%.2f"|format(s.interets_recus) }} €</div></div>
+        <div class="stat"><div class="stat-label">Intérêts théoriques</div><div class="stat-value">{{ "%.2f"|format(s.interets_theoriques) }} €</div></div>
+        <div class="stat"><div class="stat-label">Capital remboursé</div><div class="stat-value">{{ "%.2f"|format(s.capital_rembourse) }} €</div></div>
+        <div class="stat"><div class="stat-label">Capital restant</div><div class="stat-value">{{ "%.2f"|format(s.capital_restant) }} €</div></div>
+      </div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Avancement des intérêts — {{ s.taux_avancement }} %</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:{{ s.taux_avancement }}%"></div></div>
+      </div>
+      {% if p.notes %}<div style="font-size:13px;color:var(--muted);margin-bottom:16px;font-style:italic">{{ p.notes }}</div>{% endif %}
+
+      <details>
+        <summary>+ Ajouter un mouvement</summary>
+        <form method="POST" action="/enerfip/flux/ajouter" class="form-inline">
+          <input type="hidden" name="projet_id" value="{{ p.id }}">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" name="date" required style="width:145px">
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select name="type">
+              <option value="interet">Intérêt</option>
+              <option value="remboursement">Remboursement capital</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Montant (€)</label>
+            <input type="number" name="montant" step="0.01" min="0" required style="width:110px">
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <input type="text" name="notes" placeholder="Optionnel" style="width:160px">
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary">Ajouter</button>
+          </div>
+        </form>
+      </details>
+
+      {% if item.flux %}
+      <div style="margin-top:16px">
+        <div class="section-title">Historique des mouvements</div>
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Notes</th><th></th></tr></thead>
+          <tbody>
+          {% for f in item.flux %}
+          <tr>
+            <td>{{ f.date }}</td>
+            <td><span class="type-{{ f.type }}">{{ f.type|capitalize }}</span></td>
+            <td>{{ "%.2f"|format(f.montant) }} €</td>
+            <td style="color:var(--muted)">{{ f.notes or "—" }}</td>
+            <td>
+              <form method="POST" action="/enerfip/flux/supprimer/{{ f.id }}">
+                <button type="submit" class="btn btn-danger">×</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty">Aucun projet pour l'instant.</div>
+{% endif %}
+{% endblock %}
