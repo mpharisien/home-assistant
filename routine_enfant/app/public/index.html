@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Routine du matin</title>
+  <title>Routine</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -12,25 +12,33 @@
       min-height: 100vh;
       padding: 1.5rem;
     }
-    .header { text-align: center; margin-bottom: 1.5rem; }
-    .titre {
-      font-size: 32px;
+
+    /* --- Bandeau TV --- */
+    .bandeau-tv {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 0.5rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
       font-weight: 600;
-      color: #1a202c;
-      margin-bottom: 0.25rem;
+      color: #2d3748;
+      z-index: 100;
     }
-    .heure-actuelle {
-      font-size: 22px;
-      color: #4a5568;
-      margin-bottom: 0.5rem;
-      font-weight: 400;
-    }
-    .depart {
-      font-size: 22px;
-      font-weight: 600;
-      color: #2b6cb0;
-      margin-bottom: 0.75rem;
-    }
+    .bandeau-tv .icone { font-size: 20px; }
+    .bandeau-tv.allume { border-color: #68d391; background: #f0fff4; color: #276749; }
+
+    /* --- Header --- */
+    .header { text-align: center; margin-bottom: 1.5rem; padding-top: 3rem; }
+    .titre { font-size: 32px; font-weight: 600; color: #1a202c; margin-bottom: 0.25rem; }
+    .heure-actuelle { font-size: 22px; color: #4a5568; margin-bottom: 0.5rem; }
+    .depart { font-size: 22px; font-weight: 600; color: #2b6cb0; margin-bottom: 0.75rem; }
+
     .countdown-box {
       display: inline-flex;
       flex-direction: column;
@@ -41,122 +49,70 @@
     }
     .countdown-box.urgent { background: #fff5f5; }
     .countdown-box.done   { background: #f0fff4; }
-    .countdown-label {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #2b6cb0;
-    }
+    .countdown-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #2b6cb0; }
     .countdown-box.urgent .countdown-label { color: #c53030; }
     .countdown-box.done   .countdown-label { color: #276749; }
-    .countdown-value {
-      font-size: 60px;
-      font-weight: 700;
-      color: #2b6cb0;
-      line-height: 1.1;
-    }
+    .countdown-value { font-size: 60px; font-weight: 700; color: #2b6cb0; line-height: 1.1; }
     .countdown-box.urgent .countdown-value { color: #e53e3e; }
     .countdown-box.done   .countdown-value { color: #38a169; }
 
-    .taches {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      margin-top: 1.5rem;
-    }
+    /* --- Tâches --- */
+    .taches { display: flex; flex-direction: column; gap: 14px; margin-top: 1.5rem; }
     .tache {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: white;
-      border: 2px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 1rem 1.25rem;
-      cursor: pointer;
-      transition: all 0.2s;
+      display: flex; align-items: center; gap: 16px;
+      background: white; border: 2px solid #e2e8f0;
+      border-radius: 16px; padding: 1rem 1.25rem;
+      cursor: pointer; transition: all 0.2s;
       -webkit-tap-highlight-color: transparent;
     }
     .tache:active { transform: scale(0.98); }
-    .tache.validee {
-      background: #f0fff4;
-      border-color: #9ae6b4;
-    }
+    .tache.validee { background: #f0fff4; border-color: #9ae6b4; }
+    .tache.non-modifiable { cursor: default; }
+    .tache.non-modifiable:active { transform: none; }
     .tache-icone { font-size: 32px; flex-shrink: 0; }
-    .tache-label {
-      font-size: 22px;
-      font-weight: 500;
-      color: #1a202c;
-      flex: 1;
-    }
-    .tache.validee .tache-label {
-      color: #276749;
-      text-decoration: line-through;
-    }
+    .tache-label { font-size: 22px; font-weight: 500; color: #1a202c; flex: 1; }
+    .tache.validee .tache-label { color: #276749; text-decoration: line-through; }
     .tache-btn {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      border: 2px solid #cbd5e0;
-      background: #f7fafc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      flex-shrink: 0;
-      color: #a0aec0;
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 2px solid #cbd5e0; background: #f7fafc;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; flex-shrink: 0; color: #a0aec0;
     }
-    .tache.validee .tache-btn {
-      background: #38a169;
-      border-color: #38a169;
-      color: white;
-    }
+    .tache.validee .tache-btn { background: #38a169; border-color: #38a169; color: white; }
+    .tv-countdown { font-size: 20px; font-weight: 700; color: #e53e3e; min-width: 48px; text-align: center; }
+
+    /* --- Bravo --- */
     .bravo {
-      text-align: center;
-      margin-top: 1.5rem;
-      padding: 1.25rem;
-      background: #f0fff4;
-      border: 2px solid #9ae6b4;
-      border-radius: 16px;
-      font-size: 26px;
-      font-weight: 600;
-      color: #276749;
-      display: none;
+      text-align: center; margin-top: 1.5rem; padding: 1.25rem;
+      background: #f0fff4; border: 2px solid #9ae6b4;
+      border-radius: 16px; font-size: 26px; font-weight: 600;
+      color: #276749; display: none;
     }
     .bravo.visible { display: block; }
-    .erreur {
-      text-align: center;
-      color: #e53e3e;
-      font-size: 14px;
-      margin-top: 1rem;
-      display: none;
-    }
-    .erreur.visible { display: block; }
   </style>
 </head>
 <body>
 
+  <div class="bandeau-tv" id="bandeau-tv">
+    <span class="icone">📺</span>
+    <span id="shield-duree">--h--</span>
+  </div>
+
   <div class="header">
-    <div class="titre">Routine du matin</div>
+    <div class="titre" id="titre">Chargement...</div>
     <div class="heure-actuelle" id="heure-actuelle">Il est --h--</div>
-    <div class="depart">Départ à 8h10</div>
-    <div class="countdown-box" id="countdown-box">
+    <div class="depart" id="depart" style="display:none"></div>
+    <div class="countdown-box" id="countdown-box" style="display:none">
       <span class="countdown-label" id="countdown-label">Minutes restantes</span>
       <span class="countdown-value" id="countdown">--</span>
     </div>
   </div>
 
   <div class="taches" id="liste-taches"></div>
-
-  <div class="bravo" id="bravo">
-    🎉 Prêt à partir !
-  </div>
-  <div class="erreur" id="erreur">
-    ⚠️ Impossible de contacter Home Assistant.
-  </div>
+  <div class="bravo" id="bravo">🎉 Prêt à partir !</div>
 
   <script>
-    const DEPART_H = 8, DEPART_M = 10;
+    let routineData = null;
 
     // --- Heure actuelle ---
     function majHeure() {
@@ -166,19 +122,20 @@
       document.getElementById('heure-actuelle').textContent = `Il est ${h}h${m}`;
     }
 
-    // --- Compte à rebours ---
-    function majCompteur() {
+    // --- Compte à rebours départ ---
+    function majCompteur(departH, departM) {
+      const box = document.getElementById('countdown-box');
+      if (!departH && departH !== 0) { box.style.display = 'none'; return; }
+      box.style.display = 'inline-flex';
       const now = new Date();
       const depart = new Date(now);
-      depart.setHours(DEPART_H, DEPART_M, 0, 0);
+      depart.setHours(departH, departM, 0, 0);
       const diffMs = depart - now;
-      const box   = document.getElementById('countdown-box');
       const val   = document.getElementById('countdown');
       const label = document.getElementById('countdown-label');
-
       if (diffMs <= 0) {
         val.textContent   = '0';
-        label.textContent = "C'est l'heure de partir !";
+        label.textContent = "C'est l'heure !";
         box.className     = 'countdown-box urgent';
       } else {
         const mins        = Math.ceil(diffMs / 60000);
@@ -188,69 +145,6 @@
       }
     }
 
-    // --- Charger les tâches depuis HA ---
-    async function chargerTaches() {
-      try {
-        const res  = await fetch('/api/taches');
-        const data = await res.json();
-        const liste = document.getElementById('liste-taches');
-        liste.innerHTML = '';
-        data.forEach(t => {
-          const div = document.createElement('div');
-          div.className = 'tache' + (t.etat ? ' validee' : '');
-          div.dataset.id = t.id;
-          div.innerHTML = `
-            <span class="tache-icone">${t.icone}</span>
-            <span class="tache-label">${t.label}</span>
-            <span class="tache-btn">${t.etat ? '✓' : '○'}</span>
-          `;
-          div.addEventListener('click', () => toggleTache(div, t.id));
-          liste.appendChild(div);
-        });
-        verifierTout();
-      } catch (e) {
-        document.getElementById('erreur').classList.add('visible');
-      }
-    }
-
-    // --- Valider / dévalider une tâche ---
-    async function toggleTache(el, entityId) {
-      // Mise à jour visuelle immédiate
-      el.classList.toggle('validee');
-      const btn = el.querySelector('.tache-btn');
-      btn.textContent = el.classList.contains('validee') ? '✓' : '○';
-      verifierTout();
-      // Envoi à HA
-      try {
-        await fetch(`/api/taches/${encodeURIComponent(entityId)}/toggle`, { method: 'POST' });
-      } catch (e) {
-        // Si erreur, on annule le changement visuel
-        el.classList.toggle('validee');
-        btn.textContent = el.classList.contains('validee') ? '✓' : '○';
-        document.getElementById('erreur').classList.add('visible');
-      }
-    }
-
-    // --- Vérifier si tout est coché ---
-    function verifierTout() {
-      const taches = document.querySelectorAll('.tache');
-      const toutes = Array.from(taches).every(t => t.classList.contains('validee'));
-      document.getElementById('bravo').classList.toggle('visible', toutes);
-      if (toutes) {
-        document.getElementById('countdown-box').className = 'countdown-box done';
-        document.getElementById('countdown-label').textContent = 'Prêt à partir !';
-      } else {
-        majCompteur();
-      }
-    }
-
-    // --- Init ---
-    majHeure();
-    majCompteur();
-    setInterval(majHeure, 10000);
-    setInterval(majCompteur, 30000);
-    chargerTaches();
-    setInterval(chargerTaches, 10000);
-  </script>
-</body>
-</html>
+    // --- Compte à rebours TV ---
+    function majCompteurTV() {
+      const now = new
