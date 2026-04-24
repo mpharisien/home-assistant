@@ -46,8 +46,11 @@ app.get('/api/taches', async (req, res) => {
 // Bascule une tâche (on/off)
 app.post('/api/taches/:entityId/toggle', async (req, res) => {
   const { entityId } = req.params;
+  console.log('Toggle demandé pour:', entityId);
   try {
-    await fetch(`${HA_URL}/services/input_boolean/toggle`, {
+    const url = `${HA_URL}/services/input_boolean/toggle`;
+    console.log('Appel toggle URL:', url);
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${HA_TOKEN}`,
@@ -55,8 +58,12 @@ app.post('/api/taches/:entityId/toggle', async (req, res) => {
       },
       body: JSON.stringify({ entity_id: entityId })
     });
+    console.log('Toggle status HTTP:', response.status);
+    const text = await response.text();
+    console.log('Toggle réponse:', text.substring(0, 200));
     res.json({ ok: true });
   } catch (err) {
+    console.log('Toggle ERREUR:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
