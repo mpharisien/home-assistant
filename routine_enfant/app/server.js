@@ -9,6 +9,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 const HA_URL = process.env.HA_URL || 'http://homeassistant:8123';
 const HA_TOKEN = process.env.HA_TOKEN;
 
+// DEBUG - à retirer après
+console.log('HA_URL:', HA_URL);
+console.log('HA_TOKEN défini:', HA_TOKEN ? 'OUI (longueur: ' + HA_TOKEN.length + ')' : 'NON - VIDE');
+
 const TACHES = [
   { id: 'input_boolean.re_matin_manger',   label: '🍳 Manger' },
   { id: 'input_boolean.re_matin_habiller', label: '👕 S\'habiller' },
