@@ -1,6 +1,6 @@
 {
   "name": "Routine Enfant",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "slug": "routine_enfant",
   "description": "Tableau de suivi des routines pour enfant",
   "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
