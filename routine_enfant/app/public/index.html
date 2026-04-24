@@ -147,4 +147,153 @@
 
     // --- Compte à rebours TV ---
     function majCompteurTV() {
-      const now = new
+      const now = new Date();
+      const fin = new Date(now);
+      fin.setHours(19, 40, 0, 0);
+      const diffMs = fin - now;
+      const el = document.querySelector('.tv-countdown');
+      if (!el) return;
+      if (diffMs <= 0) {
+        el.textContent = '0';
+      } else {
+        el.textContent = Math.ceil(diffMs / 60000) + ' min';
+      }
+    }
+
+    // --- Charger la routine ---
+    async function chargerRoutine() {
+      try {
+        const res  = await fetch('/api/routine');
+        routineData = await res.json();
+
+        document.getElementById('titre').textContent = routineData.titre;
+
+        const departEl = document.getElementById('depart');
+        if (routineData.departLabel) {
+          departEl.textContent = routineData.departLabel;
+          departEl.style.display = 'block';
+        } else {
+          departEl.style.display = 'none';
+        }
+
+        majCompteur(routineData.departH, routineData.departM);
+
+        const liste = document.getElementById('liste-taches');
+        liste.innerHTML = '';
+        routineData.taches.forEach(t => {
+          const div = document.createElement('div');
+          const estTV = t.special === 'tv';
+          div.className = 'tache' + (t.etat ? ' validee' : '') + (estTV ? ' non-modifiable' : '');
+          div.dataset.id = t.id;
+
+          let bouton = '';
+          if (estTV && !t.etat) {
+            bouton = `<span class="tv-countdown">...</span>`;
+          } else {
+            bouton = `<span class="tache-btn">${t.etat ? '✓' : '○'}</span>`;
+          }
+
+          div.innerHTML = `
+            <span class="tache-icone">${t.icone}</span>
+            <span class="tache-label">${t.label}</span>
+            ${bouton}
+          `;
+
+          if (!estTV) {
+            div.addEventListener('click', () => toggleTache(div, t.id));
+          }
+          liste.appendChild(div);
+        });
+
+        verifierTout();
+        if (routineData.id === 'soir') majCompteurTV();
+
+      } catch (e) {
+        console.error('Erreur chargement routine:', e);
+      }
+    }
+
+    // --- Toggle tâche ---
+    async function toggleTache(el, entityId) {
+      el.classList.toggle('validee');
+      const btn = el.querySelector('.tache-btn');
+      if (btn) btn.textContent = el.classList.contains('validee') ? '✓' : '○';
+      verifierTout();
+      try {
+        await fetch(`/api/taches/${encodeURIComponent(entityId)}/toggle`, { method: 'POST' });
+      } catch (e) {
+        el.classList.toggle('validee');
+        if (btn) btn.textContent = el.classList.contains('validee') ? '✓' : '○';
+      }
+    }
+
+    // --- Vérifier si tout est coché ---
+    function verifierTout() {
+      const taches = document.querySelectorAll('.tache');
+      const toutes = Array.from(taches).every(t => t.classList.contains('validee'));
+      const bravo  = document.getElementById('bravo');
+      bravo.classList.toggle('visible', toutes);
+      if (routineData && toutes) {
+        const box = document.getElementById('countdown-box');
+        box.className = 'countdown-box done';
+        document.getElementById('countdown-label').textContent = 'Prêt !';
+      }
+    }
+
+    // --- Bandeau Shield ---
+    async function majShield() {
+      try {
+        const res  = await fetch('/api/shield');
+        const data = await res.json();
+        const bandeau = document.getElementById('bandeau-tv');
+        const dureeEl = document.getElementById('shield-duree');
+
+        // Affichage durée
+        const duree = data.shieldToday;
+        dureeEl.textContent = duree !== undefined ? duree : '--';
+
+        // Couleur selon état
+        if (data.tvState === 'on' || data.tvState === 'playing' || data.tvState === 'paused') {
+          bandeau.classList.add('allume');
+        } else {
+          bandeau.classList.remove('allume');
+        }
+
+        // Mise à jour tâche TV si routine soir
+        if (routineData && routineData.id === 'soir') {
+          const tvTache = document.querySelector('.tache[data-id="media_player.shield_2"]');
+          if (tvTache) {
+            const tvEteinte = data.tvState === 'off' || data.tvState === 'unavailable' || data.tvState === 'idle' || data.tvState === 'standby';
+            tvTache.classList.toggle('validee', tvEteinte);
+            const btn = tvTache.querySelector('.tache-btn');
+            const ctd = tvTache.querySelector('.tv-countdown');
+            if (tvEteinte) {
+              if (ctd) ctd.outerHTML = `<span class="tache-btn">✓</span>`;
+              else if (btn) btn.textContent = '✓';
+            } else {
+              if (btn && !ctd) btn.outerHTML = `<span class="tv-countdown">...</span>`;
+              majCompteurTV();
+            }
+            verifierTout();
+          }
+        }
+      } catch (e) {
+        console.error('Erreur shield:', e);
+      }
+    }
+
+    // --- Init ---
+    majHeure();
+    chargerRoutine();
+    majShield();
+
+    setInterval(majHeure, 10000);
+    setInterval(() => {
+      if (routineData) majCompteur(routineData.departH, routineData.departM);
+    }, 30000);
+    setInterval(majCompteurTV, 30000);
+    setInterval(chargerRoutine, 15000);
+    setInterval(majShield, 10000);
+  </script>
+</body>
+</html>
