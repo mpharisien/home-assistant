@@ -17,11 +17,18 @@
       font-size: 32px;
       font-weight: 600;
       color: #1a202c;
+      margin-bottom: 0.25rem;
+    }
+    .heure-actuelle {
+      font-size: 22px;
+      color: #4a5568;
       margin-bottom: 0.5rem;
+      font-weight: 400;
     }
     .depart {
-      font-size: 15px;
-      color: #718096;
+      font-size: 22px;
+      font-weight: 600;
+      color: #2b6cb0;
       margin-bottom: 0.75rem;
     }
     .countdown-box {
@@ -130,7 +137,8 @@
 <body>
 
   <div class="header">
-    <div class="titre">Bonjour ! On se prépare 🌅</div>
+    <div class="titre">Routine du matin</div>
+    <div class="heure-actuelle" id="heure-actuelle">Il est --h--</div>
     <div class="depart">Départ à 8h10</div>
     <div class="countdown-box" id="countdown-box">
       <span class="countdown-label" id="countdown-label">Minutes restantes</span>
@@ -138,12 +146,10 @@
     </div>
   </div>
 
-  <div class="taches" id="liste-taches">
-    <!-- tâches injectées par JS -->
-  </div>
+  <div class="taches" id="liste-taches"></div>
 
   <div class="bravo" id="bravo">
-    🎉 Super ! On est prêts, on peut partir !
+    🎉 Prêt à partir !
   </div>
   <div class="erreur" id="erreur">
     ⚠️ Impossible de contacter Home Assistant.
@@ -152,15 +158,15 @@
   <script>
     const DEPART_H = 8, DEPART_M = 10;
 
-    const TACHES = [
-      { id: 'input_boolean.re_matin_manger',   label: 'Manger',                  icone: '🍳' },
-      { id: 'input_boolean.re_matin_habiller', label: "S'habiller",              icone: '👕' },
-      { id: 'input_boolean.re_matin_dents',    label: 'Se laver les dents',      icone: '🦷' },
-      { id: 'input_boolean.re_matin_sac',      label: 'Vérifier le sac',         icone: '🎒' },
-      { id: 'input_boolean.re_matin_papa',     label: 'Laisser papa se préparer',icone: '⏳' },
-    ];
+    // --- Heure actuelle ---
+    function majHeure() {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('heure-actuelle').textContent = `Il est ${h}h${m}`;
+    }
 
-    // --- Compteur ---
+    // --- Compte à rebours ---
     function majCompteur() {
       const now = new Date();
       const depart = new Date(now);
@@ -209,13 +215,18 @@
 
     // --- Valider / dévalider une tâche ---
     async function toggleTache(el, entityId) {
+      // Mise à jour visuelle immédiate
+      el.classList.toggle('validee');
+      const btn = el.querySelector('.tache-btn');
+      btn.textContent = el.classList.contains('validee') ? '✓' : '○';
+      verifierTout();
+      // Envoi à HA
       try {
         await fetch(`/api/taches/${encodeURIComponent(entityId)}/toggle`, { method: 'POST' });
-        el.classList.toggle('validee');
-        const btn = el.querySelector('.tache-btn');
-        btn.textContent = el.classList.contains('validee') ? '✓' : '○';
-        verifierTout();
       } catch (e) {
+        // Si erreur, on annule le changement visuel
+        el.classList.toggle('validee');
+        btn.textContent = el.classList.contains('validee') ? '✓' : '○';
         document.getElementById('erreur').classList.add('visible');
       }
     }
@@ -228,14 +239,18 @@
       if (toutes) {
         document.getElementById('countdown-box').className = 'countdown-box done';
         document.getElementById('countdown-label').textContent = 'Prêt à partir !';
+      } else {
+        majCompteur();
       }
     }
 
     // --- Init ---
+    majHeure();
     majCompteur();
+    setInterval(majHeure, 10000);
     setInterval(majCompteur, 30000);
     chargerTaches();
-    setInterval(chargerTaches, 10000); // rafraîchit toutes les 10s
+    setInterval(chargerTaches, 10000);
   </script>
 </body>
 </html>
