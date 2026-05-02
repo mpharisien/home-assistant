@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Poids — Stats Vie{% endblock %}
+{% block content %}
+
+<h1>Poids</h1>
+<p class="subtitle">Courbe de poids sur l'ensemble de la vie</p>
+
+<!-- KPIs -->
+{% if stats %}
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Dernier poids</div>
+    <div class="kpi-value neutral">{{ stats.derniere_date | replace('-', '/') }}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Poids actuel</div>
+    <div class="kpi-value">{{ mesures[0].poids }} kg</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Évolution</div>
+    <div class="kpi-value {% if stats.evolution > 0 %}red{% elif stats.evolution < 0 %}green{% else %}neutral{% endif %}">
+      {% if stats.evolution > 0 %}+{% endif %}{{ stats.evolution }} kg
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Moyenne</div>
+    <div class="kpi-value neutral">{{ stats.moyenne }} kg</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Min / Max</div>
+    <div class="kpi-value neutral" style="font-size:18px">{{ stats.min }} / {{ stats.max }} kg</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Nb mesures</div>
+    <div class="kpi-value neutral">{{ stats.nb_mesures }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Graphique -->
+{% if mesures | length > 1 %}
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header"><h2 style="margin:0">Courbe de poids</h2></div>
+  <div class="card-body">
+    <canvas id="graphiquePoids" height="80"></canvas>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labels = {{ mesures | map(attribute='date') | list | reverse | tojson }};
+  const data   = {{ mesures | map(attribute='poids') | list | reverse | tojson }};
+  new Chart(document.getElementById('graphiquePoids'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Poids (kg)',
+        data,
+        borderColor: '#1a5fa8',
+        backgroundColor: 'rgba(26,95,168,0.08)',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 11 } } },
+        y: {
+          ticks: { callback: v => v + ' kg', font: { size: 11 } },
+          suggestedMin: Math.min(...data) - 2,
+          suggestedMax: Math.max(...data) + 2,
+        }
+      }
+    }
+  });
+</script>
+{% endif %}
+
+<!-- Formulaire ajout -->
+<div class="add-section">
+  <div class="section-title">Ajouter une mesure</div>
+  <form method="POST" action="/poids/ajouter">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{ today }}" required>
+      </div>
+      <div class="form-group">
+        <label for="poids">Poids (kg)</label>
+        <input type="number" id="poids" name="poids" step="0.1" min="20" max="300" placeholder="75.5" required>
+      </div>
+      <div class="form-group">
+        <label for="notes">Notes (optionnel)</label>
+        <input type="text" id="notes" name="notes" placeholder="ex: après vacances">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </form>
+</div>
+
+<!-- Historique -->
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Historique</h2></div>
+  {% if mesures %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Poids</th>
+        <th>Écart / précédent</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in mesures %}
+      <tr>
+        <td>{{ m.date }}</td>
+        <td><strong>{{ m.poids }} kg</strong></td>
+        <td>
+          {% if not loop.last %}
+            {% set ecart = m.poids - mesures[loop.index].poids %}
+            <span style="color: {% if ecart > 0 %}#c0392b{% elif ecart < 0 %}#1a7a4a{% else %}#6b6b66{% endif %}">
+              {% if ecart > 0 %}+{% endif %}{{ "%.1f"|format(ecart) }} kg
+            </span>
+          {% else %}
+            <span style="color:#6b6b66">—</span>
+          {% endif %}
+        </td>
+        <td class="notes-cell">{{ m.notes or '' }}</td>
+        <td>
+          <form method="POST" action="/poids/supprimer/{{ m.id }}" style="display:inline" onsubmit="return confirm('Supprimer cette mesure ?')">
+            <button type="submit" class="btn btn-danger">Supprimer</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Aucune mesure enregistrée. Ajoutez votre premier poids ci-dessus.</div>
+  {% endif %}
+</div>
+
+{% endblock %}
