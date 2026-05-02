@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Cheveux — Stats Vie{% endblock %}
+{% block content %}
+
+<h1>Coupes de cheveux</h1>
+<p class="subtitle">Suivi des coupes et intervalle moyen</p>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Dernière coupe</div>
+    <div class="kpi-value neutral" style="font-size: 18px;">
+      {% if stats.derniere_coupe %}{{ stats.derniere_coupe }}{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Depuis la dernière</div>
+    <div class="kpi-value {% if stats.jours_depuis and stats.jours_depuis > 70 %}orange{% else %}neutral{% endif %}">
+      {% if stats.jours_depuis is not none %}{{ stats.jours_depuis }} j{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Intervalle moyen</div>
+    <div class="kpi-value neutral">
+      {% if stats.intervalle_moyen %}{{ stats.intervalle_moyen }} j{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Nb coupes enregistrées</div>
+    <div class="kpi-value neutral">{{ stats.nb_coupes }}</div>
+  </div>
+</div>
+
+<!-- Graphique intervalles -->
+{% if coupes | length > 2 %}
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header"><h2 style="margin:0">Intervalles entre coupes (jours)</h2></div>
+  <div class="card-body">
+    <canvas id="graphiqueCheveux" height="80"></canvas>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const dates = {{ coupes | map(attribute='date') | list | tojson }};
+  // Calcul des intervalles côté JS
+  const labels = [];
+  const data = [];
+  for (let i = 0; i < dates.length - 1; i++) {
+    const d1 = new Date(dates[i]);
+    const d2 = new Date(dates[i + 1]);
+    const diff = Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
+    labels.push(dates[i]);
+    data.push(diff);
+  }
+  new Chart(document.getElementById('graphiqueCheveux'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Jours depuis la coupe précédente',
+        data,
+        backgroundColor: 'rgba(26,95,168,0.6)',
+        borderColor: '#1a5fa8',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 11 } } },
+        y: { ticks: { callback: v => v + ' j', font: { size: 11 } }, beginAtZero: true }
+      }
+    }
+  });
+</script>
+{% endif %}
+
+<!-- Formulaire ajout -->
+<div class="add-section">
+  <div class="section-title">Enregistrer une coupe</div>
+  <form method="POST" action="/cheveux/ajouter">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{ today }}" required>
+      </div>
+      <div class="form-group">
+        <label for="notes">Notes (optionnel)</label>
+        <input type="text" id="notes" name="notes" placeholder="ex: coupe courte, chez le coiffeur...">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </form>
+</div>
+
+<!-- Historique -->
+<div class="card">
+  <div class="card-header"><h2 style="margin:0">Historique</h2></div>
+  {% if coupes %}
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Intervalle / précédent</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in coupes %}
+      <tr>
+        <td><strong>{{ c.date }}</strong></td>
+        <td>
+          {% if not loop.last %}
+            {% set j = (c.date | string)[:10] %}
+            {% set j2 = (coupes[loop.index].date | string)[:10] %}
+            {# Calcul en Python côté template — approximation simple #}
+            <span style="color:#6b6b66">voir graphique</span>
+          {% else %}
+            <span style="color:#6b6b66">—</span>
+          {% endif %}
+        </td>
+        <td class="notes-cell">{{ c.notes or '' }}</td>
+        <td>
+          <form method="POST" action="/cheveux/supprimer/{{ c.id }}" style="display:inline" onsubmit="return confirm('Supprimer cette entrée ?')">
+            <button type="submit" class="btn btn-danger">Supprimer</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Aucune coupe enregistrée. Ajoutez la première ci-dessus.</div>
+  {% endif %}
+</div>
+
+{% endblock %}
