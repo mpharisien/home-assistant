@@ -1,0 +1,14 @@
+name: "Stats Vie"
+description: "Suivi personnel : poids, coupes de cheveux"
+version: "1.0.0"
+slug: "stats_vie"
+init: false
+arch:
+  - aarch64
+  - amd64
+ports:
+  5001/tcp: 5001
+ports_description:
+  5001/tcp: "Interface web"
+map:
+  - share:rw
