@@ -49,7 +49,7 @@ const ROUTINES = {
     titre: 'Bonsoir !',
     taches: [
       { id: 'media_player.shield_2',           label: 'Fin de la TV',                 icone: '📺', special: 'tv', finH: 19, finM: 40 },
-      { id: 'input_boolean.re_soir_manger',    label: 'Manges plus vite',              icone: '🍽️' },
+      { id: 'input_boolean.re_soir_manger',    label: 'Finir de manger',              icone: '🍽️' },
       { id: 'input_boolean.re_soir_couleur',   label: 'Couleur du jour',              icone: '🎨' },
       { id: 'input_boolean.re_soir_maman',     label: 'Bonne nuit à maman',           icone: '💋' },
       { id: 'input_boolean.re_soir_toilettes', label: 'Toilettes et dents',           icone: '🪥' },
