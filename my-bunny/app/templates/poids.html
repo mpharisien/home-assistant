@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>⚖️ Ajouter une pesée</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" required value="{{ today }}">
+            </div>
+            <div>
+                <label>Poids (grammes)</label>
+                <input type="number" name="poids" step="0.1" required placeholder="ex: 1250">
+            </div>
+        </div>
+        <label>Notes</label>
+        <textarea name="notes" rows="2" placeholder="Optionnel..."></textarea>
+        <button type="submit">✅ Enregistrer</button>
+    </form>
+</div>
+<div class="card">
+    <h2>📈 Historique</h2>
+    {% if historique %}
+    <table>
+        <tr><th>Date</th><th>Poids (g)</th><th>Notes</th><th></th></tr>
+        {% for p in historique %}
+        <tr>
+            <td>{{ p.date }}</td>
+            <td><strong>{{ p.poids }}</strong></td>
+            <td>{{ p.notes or "—" }}</td>
+            <td><a href="/poids/supprimer/{{ p.id }}" class="btn-delete" onclick="return confirm('Supprimer ?')">🗑</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucune pesée enregistrée.</p>
+    {% endif %}
+</div>
+{% endblock %}
