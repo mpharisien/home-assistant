@@ -121,4 +121,118 @@ def index():
     today = datetime.now().strftime("%Y-%m-%d")
     next_rdv = conn.execute(
         "SELECT * FROM veterinaire WHERE prochain_rdv >= ? ORDER BY prochain_rdv ASC LIMIT 1",
-        (
+        (today,)
+    ).fetchone()
+    # Journal récent
+    journal = conn.execute(
+        "SELECT * FROM journal ORDER BY date DESC LIMIT 3"
+    ).fetchall()
+    conn.close()
+    return render_template("index.html",
+                           last_temp=last_temp,
+                           last_poids=last_poids,
+                           next_rdv=next_rdv,
+                           journal=journal)
+
+@app.route("/poids", methods=["GET", "POST"])
+def poids():
+    conn = get_db()
+    if request.method == "POST":
+        date   = request.form["date"]
+        poids_val = request.form["poids"]
+        notes  = request.form.get("notes", "")
+        conn.execute("INSERT INTO poids (date, poids, notes) VALUES (?, ?, ?)",
+                     (date, poids_val, notes))
+        conn.commit()
+        flash("Poids enregistré ✓", "success")
+        return redirect(url_for("poids"))
+    historique = conn.execute("SELECT * FROM poids ORDER BY date DESC").fetchall()
+    conn.close()
+    return render_template("poids.html", historique=historique)
+
+@app.route("/poids/supprimer/<int:id>")
+def supprimer_poids(id):
+    conn = get_db()
+    conn.execute("DELETE FROM poids WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+    flash("Entrée supprimée", "info")
+    return redirect(url_for("poids"))
+
+@app.route("/veterinaire", methods=["GET", "POST"])
+def veterinaire():
+    conn = get_db()
+    if request.method == "POST":
+        conn.execute("""INSERT INTO veterinaire (date, type, description, prochain_rdv, notes)
+                        VALUES (?, ?, ?, ?, ?)""",
+                     (request.form["date"],
+                      request.form["type"],
+                      request.form.get("description", ""),
+                      request.form.get("prochain_rdv", "") or None,
+                      request.form.get("notes", "")))
+        conn.commit()
+        flash("Consultation enregistrée ✓", "success")
+        return redirect(url_for("veterinaire"))
+    historique = conn.execute("SELECT * FROM veterinaire ORDER BY date DESC").fetchall()
+    conn.close()
+    return render_template("veterinaire.html", historique=historique)
+
+@app.route("/veterinaire/supprimer/<int:id>")
+def supprimer_veterinaire(id):
+    conn = get_db()
+    conn.execute("DELETE FROM veterinaire WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+    flash("Entrée supprimée", "info")
+    return redirect(url_for("veterinaire"))
+
+@app.route("/journal", methods=["GET", "POST"])
+def journal():
+    conn = get_db()
+    if request.method == "POST":
+        conn.execute("INSERT INTO journal (date, titre, description) VALUES (?, ?, ?)",
+                     (request.form["date"],
+                      request.form["titre"],
+                      request.form.get("description", "")))
+        conn.commit()
+        flash("Note enregistrée ✓", "success")
+        return redirect(url_for("journal"))
+    historique = conn.execute("SELECT * FROM journal ORDER BY date DESC").fetchall()
+    conn.close()
+    return render_template("journal.html", historique=historique)
+
+@app.route("/journal/supprimer/<int:id>")
+def supprimer_journal(id):
+    conn = get_db()
+    conn.execute("DELETE FROM journal WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+    flash("Note supprimée", "info")
+    return redirect(url_for("journal"))
+
+@app.route("/temperature")
+def temperature():
+    conn = get_db()
+    # 14 derniers jours agrégés
+    daily = conn.execute(
+        "SELECT * FROM temp_daily ORDER BY date DESC LIMIT 14"
+    ).fetchall()
+    # Dernières 24h brut
+    limit = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    brut = conn.execute(
+        "SELECT * FROM temperature WHERE timestamp >= ? ORDER BY timestamp ASC",
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return render_template("temperature.html", daily=daily, brut=brut)
+
+# ──────────────────────────────────────────────
+# DÉMARRAGE
+# ──────────────────────────────────────────────
+if __name__ == "__main__":
+    init_db()
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(collect_temperature, "interval", minutes=15)
+    scheduler.start()
+    collect_temperature()  # collecte immédiate au démarrage
+    app.run(host="0.0.0.0", port=4000, debug=False)
