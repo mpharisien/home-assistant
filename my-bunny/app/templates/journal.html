@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>📓 Ajouter une note</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" required value="{{ today }}">
+            </div>
+            <div>
+                <label>Titre</label>
+                <input type="text" name="titre" required placeholder="ex: Première fois dehors">
+            </div>
+        </div>
+        <label>Description</label>
+        <textarea name="description" rows="3" placeholder="Détails..."></textarea>
+        <button type="submit">✅ Enregistrer</button>
+    </form>
+</div>
+<div class="card">
+    <h2>📋 Historique</h2>
+    {% if historique %}
+    <table>
+        <tr><th>Date</th><th>Titre</th><th>Description</th><th></th></tr>
+        {% for j in historique %}
+        <tr>
+            <td>{{ j.date }}</td>
+            <td><strong>{{ j.titre }}</strong></td>
+            <td>{{ j.description or "—" }}</td>
+            <td><a href="/journal/supprimer/{{ j.id }}" class="btn-delete" onclick="return confirm('Supprimer ?')">🗑</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucune note enregistrée.</p>
+    {% endif %}
+</div>
+{% endblock %}
