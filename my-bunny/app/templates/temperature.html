@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>🌡️ Dernières 24h</h2>
+    {% if brut %}
+    <table>
+        <tr><th>Heure</th><th>Température (°C)</th><th>Humidité (%)</th></tr>
+        {% for t in brut %}
+        <tr>
+            <td>{{ t.timestamp[11:16] }}</td>
+            <td>{{ t.temp or "—" }}</td>
+            <td>{{ t.humidite or "—" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Pas encore de données collectées.</p>
+    {% endif %}
+</div>
+<div class="card">
+    <h2>📅 Historique journalier (14 derniers jours)</h2>
+    {% if daily %}
+    <table>
+        <tr><th>Date</th><th>T° min</th><th>T° max</th><th>T° moy</th><th>Hum min</th><th>Hum max</th><th>Hum moy</th></tr>
+        {% for d in daily %}
+        <tr>
+            <td>{{ d.date }}</td>
+            <td>{{ d.temp_min or "—" }}</td>
+            <td>{{ d.temp_max or "—" }}</td>
+            <td>{{ d.temp_moy or "—" }}</td>
+            <td>{{ d.hum_min or "—" }}</td>
+            <td>{{ d.hum_max or "—" }}</td>
+            <td>{{ d.hum_moy or "—" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Pas encore de données journalières.</p>
+    {% endif %}
+</div>
+{% endblock %}
