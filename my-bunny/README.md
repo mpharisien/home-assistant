@@ -1,20 +1,29 @@
-# My Bunny - Tableau de bord Home Assistant
+# 🐰 My Bunny
 
-Ce projet gère le suivi de santé de Noisette, notre lapin.
+Add-on Home Assistant pour suivre la santé et le bien-être de votre lapin.
 
-## Structure
-- `bunny_entities.yaml` : Entrées utilisateur (poids, dates, etc.)
-- `bunny_sensors.yaml` : Capteurs (température, humidité)
-- `bunny_templates.yaml` : Calculs automatiques (rappels)
-- `bunny_dashboard.yaml` : Tableau de bord Lovelace
+## 📋 Fonctionnalités
 
-## Configuration requise
-1. Intégration Tuya déjà configurée pour le capteur "Thermo bureau kos".
-2. Les entités suivantes doivent exister :
-   - `sensor.thermo_bureau_kos_temperature`
-   - `sensor.thermo_bureau_kos_humidite`
-   - `sensor.thermo_bureau_kos_etat_batterie`
+- ⚖️ **Poids** — Enregistrer et suivre l'évolution du poids
+- 🏥 **Vétérinaire** — Gérer les rendez-vous et vaccins
+- 📓 **Journal** — Noter les observations quotidiennes
+- 🌡️ **Température** — Suivi de la température et humidité de la pièce
 
-## Notes
-- Tout commence par `bunny_` pour une identification facile.
-- Pour ajouter un événement (vaccin, visite vétérinaire), utilise les entrées dans **Outils > Aides**.
+## 🚀 Installation
+
+### 1. Ajouter le dépôt
+Dans Home Assistant :
+- Paramètres → Add-ons → Boutique des add-ons
+- Menu ⋮ → Dépôts
+- Ajouter : `https://github.com/TON_USERNAME/TON_REPO`
+
+### 2. Installer l'add-on
+- Chercher **My Bunny** dans la boutique
+- Cliquer **Installer**
+- Cliquer **Démarrer**
+
+### 3. Ouvrir l'interface
+- Cliquer **Ouvrir l'interface web**
+- Ou aller sur `http://homeassistant.local:4000`
+
+## 📁 Structure
