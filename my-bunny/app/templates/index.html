@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>📊 Résumé</h2>
+    <div class="grid-3">
+        <div class="stat-box">
+            <div class="val">{{ dernier_poids or "—" }}</div>
+            <div class="label">⚖️ Dernier poids (g)</div>
+        </div>
+        <div class="stat-box">
+            <div class="val">{{ temp_actuelle or "—" }}</div>
+            <div class="label">🌡️ Température (°C)</div>
+        </div>
+        <div class="stat-box">
+            <div class="val">{{ hum_actuelle or "—" }}</div>
+            <div class="label">💧 Humidité (%)</div>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <h2>📅 Prochain rendez-vous vétérinaire</h2>
+    {% if prochain_rdv %}
+        <p>📆 <strong>{{ prochain_rdv.type }}</strong> — {{ prochain_rdv.prochain_rdv }}</p>
+        <p style="color:#888; font-size:0.9em">{{ prochain_rdv.description }}</p>
+    {% else %}
+        <p style="color:#aaa">Aucun rendez-vous planifié.</p>
+    {% endif %}
+</div>
+<div class="card">
+    <h2>📓 Dernières notes</h2>
+    {% if derniers_journaux %}
+        {% for j in derniers_journaux %}
+            <p><span class="badge">{{ j.date }}</span> <strong>{{ j.titre }}</strong></p>
+            <p style="color:#666; font-size:0.9em; margin: 4px 0 10px 0">{{ j.description }}</p>
+        {% endfor %}
+    {% else %}
+        <p style="color:#aaa">Aucune note.</p>
+    {% endif %}
+</div>
+{% endblock %}
