@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐰 My Bunny</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f0ff; color: #333; }
+
+        header {
+            background: #7c4dff;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        header h1 { font-size: 1.4em; }
+
+        nav {
+            background: #6c3fd4;
+            display: flex;
+            gap: 5px;
+            padding: 8px 15px;
+            flex-wrap: wrap;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover, nav a.active { background: #fff3; }
+
+        .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(124,77,255,0.1);
+        }
+        .card h2 { color: #7c4dff; margin-bottom: 15px; font-size: 1.1em; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        .stat-box {
+            background: #f5f0ff;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-box .val { font-size: 2em; font-weight: bold; color: #7c4dff; }
+        .stat-box .label { font-size: 0.8em; color: #888; margin-top: 4px; }
+
+        form label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        form input, form textarea, form select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+        }
+        form button {
+            background: #7c4dff;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        form button:hover { background: #6c3fd4; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th { background: #f5f0ff; color: #7c4dff; padding: 10px; text-align: left; }
+        td { padding: 9px 10px; border-bottom: 1px solid #eee; }
+        tr:last-child td { border-bottom: none; }
+
+        .btn-delete {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+            text-decoration: none;
+        }
+        .btn-delete:hover { background: #d32f2f; }
+
+        .flash { padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; }
+        .flash.success { background: #e8f5e9; color: #2e7d32; }
+        .flash.info    { background: #e3f2fd; color: #1565c0; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            background: #ede7f6;
+            color: #7c4dff;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <span style="font-size:1.8em">🐰</span>
+        <h1>My Bunny</h1>
+    </header>
+    <nav>
+        <a href="/" {% if request.path == '/' %}class="active"{% endif %}>🏠 Accueil</a>
+        <a href="/poids" {% if request.path == '/poids' %}class="active"{% endif %}>⚖️ Poids</a>
+        <a href="/veterinaire" {% if request.path == '/veterinaire' %}class="active"{% endif %}>🏥 Vétérinaire</a>
+        <a href="/journal" {% if request.path == '/journal' %}class="active"{% endif %}>📓 Journal</a>
+        <a href="/temperature" {% if request.path == '/temperature' %}class="active"{% endif %}>🌡️ Température</a>
+    </nav>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
