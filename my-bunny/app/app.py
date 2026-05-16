@@ -68,40 +68,20 @@ def fetch_ha_sensor(entity_id):
     return None
 
 def collect_temperature():
+    print(f"=== COLLECTE TEMP === Token présent: {bool(HA_TOKEN)}, longueur: {len(HA_TOKEN)}")
     temp = fetch_ha_sensor(TEMP_SENSOR)
     hum  = fetch_ha_sensor(HUM_SENSOR)
-    if temp is None and hum is None:
-        return
-    conn = get_db()
-    now = datetime.now()
-    conn.execute(
-        "INSERT INTO temperature (timestamp, temp, humidite) VALUES (?, ?, ?)",
-        (now.strftime("%Y-%m-%d %H:%M:%S"), temp, hum)
-    )
-    # Aggrégation quotidienne
-    today = now.strftime("%Y-%m-%d")
-    rows = conn.execute(
-        "SELECT temp, humidite FROM temperature WHERE timestamp LIKE ?",
-        (f"{today}%",)
-    ).fetchall()
-    temps = [r["temp"] for r in rows if r["temp"] is not None]
-    hums  = [r["humidite"] for r in rows if r["humidite"] is not None]
-    if temps:
-        conn.execute("""INSERT INTO temp_daily (date, temp_min, temp_max, temp_moy,
-                        hum_min, hum_max, hum_moy)
-                        VALUES (?,?,?,?,?,?,?)
-                        ON CONFLICT(date) DO UPDATE SET
-                        temp_min=excluded.temp_min, temp_max=excluded.temp_max,
-                        temp_moy=excluded.temp_moy, hum_min=excluded.hum_min,
-                        hum_max=excluded.hum_max, hum_moy=excluded.hum_moy""",
-                     (today,
-                      round(min(temps),1), round(max(temps),1), round(sum(temps)/len(temps),1),
-                      round(min(hums),1),  round(max(hums),1),  round(sum(hums)/len(hums),1)))
-    # Nettoyage données brutes > 14 jours
-    limit = (now - timedelta(days=14)).strftime("%Y-%m-%d %H:%M:%S")
-    conn.execute("DELETE FROM temperature WHERE timestamp < ?", (limit,))
-    conn.commit()
-    conn.close()
+    print(f"=== RÉSULTAT === temp={temp}, hum={hum}")
+    if temp is not None and hum is not None:
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO temperature (timestamp, temp, humidite) VALUES (?, ?, ?)",
+            (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), temp, hum)
+        )
+        conn.commit()
+        conn.close()
+        aggregate_daily()
+
 
 # ──────────────────────────────────────────────
 # ROUTES
