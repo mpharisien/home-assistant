@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>🏥 Ajouter une consultation</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" required value="{{ today }}">
+            </div>
+            <div>
+                <label>Type</label>
+                <select name="type">
+                    <option>Visite annuelle</option>
+                    <option>Vaccination</option>
+                    <option>Maladie</option>
+                    <option>Urgence</option>
+                    <option>Autre</option>
+                </select>
+            </div>
+        </div>
+        <label>Description</label>
+        <textarea name="description" rows="2" placeholder="Détails de la consultation..."></textarea>
+        <label>Prochain rendez-vous</label>
+        <input type="date" name="prochain_rdv">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" placeholder="Optionnel..."></textarea>
+        <button type="submit">✅ Enregistrer</button>
+    </form>
+</div>
+<div class="card">
+    <h2>📋 Historique</h2>
+    {% if historique %}
+    <table>
+        <tr><th>Date</th><th>Type</th><th>Description</th><th>Prochain RDV</th><th></th></tr>
+        {% for v in historique %}
+        <tr>
+            <td>{{ v.date }}</td>
+            <td><span class="badge">{{ v.type }}</span></td>
+            <td>{{ v.description or "—" }}</td>
+            <td>{{ v.prochain_rdv or "—" }}</td>
+            <td><a href="/veterinaire/supprimer/{{ v.id }}" class="btn-delete" onclick="return confirm('Supprimer ?')">🗑</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucune consultation enregistrée.</p>
+    {% endif %}
+</div>
+{% endblock %}
