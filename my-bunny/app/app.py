@@ -129,10 +129,11 @@ def index():
     ).fetchall()
     conn.close()
     return render_template("index.html",
-                           last_temp=last_temp,
-                           last_poids=last_poids,
-                           next_rdv=next_rdv,
-                           journal=journal)
+                       dernier_poids=last_poids["poids"] if last_poids else None,
+                       temp_actuelle=last_temp["temp"] if last_temp else None,
+                       hum_actuelle=last_temp["humidite"] if last_temp else None,
+                       prochain_rdv=next_rdv,
+                       derniers_journaux=journal)
 
 @app.route("/poids", methods=["GET", "POST"])
 def poids():
