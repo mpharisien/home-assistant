@@ -27,3 +27,24 @@ Dans Home Assistant :
 - Ou aller sur `http://homeassistant.local:4000`
 
 ## 📁 Structure
+my-bunny/
+├── app/
+│   ├── app.py              # Application Flask principale
+│   ├── requirements.txt    # Dépendances Python
+│   └── templates/          # Pages HTML
+│       ├── base.html
+│       ├── index.html
+│       ├── poids.html
+│       ├── veterinaire.html
+│       ├── journal.html
+│       └── temperature.html
+├── config.json             # Configuration add-on HA
+├── Dockerfile              # Image Docker
+└── README.md
+
+
+## 🔧 Données
+
+Les données sont stockées dans `/share/my_bunny/` sur Home Assistant.
+Elles sont conservées même après une mise à jour de l'add-on.
+
