@@ -1,0 +1,45 @@
+# Templates et calculs pour le lapin
+# Tout commence par "bunny_" pour une identification facile
+
+template:
+  # Calcul de la prochaine coupe des griffes (toutes les 4 semaines)
+  - sensor:
+      - name: "bunny_next_claw_cut_calculated"
+        unit_of_measurement: "jours"
+        state: >-
+          {% if state_attr('input_datetime.bunny_last_claw_cut', 'timestamp') %}
+            {% set last_cut = state_attr('input_datetime.bunny_last_claw_cut', 'timestamp') | as_datetime %}
+            {% set next_cut = (last_cut + timedelta(weeks=4)).timestamp() %}
+            {{ (next_cut - as_timestamp(now())) / 86400 | round }}
+          {% else %}
+            28
+          {% endif %}
+        icon: mdi:calendar-clock
+
+  # Calcul du prochain vaccin (tous les ans)
+  - sensor:
+      - name: "bunny_next_vaccine_calculated"
+        unit_of_measurement: "jours"
+        state: >-
+          {% if state_attr('input_datetime.bunny_last_vaccine', 'timestamp') %}
+            {% set last_vaccine = state_attr('input_datetime.bunny_last_vaccine', 'timestamp') | as_datetime %}
+            {% set next_vaccine = (last_vaccine + timedelta(days=365)).timestamp() %}
+            {{ (next_vaccine - as_timestamp(now())) / 86400 | round }}
+          {% else %}
+            365
+          {% endif %}
+        icon: mdi:calendar-clock
+
+  # Calcul du prochain traitement antiparasitaire (tous les mois)
+  - sensor:
+      - name: "bunny_next_parasite_treatment_calculated"
+        unit_of_measurement: "jours"
+        state: >-
+          {% if state_attr('input_datetime.bunny_last_parasite_treatment', 'timestamp') %}
+            {% set last_treatment = state_attr('input_datetime.bunny_last_parasite_treatment', 'timestamp') | as_datetime %}
+            {% set next_treatment = (last_treatment + timedelta(days=30)).timestamp() %}
+            {{ (next_treatment - as_timestamp(now())) / 86400 | round }}
+          {% else %}
+            30
+          {% endif %}
+        icon: mdi:calendar-clock
