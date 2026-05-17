@@ -51,6 +51,16 @@ def init_db():
         date TEXT NOT NULL UNIQUE,
         temp_min REAL, temp_max REAL, temp_moy REAL,
         hum_min REAL,  hum_max REAL,  hum_moy REAL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS animal (
+        id INTEGER PRIMARY KEY,
+        nom TEXT,
+        race TEXT,
+        couleur TEXT,
+        photo TEXT)""")
+# Insère une ligne vide si elle n'existe pas
+    conn.execute("INSERT OR IGNORE INTO animal (id) VALUES (1)")
+conn.commit()
+
     conn.commit()
     conn.close()
 
