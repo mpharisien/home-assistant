@@ -93,7 +93,6 @@ def collect_temperature():
         )
         conn.commit()
         conn.close()
-        aggregate_daily()
 
 
 # ──────────────────────────────────────────────
