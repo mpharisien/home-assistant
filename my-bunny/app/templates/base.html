@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐰 My Bunny (base.html) {{ animal_global.nom if animal_global and animal_global.nom else "My Bunny" }} </title>
+    <title>🐰 {{ animal_global.nom if animal_global and animal_global.nom else "My Bunny" }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background: #f5f0ff; color: #333; }
@@ -116,7 +116,7 @@
 <body>
     <header>
         <span style="font-size:1.8em">🐰</span>
-        <h1>My Bunny</h1>
+        <h1>{{ animal_global.nom if animal_global and animal_global.nom else "My Bunny" }}</h1>
     </header>
     <nav>
         <a href="/" {% if request.path == '/' %}class="active"{% endif %}>🏠 Accueil</a>
