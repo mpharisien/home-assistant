@@ -1,7 +1,7 @@
 {
   "name": "My Bunny",
   "description": "Suivi santé et bien-être de votre lapin",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "slug": "my_bunny",
   "init": false,
   "arch": ["amd64", "aarch64", "armv7"],
