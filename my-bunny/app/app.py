@@ -251,6 +251,12 @@ def animal():
     conn.close()
     return render_template("animal.html", animal=a)
 
+@app.context_processor
+def inject_animal():
+    conn = get_db()
+    animal = conn.execute("SELECT * FROM animal WHERE id=1").fetchone()
+    conn.close()
+    return dict(animal_global=animal)
 
 
 
