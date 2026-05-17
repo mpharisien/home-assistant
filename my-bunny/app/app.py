@@ -59,7 +59,6 @@ def init_db():
         photo TEXT)""")
 # Insère une ligne vide si elle n'existe pas
     conn.execute("INSERT OR IGNORE INTO animal (id) VALUES (1)")
-conn.commit()
 
     conn.commit()
     conn.close()
