@@ -67,14 +67,18 @@ def init_db():
 # COLLECTE TEMPÉRATURE DEPUIS HOME ASSISTANT
 # ──────────────────────────────────────────────
 def fetch_ha_sensor(entity_id):
-    headers = {"Authorization": f"Bearer {HA_TOKEN}"}
     try:
-        r = requests.get(f"{HA_URL}/api/states/{entity_id}", headers=headers, timeout=5)
+        url = f"{HA_URL}/api/states/{entity_id}"
+        headers = {"Authorization": f"Bearer {HA_TOKEN}"}
+        print(f"=== FETCH === URL: {url}")
+        r = requests.get(url, headers=headers, timeout=5)
+        print(f"=== FETCH === Status: {r.status_code}, Body: {r.text[:200]}")
         if r.status_code == 200:
             return float(r.json()["state"])
     except Exception as e:
-        print(f"Erreur capteur {entity_id}: {e}")
+        print(f"=== FETCH ERROR === {e}")
     return None
+
 
 def collect_temperature():
     print(f"=== COLLECTE TEMP === Token présent: {bool(HA_TOKEN)}, longueur: {len(HA_TOKEN)}")
