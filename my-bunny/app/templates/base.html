@@ -120,6 +120,7 @@
     </header>
     <nav>
         <a href="/" {% if request.path == '/' %}class="active"{% endif %}>🏠 Accueil</a>
+        <a href="/animal" {% if request.path == '/animal' %}class="active"{% endif %}>🐰 Fiche</a>
         <a href="/poids" {% if request.path == '/poids' %}class="active"{% endif %}>⚖️ Poids</a>
         <a href="/veterinaire" {% if request.path == '/veterinaire' %}class="active"{% endif %}>🏥 Vétérinaire</a>
         <a href="/journal" {% if request.path == '/journal' %}class="active"{% endif %}>📓 Journal</a>
