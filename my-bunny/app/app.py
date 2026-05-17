@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-import sqlite3, os, requests
+import sqlite3, os, requests, base64
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -99,6 +99,8 @@ def collect_temperature():
 @app.route("/")
 def index():
     conn = get_db()
+    # Animal infos
+    animal_info = conn.execute("SELECT * FROM animal WHERE id=1").fetchone()
     # Dernière température
     last_temp = conn.execute(
         "SELECT * FROM temperature ORDER BY timestamp DESC LIMIT 1"
@@ -119,6 +121,7 @@ def index():
     ).fetchall()
     conn.close()
     return render_template("index.html",
+                       animal=animal_info,
                        dernier_poids=last_poids["poids"] if last_poids else None,
                        temp_actuelle=last_temp["temp"] if last_temp else None,
                        hum_actuelle=last_temp["humidite"] if last_temp else None,
@@ -216,6 +219,38 @@ def temperature():
     ).fetchall()
     conn.close()
     return render_template("temperature.html", daily=daily, brut=brut)
+
+@app.route("/animal", methods=["GET", "POST"])
+def animal():
+    conn = get_db()
+    if request.method == "POST":
+        nom     = request.form.get("nom", "")
+        race    = request.form.get("race", "")
+        couleur = request.form.get("couleur", "")
+        photo   = None
+        if "photo" in request.files:
+            f = request.files["photo"]
+            if f.filename:
+                photo = base64.b64encode(f.read()).decode("utf-8")
+        if photo:
+            conn.execute(
+                "UPDATE animal SET nom=?, race=?, couleur=?, photo=? WHERE id=1",
+                (nom, race, couleur, photo)
+            )
+        else:
+            conn.execute(
+                "UPDATE animal SET nom=?, race=?, couleur=? WHERE id=1",
+                (nom, race, couleur)
+            )
+        conn.commit()
+        flash("Fiche mise à jour ✓", "success")
+        return redirect(url_for("index"))
+    a = conn.execute("SELECT * FROM animal WHERE id=1").fetchone()
+    conn.close()
+    return render_template("animal.html", animal=a)
+
+
+
 
 # ──────────────────────────────────────────────
 # DÉMARRAGE
