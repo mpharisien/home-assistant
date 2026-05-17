@@ -105,7 +105,7 @@ def index():
     ).fetchone()
     # Journal récent
     journal = conn.execute(
-        "SELECT * FROM journal ORDER BY date DESC LIMIT 3"
+        "SELECT * FROM journal ORDER BY date DESC LIMIT 10"
     ).fetchall()
     conn.close()
     return render_template("index.html",
