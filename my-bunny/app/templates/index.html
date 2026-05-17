@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2>🐰 index.htmml {{ animal.nom if animal and animal.nom else "My Bunny" }}</h2>
+    <h2>🐰 My bunny - {{ animal.nom if animal and animal.nom else "My Bunny" }}</h2>
     <div style="display:flex; gap:20px; align-items:center;">
         {% if animal and animal.photo %}
             <img src="data:image/jpeg;base64,{{ animal.photo }}" 
