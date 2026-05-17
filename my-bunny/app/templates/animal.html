@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>🐰 Fiche de mon animal</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <label>Nom</label>
+        <input type="text" name="nom" value="{{ animal.nom or '' }}">
+        <label>Race</label>
+        <input type="text" name="race" value="{{ animal.race or '' }}">
+        <label>Couleur</label>
+        <input type="text" name="couleur" value="{{ animal.couleur or '' }}">
+        <label>Photo</label>
+        <input type="file" name="photo" accept="image/*">
+        <button type="submit">💾 Enregistrer</button>
+    </form>
+</div>
+{% endblock %}
