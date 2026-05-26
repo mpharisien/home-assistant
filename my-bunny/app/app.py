@@ -134,17 +134,20 @@ def index():
 def poids():
     conn = get_db()
     if request.method == "POST":
-        date   = request.form["date"]
+        date      = request.form["date"]
         poids_val = request.form["poids"]
-        notes  = request.form.get("notes", "")
+        notes     = request.form.get("notes", "")
         conn.execute("INSERT INTO poids (date, poids, notes) VALUES (?, ?, ?)",
                      (date, poids_val, notes))
         conn.commit()
         flash("Poids enregistré ✓", "success")
         return redirect(url_for("poids"))
-    historique = conn.execute("SELECT * FROM poids ORDER BY date DESC").fetchall()
+    historique   = conn.execute("SELECT * FROM poids ORDER BY date DESC").fetchall()
+    graphique    = conn.execute("SELECT date, poids FROM poids ORDER BY date ASC").fetchall()
     conn.close()
-    return render_template("poids.html", historique=historique)
+    return render_template("poids.html",
+                           historique=historique,
+                           graphique=graphique)
 
 @app.route("/poids/supprimer/<int:id>")
 def supprimer_poids(id):
