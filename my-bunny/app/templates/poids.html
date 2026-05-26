@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="card">
     <h2>⚖️ Ajouter une pesée</h2>
     <form method="POST">
@@ -18,8 +19,66 @@
         <button type="submit">✅ Enregistrer</button>
     </form>
 </div>
+
+{% if graphique and graphique|length >= 2 %}
 <div class="card">
-    <h2>📈 Historique</h2>
+    <h2>📈 Évolution du poids</h2>
+    <div style="position: relative; width: 100%; height: 260px;">
+        <canvas id="poidsChart"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        const labels = {{ graphique | map(attribute='date') | list | tojson }};
+        const data   = {{ graphique | map(attribute='poids') | list | tojson }};
+
+        new Chart(document.getElementById('poidsChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Poids (g)',
+                    data: data,
+                    borderColor: '#7c3aed',
+                    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#7c3aed',
+                    pointHoverRadius: 7,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.parsed.y + ' g'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: { maxRotation: 45, minRotation: 0 }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            callback: val => val + ' g'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>📋 Historique</h2>
     {% if historique %}
     <table>
         <tr><th>Date</th><th>Poids (g)</th><th>Notes</th><th></th></tr>
@@ -28,7 +87,8 @@
             <td>{{ p.date }}</td>
             <td><strong>{{ p.poids }}</strong></td>
             <td>{{ p.notes or "—" }}</td>
-            <td><a href="/poids/supprimer/{{ p.id }}" class="btn-delete" onclick="return confirm('Supprimer ?')">🗑</a></td>
+            <td><a href="/poids/supprimer/{{ p.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ?')">🗑</a></td>
         </tr>
         {% endfor %}
     </table>
@@ -36,4 +96,5 @@
         <p style="color:#aaa">Aucune pesée enregistrée.</p>
     {% endif %}
 </div>
+
 {% endblock %}
