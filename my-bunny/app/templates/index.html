@@ -24,6 +24,7 @@
 <div class="card">
     <h2>📊 Résumé</h2>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <div class="grid-3">
 
         <div class="stat-box">
@@ -86,52 +87,16 @@
     });
 
     {% if poids_graph and poids_graph|length >= 2 %}
-    const poidsData   = {{ poids_graph | map(attribute='poids') | list | tojson }};
+    const poidsRaw    = {{ poids_graph | map(attribute='poids') | list | tojson }};
     const poidsLabels = {{ poids_graph | map(attribute='date') | list | tojson }};
+    const poidsXY     = poidsLabels.map((d, i) => ({ x: d, y: poidsRaw[i] }));
+
     const cfgPoids = miniOpts('rgb(124, 58, 237)');
-    cfgPoids.data.labels = poidsLabels;
-    cfgPoids.data.datasets[0].data = poidsData;
+    cfgPoids.options.scales.x = {
+        display: false,
+        type: 'time',
+        time: { unit: 'day' }
+    };
+    cfgPoids.data.datasets[0].data = poidsXY;
     new Chart(document.getElementById('miniPoids'), cfgPoids);
     {% endif %}
-
-    {% if temp_graph and temp_graph|length >= 2 %}
-    const tempLabels = {{ temp_graph | map(attribute='timestamp') | list | tojson }};
-    const tempData   = {{ temp_graph | map(attribute='temp') | list | tojson }};
-    const humData    = {{ temp_graph | map(attribute='humidite') | list | tojson }};
-
-    const cfgTemp = miniOpts('rgb(239, 68, 68)');
-    cfgTemp.data.labels = tempLabels;
-    cfgTemp.data.datasets[0].data = tempData;
-    new Chart(document.getElementById('miniTemp'), cfgTemp);
-
-    const cfgHum = miniOpts('rgb(59, 130, 246)');
-    cfgHum.data.labels = tempLabels;
-    cfgHum.data.datasets[0].data = humData;
-    new Chart(document.getElementById('miniHum'), cfgHum);
-    {% endif %}
-    </script>
-</div>
-
-<div class="card">
-    <h2>📅 Prochain rendez-vous vétérinaire</h2>
-    {% if prochain_rdv %}
-        <p>📆 <strong>{{ prochain_rdv.type }}</strong> — {{ prochain_rdv.prochain_rdv }}</p>
-        <p style="color:#888; font-size:0.9em">{{ prochain_rdv.description }}</p>
-    {% else %}
-        <p style="color:#aaa">Aucun rendez-vous planifié.</p>
-    {% endif %}
-</div>
-
-<div class="card">
-    <h2>📓 Dernières notes du journal</h2>
-    {% if derniers_journaux %}
-        {% for j in derniers_journaux %}
-            <p><span class="badge">{{ j.date }}</span> <strong>{{ j.titre }}</strong></p>
-            <p style="color:#666; font-size:0.9em; margin: 4px 0 10px 0">{{ j.description }}</p>
-        {% endfor %}
-    {% else %}
-        <p style="color:#aaa">Aucune note.</p>
-    {% endif %}
-</div>
-
-{% endblock %}
