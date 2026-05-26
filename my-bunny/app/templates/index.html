@@ -39,7 +39,7 @@
 
         <div class="stat-box">
             <div class="val">{{ temp_actuelle or "—" }}</div>
-            <div class="label">🌡️ Température (°C)</div>
+            <div class="label">🌡️ Température (7 jours)</div>
             {% if temp_graph and temp_graph|length >= 2 %}
             <div style="position:relative; width:100%; height:60px; overflow:hidden; margin-top:8px;">
                 <canvas id="miniTemp"></canvas>
@@ -49,7 +49,7 @@
 
         <div class="stat-box">
             <div class="val">{{ hum_actuelle or "—" }}</div>
-            <div class="label">💧 Humidité (%)</div>
+            <div class="label">💧 Humidité (7 jours)</div>
             {% if temp_graph and temp_graph|length >= 2 %}
             <div style="position:relative; width:100%; height:60px; overflow:hidden; margin-top:8px;">
                 <canvas id="miniHum"></canvas>
