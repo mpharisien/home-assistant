@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-
 <div class="card">
     <h2 id="form-titre">📓 Ajouter une note</h2>
     <form method="POST" id="journal-form">
@@ -25,7 +24,6 @@
         </div>
     </form>
 </div>
-
 <div class="card">
     <h2>📋 Historique</h2>
     {% if historique %}
@@ -38,7 +36,10 @@
             <td>{{ j.description or "—" }}</td>
             <td style="display:flex; gap:6px;">
                 <button class="btn-edit"
-                    onclick="remplirFormulaire('{{ j.id }}', '{{ j.date }}', {{ j.titre | tojson }}, {{ (j.description or '') | tojson }})">✏️</button>
+                        data-id="{{ j.id }}"
+                        data-date="{{ j.date }}"
+                        data-titre="{{ j.titre | e }}"
+                        data-description="{{ (j.description or '') | e }}">✏️</button>
                 <a href="/journal/supprimer/{{ j.id }}" class="btn-delete"
                    onclick="return confirm('Supprimer ?')">🗑</a>
             </td>
@@ -49,30 +50,35 @@
         <p style="color:#aaa">Aucune note enregistrée.</p>
     {% endif %}
 </div>
-
 <script>
-function remplirFormulaire(id, date, titre, description) {
-    document.getElementById('edit_id').value = id;
-    document.getElementById('field-date').value = date;
-    document.getElementById('field-titre').value = titre;
-    document.getElementById('field-description').value = description || '';
-    document.getElementById('form-titre').textContent = '✏️ Modifier la note';
-    document.getElementById('btn-annuler').style.display = 'inline-block';
-    document.getElementById('journal-form').action = '/journal/modifier/' + id;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+document.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id          = this.dataset.id;
+        const date        = this.dataset.date;
+        const titre       = this.dataset.titre;
+        const description = this.dataset.description;
+
+        document.getElementById('edit_id').value             = id;
+        document.getElementById('field-date').value          = date;
+        document.getElementById('field-titre').value         = titre;
+        document.getElementById('field-description').value   = description;
+        document.getElementById('form-titre').textContent    = '✏️ Modifier la note';
+        document.getElementById('btn-annuler').style.display = 'inline-block';
+        document.getElementById('journal-form').action       = '/journal/modifier/' + id;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+});
 
 function annulerModif() {
-    document.getElementById('edit_id').value = '';
-    document.getElementById('field-date').value = '';
-    document.getElementById('field-titre').value = '';
-    document.getElementById('field-description').value = '';
-    document.getElementById('form-titre').textContent = '📓 Ajouter une note';
+    document.getElementById('edit_id').value             = '';
+    document.getElementById('field-date').value          = '';
+    document.getElementById('field-titre').value         = '';
+    document.getElementById('field-description').value   = '';
+    document.getElementById('form-titre').textContent    = '📓 Ajouter une note';
     document.getElementById('btn-annuler').style.display = 'none';
-    document.getElementById('journal-form').action = '/journal';
+    document.getElementById('journal-form').action       = '/journal';
 }
 </script>
-
 <style>
 .btn-edit {
     background: #7c4dff;
@@ -85,5 +91,4 @@ function annulerModif() {
 }
 .btn-edit:hover { background: #6c3fd4; }
 </style>
-
 {% endblock %}
