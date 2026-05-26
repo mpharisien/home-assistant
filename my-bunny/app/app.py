@@ -101,34 +101,40 @@ def collect_temperature():
 @app.route("/")
 def index():
     conn = get_db()
-    # Animal infos
     animal_info = conn.execute("SELECT * FROM animal WHERE id=1").fetchone()
-    # Dernière température
     last_temp = conn.execute(
         "SELECT * FROM temperature ORDER BY timestamp DESC LIMIT 1"
     ).fetchone()
-    # Dernier poids
     last_poids = conn.execute(
         "SELECT * FROM poids ORDER BY date DESC LIMIT 1"
     ).fetchone()
-    # Prochain vétérinaire
     today = datetime.now().strftime("%Y-%m-%d")
     next_rdv = conn.execute(
         "SELECT * FROM veterinaire WHERE prochain_rdv >= ? ORDER BY prochain_rdv ASC LIMIT 1",
         (today,)
     ).fetchone()
-    # Journal récent
     journal = conn.execute(
         "SELECT * FROM journal ORDER BY date DESC LIMIT 10"
     ).fetchall()
+    # Mini graphiques
+    poids_graph = conn.execute(
+        "SELECT date, poids FROM poids ORDER BY date ASC"
+    ).fetchall()
+    sept_jours = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    temp_graph = conn.execute(
+        "SELECT timestamp, temp, humidite FROM temperature WHERE timestamp >= ? ORDER BY timestamp ASC",
+        (sept_jours,)
+    ).fetchall()
     conn.close()
     return render_template("index.html",
-                       animal=animal_info,
-                       dernier_poids=last_poids["poids"] if last_poids else None,
-                       temp_actuelle=last_temp["temp"] if last_temp else None,
-                       hum_actuelle=last_temp["humidite"] if last_temp else None,
-                       prochain_rdv=next_rdv,
-                       derniers_journaux=journal)
+                           animal=animal_info,
+                           dernier_poids=last_poids["poids"] if last_poids else None,
+                           temp_actuelle=last_temp["temp"] if last_temp else None,
+                           hum_actuelle=last_temp["humidite"] if last_temp else None,
+                           prochain_rdv=next_rdv,
+                           derniers_journaux=journal,
+                           poids_graph=poids_graph,
+                           temp_graph=temp_graph)
 
 @app.route("/poids", methods=["GET", "POST"])
 def poids():
