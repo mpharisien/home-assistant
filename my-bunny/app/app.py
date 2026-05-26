@@ -215,6 +215,20 @@ def supprimer_journal(id):
     flash("Note supprimée", "info")
     return redirect(url_for("journal"))
 
+@app.route("/journal/modifier/<int:id>", methods=["POST"])
+def modifier_journal(id):
+    conn = get_db()
+    conn.execute("""UPDATE journal SET date=?, titre=?, description=?
+                    WHERE id=?""",
+                 (request.form["date"],
+                  request.form["titre"],
+                  request.form.get("description", ""),
+                  id))
+    conn.commit()
+    conn.close()
+    flash("Note mise à jour ✓", "success")
+    return redirect(url_for("journal"))
+
 @app.route("/temperature")
 def temperature():
     conn = get_db()
