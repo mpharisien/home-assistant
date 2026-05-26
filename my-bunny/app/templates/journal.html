@@ -1,23 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="card">
-    <h2>📓 Ajouter une note</h2>
-    <form method="POST">
+    <h2 id="form-titre">📓 Ajouter une note</h2>
+    <form method="POST" id="journal-form">
+        <input type="hidden" name="edit_id" id="edit_id" value="">
         <div class="grid-2">
             <div>
                 <label>Date</label>
-                <input type="date" name="date" required value="{{ today }}">
+                <input type="date" name="date" id="field-date" required>
             </div>
             <div>
                 <label>Titre</label>
-                <input type="text" name="titre" required placeholder="ex: Première fois dehors">
+                <input type="text" name="titre" id="field-titre" required placeholder="ex: Première fois dehors">
             </div>
         </div>
         <label>Description</label>
-        <textarea name="description" rows="3" placeholder="Détails..."></textarea>
-        <button type="submit">✅ Enregistrer</button>
+        <textarea name="description" id="field-description" rows="3" placeholder="Détails..."></textarea>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <button type="submit">✅ Enregistrer</button>
+            <button type="button" id="btn-annuler"
+                    onclick="annulerModif()"
+                    style="display:none; background:#aaa;">✖ Annuler</button>
+        </div>
     </form>
 </div>
+
 <div class="card">
     <h2>📋 Historique</h2>
     {% if historique %}
@@ -28,7 +36,12 @@
             <td>{{ j.date }}</td>
             <td><strong>{{ j.titre }}</strong></td>
             <td>{{ j.description or "—" }}</td>
-            <td><a href="/journal/supprimer/{{ j.id }}" class="btn-delete" onclick="return confirm('Supprimer ?')">🗑</a></td>
+            <td style="display:flex; gap:6px;">
+                <button class="btn-edit"
+                        onclick="remplirFormulaire('{{ j.id }}', '{{ j.date }}', {{ j.titre | tojson }}, {{ j.description | tojson }})">✏️</button>
+                <a href="/journal/supprimer/{{ j.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ?')">🗑</a>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -36,4 +49,41 @@
         <p style="color:#aaa">Aucune note enregistrée.</p>
     {% endif %}
 </div>
+
+<script>
+function remplirFormulaire(id, date, titre, description) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('field-date').value = date;
+    document.getElementById('field-titre').value = titre;
+    document.getElementById('field-description').value = description || '';
+    document.getElementById('form-titre').textContent = '✏️ Modifier la note';
+    document.getElementById('btn-annuler').style.display = 'inline-block';
+    document.getElementById('journal-form').action = '/journal/modifier/' + id;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function annulerModif() {
+    document.getElementById('edit_id').value = '';
+    document.getElementById('field-date').value = '';
+    document.getElementById('field-titre').value = '';
+    document.getElementById('field-description').value = '';
+    document.getElementById('form-titre').textContent = '📓 Ajouter une note';
+    document.getElementById('btn-annuler').style.display = 'none';
+    document.getElementById('journal-form').action = '/journal';
+}
+</script>
+
+<style>
+.btn-edit {
+    background: #7c4dff;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8em;
+}
+.btn-edit:hover { background: #6c3fd4; }
+</style>
+
 {% endblock %}
