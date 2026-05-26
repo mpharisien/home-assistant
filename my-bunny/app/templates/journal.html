@@ -38,7 +38,7 @@
             <td>{{ j.description or "—" }}</td>
             <td style="display:flex; gap:6px;">
                 <button class="btn-edit"
-                        onclick="remplirFormulaire('{{ j.id }}', '{{ j.date }}', {{ j.titre | tojson }}, {{ j.description | tojson }})">✏️</button>
+                    onclick="remplirFormulaire('{{ j.id }}', '{{ j.date }}', {{ j.titre | tojson }}, {{ (j.description or '') | tojson }})">✏️</button>
                 <a href="/journal/supprimer/{{ j.id }}" class="btn-delete"
                    onclick="return confirm('Supprimer ?')">🗑</a>
             </td>
