@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="card">
     <h2>🐰 {{ animal.nom if animal and animal.nom else "My Bunny" }}</h2>
     <div style="display:flex; gap:20px; align-items:center;">
         {% if animal and animal.photo %}
-            <img src="data:image/jpeg;base64,{{ animal.photo }}" 
+            <img src="data:image/jpeg;base64,{{ animal.photo }}"
                  style="width:120px; height:120px; object-fit:cover; border-radius:12px;">
         {% else %}
-            <div style="width:120px; height:120px; background:#f0e6d3; 
-                        border-radius:12px; display:flex; align-items:center; 
+            <div style="width:120px; height:120px; background:#f0e6d3;
+                        border-radius:12px; display:flex; align-items:center;
                         justify-content:center; font-size:3em;">🐰</div>
         {% endif %}
         <div>
@@ -19,23 +20,97 @@
         </div>
     </div>
 </div>
+
 <div class="card">
     <h2>📊 Résumé</h2>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <div class="grid-3">
+
         <div class="stat-box">
             <div class="val">{{ dernier_poids or "—" }}</div>
             <div class="label">⚖️ Dernier poids (g)</div>
+            {% if poids_graph and poids_graph|length >= 2 %}
+            <div style="height:60px; margin-top:8px;">
+                <canvas id="miniPoids"></canvas>
+            </div>
+            {% endif %}
         </div>
+
         <div class="stat-box">
             <div class="val">{{ temp_actuelle or "—" }}</div>
             <div class="label">🌡️ Température (°C)</div>
+            {% if temp_graph and temp_graph|length >= 2 %}
+            <div style="height:60px; margin-top:8px;">
+                <canvas id="miniTemp"></canvas>
+            </div>
+            {% endif %}
         </div>
+
         <div class="stat-box">
             <div class="val">{{ hum_actuelle or "—" }}</div>
             <div class="label">💧 Humidité (%)</div>
+            {% if temp_graph and temp_graph|length >= 2 %}
+            <div style="height:60px; margin-top:8px;">
+                <canvas id="miniHum"></canvas>
+            </div>
+            {% endif %}
         </div>
+
     </div>
+
+    <script>
+    const miniOpts = (color) => ({
+        type: 'line',
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            },
+            elements: {
+                point: { radius: 0 },
+                line: { borderWidth: 2, tension: 0.3 }
+            }
+        },
+        data: {
+            datasets: [{
+                borderColor: color,
+                backgroundColor: color.replace(')', ', 0.1)').replace('rgb', 'rgba'),
+                fill: true
+            }]
+        }
+    });
+
+    {% if poids_graph and poids_graph|length >= 2 %}
+    const poidsData = {{ poids_graph | map(attribute='poids') | list | tojson }};
+    const poidsLabels = {{ poids_graph | map(attribute='date') | list | tojson }};
+    const cfgPoids = miniOpts('rgb(124, 58, 237)');
+    cfgPoids.data.labels = poidsLabels;
+    cfgPoids.data.datasets[0].data = poidsData;
+    new Chart(document.getElementById('miniPoids'), cfgPoids);
+    {% endif %}
+
+    {% if temp_graph and temp_graph|length >= 2 %}
+    const tempLabels = {{ temp_graph | map(attribute='timestamp') | list | tojson }};
+    const tempData   = {{ temp_graph | map(attribute='temp') | list | tojson }};
+    const humData    = {{ temp_graph | map(attribute='humidite') | list | tojson }};
+
+    const cfgTemp = miniOpts('rgb(239, 68, 68)');
+    cfgTemp.data.labels = tempLabels;
+    cfgTemp.data.datasets[0].data = tempData;
+    new Chart(document.getElementById('miniTemp'), cfgTemp);
+
+    const cfgHum = miniOpts('rgb(59, 130, 246)');
+    cfgHum.data.labels = tempLabels;
+    cfgHum.data.datasets[0].data = humData;
+    new Chart(document.getElementById('miniHum'), cfgHum);
+    {% endif %}
+    </script>
 </div>
+
 <div class="card">
     <h2>📅 Prochain rendez-vous vétérinaire</h2>
     {% if prochain_rdv %}
@@ -45,6 +120,7 @@
         <p style="color:#aaa">Aucun rendez-vous planifié.</p>
     {% endif %}
 </div>
+
 <div class="card">
     <h2>📓 Dernières notes du journal</h2>
     {% if derniers_journaux %}
@@ -56,4 +132,5 @@
         <p style="color:#aaa">Aucune note.</p>
     {% endif %}
 </div>
+
 {% endblock %}
