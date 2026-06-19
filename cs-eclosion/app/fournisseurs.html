@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}— Fournisseurs{% endblock %}
+
+{% block content %}
+<div class="page-title">Fournisseurs <span>— Évolution par prestataire</span></div>
+
+{% if not fournisseurs_list %}
+<div class="card"><p style="color:#6b7280; text-align:center; padding:2rem;">Aucune donnée disponible. <a href="{{ url_for('import_csv') }}">Importer des données</a></p></div>
+{% else %}
+
+<div class="card">
+  <h2>Total par fournisseur — toutes années</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Le fournisseur est extrait automatiquement du libellé de chaque écriture (texte avant le premier « - »).
+    Certains regroupements peuvent être approximatifs selon la saisie Foncia.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fournisseur</th>
+          {% for annee in annees %}<th style="text-align:right">{{ annee }}</th>{% endfor %}
+          <th style="text-align:right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in fournisseurs_list %}
+        <tr>
+          <td><strong>{{ f.fournisseur }}</strong></td>
+          {% for annee in annees %}
+          {% set m = f.montants.get(annee | string) %}
+          <td class="montant {{ 'negatif' if m and m < 0 }}">
+            {{ '{:,.0f}'.format(m).replace(',', '\u202f') ~ ' €' if m is not none else '—' }}
+          </td>
+          {% endfor %}
+          <td class="montant" style="background:#f8faff; font-weight:700;">
+            {{ '{:,.0f}'.format(f.total).replace(',', '\u202f') }} €
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Top 10 fournisseurs (total toutes années)</h2>
+  <div class="chart-box" style="height:350px;">
+    <canvas id="chartFournisseurs"></canvas>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const fournisseursData = {{ fournisseurs_list[:10] | tojson }};
+const annees = {{ annees | tojson }};
+const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa'];
+
+const ctx = document.getElementById('chartFournisseurs');
+if (ctx && fournisseursData.length) {
+  const datasets = annees.map((annee, i) => ({
+    label: annee.toString(),
+    data: fournisseursData.map(f => f.montants[annee.toString()] || 0),
+    backgroundColor: COULEURS[i % COULEURS.length],
+    borderRadius: 4,
+  }));
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: { labels: fournisseursData.map(f => f.fournisseur.length > 25 ? f.fournisseur.substring(0, 25) + '…' : f.fournisseur), datasets },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: annees.length > 1 } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+}
+</script>
+{% endblock %}

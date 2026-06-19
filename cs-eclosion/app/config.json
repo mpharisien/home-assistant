@@ -1,0 +1,19 @@
+{
+  "name": "CS Eclosion",
+  "description": "Conseil Syndical - Résidence Eclosion",
+  "version": "1.0.0",
+  "slug": "cs_eclosion",
+  "init": false,
+  "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
+  "startup": "application",
+  "boot": "auto",
+  "ports": {
+    "2000/tcp": 2000
+  },
+  "ports_description": {
+    "2000/tcp": "Interface web CS Eclosion"
+  },
+  "map": ["share:rw"],
+  "options": {},
+  "schema": {}
+}

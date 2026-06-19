@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}— Import CSV{% endblock %}
+
+{% block content %}
+<div class="page-title">Import <span>— Données Myfoncia</span></div>
+
+{% if preview %}
+<div class="card">
+  <h2>⚠️ Confirmation de l'import</h2>
+  <div style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; padding:1rem 1.2rem; margin-bottom:1.5rem;">
+    <p style="font-weight:600; color:#92400e;">Vous êtes sur le point d'importer :</p>
+    <ul style="margin-top:0.5rem; color:#92400e; padding-left:1.2rem;">
+      <li><strong>{{ nb_lignes }} écritures</strong> pour l'exercice <strong>{{ annee }}</strong></li>
+      {% if existing_count > 0 %}
+      <li>⚠️ Cet exercice contient déjà <strong>{{ existing_count }} lignes</strong> qui seront <strong>remplacées intégralement</strong></li>
+      {% else %}
+      <li>Aucune donnée existante pour {{ annee }} — premier import</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <form method="post">
+    <input type="hidden" name="tmp_path" value="{{ tmp_path }}">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+      <div class="form-group">
+        <label>Statut de l'exercice {{ annee }}</label>
+        <select name="statut">
+          <option value="valide">Validé (exercice clôturé)</option>
+          <option value="en_cours" selected>En cours (exercice en cours d'année)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Budget prévisionnel {{ annee }} (optionnel)</label>
+        <input type="text" name="budget_previsionnel" placeholder="ex: 131000" style="max-width:300px;">
+        <small style="color:#6b7280; display:block; margin-top:0.3rem;">Laissez vide pour conserver le budget existant. Format : 131000 ou 131 000,00</small>
+      </div>
+    </div>
+    <div style="display:flex; gap:1rem;">
+      <button type="submit" name="action" value="confirmer" class="btn btn-success">✓ Confirmer l'import</button>
+      <button type="submit" name="action" value="annuler" class="btn btn-secondary">✕ Annuler</button>
+    </div>
+  </form>
+</div>
+
+{% else %}
+<div style="display:grid; grid-template-columns:2fr 1fr; gap:1.5rem; align-items:start;">
+
+  <div class="card">
+    <h2>Importer un fichier CSV Myfoncia</h2>
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Fichier CSV (export Myfoncia)</label>
+        <input type="file" name="fichier" accept=".csv" required>
+        <small style="color:#6b7280; display:block; margin-top:0.3rem;">
+          Les deux formats Myfoncia sont acceptés : export "exercice clôturé" (avec TVA/Récupérable) et export "exercice en cours" (montant seul).
+        </small>
+      </div>
+      <button type="submit" name="action" value="preview" class="btn btn-primary">Analyser le fichier →</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Exercices importés</h2>
+    {% if exercices %}
+    <table>
+      <thead><tr><th>Année</th><th>Statut</th><th style="text-align:right">Import</th></tr></thead>
+      <tbody>
+        {% for e in exercices %}
+        <tr>
+          <td><strong>{{ e['annee'] }}</strong></td>
+          <td><span class="badge {{ e['statut'] }}">{{ 'Validé' if e['statut'] == 'valide' else 'En cours' }}</span></td>
+          <td style="font-size:0.8rem; color:#6b7280; text-align:right;">{{ e['date_import'][:10] if e['date_import'] else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#6b7280; font-size:0.9rem;">Aucun exercice importé.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<div class="card">
+  <h2>Comment exporter depuis Myfoncia ?</h2>
+  <ol style="padding-left:1.2rem; line-height:2; color:#374151; font-size:0.9rem;">
+    <li>Connectez-vous sur <strong>myfoncia.com</strong></li>
+    <li>Allez dans <strong>Mon conseil syndical → Comptes de l'immeuble</strong></li>
+    <li>Sélectionnez <strong>Comptabilité des exercices passés</strong> ou <strong>Comptabilité de l'exercice en cours</strong></li>
+    <li>Choisissez l'exercice dans le menu déroulant</li>
+    <li>Cliquez sur <strong>Exporter</strong></li>
+    <li>Importez le fichier ici — les données existantes pour cet exercice seront remplacées</li>
+  </ol>
+</div>
+{% endif %}
+{% endblock %}
