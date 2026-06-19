@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}— Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-title">Dashboard <span>— Analyse des dépenses</span></div>
+
+{% if not data_annees %}
+<div class="card">
+  <p style="color:#6b7280; text-align:center; padding:2rem 0;">
+    Aucun exercice importé pour l'instant.<br>
+    <a href="{{ url_for('import_csv') }}" class="btn btn-primary" style="margin-top:1rem; display:inline-block;">Importer un CSV</a>
+  </p>
+</div>
+{% else %}
+
+<div class="stat-grid">
+  {% for d in data_annees %}
+  <div class="stat-box">
+    <div class="label">{{ d.annee }} <span class="badge {{ d.statut }}">{{ 'Validé' if d.statut == 'valide' else 'En cours' }}</span></div>
+    <div class="value">{{ '{:,.0f}'.format(d.total).replace(',', '\u202f') }} €</div>
+    {% if d.budget %}
+      {% set pct = (d.total / d.budget * 100) | round(1) %}
+      <div class="sub">Budget : {{ '{:,.0f}'.format(d.budget).replace(',', '\u202f') }} €</div>
+      <div class="progress-wrap">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill {{ 'danger' if pct > 100 else ('warning' if pct > 85 else 'ok') }}"
+               style="width: {{ [pct, 100] | min }}%"></div>
+        </div>
+        <div class="progress-label">
+          <span>{{ pct }}% consommé</span>
+          <span>{{ '{:,.0f}'.format(d.budget - d.total).replace(',', '\u202f') }} € restant</span>
+        </div>
+      </div>
+    {% else %}
+      <div class="sub">
+        <a href="javascript:void(0)" onclick="document.getElementById('budget-form-{{ d.annee }}').style.display='block'" style="color:#2d7dd2; font-size:0.8rem;">+ Ajouter un budget prévisionnel</a>
+      </div>
+      <div id="budget-form-{{ d.annee }}" style="display:none; margin-top:0.5rem;">
+        <form method="post" action="{{ url_for('update_budget', annee=d.annee) }}" style="display:flex; gap:0.4rem;">
+          <input type="text" name="budget" placeholder="ex: 131000" style="flex:1; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px; font-size:0.8rem;">
+          <button type="submit" class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.8rem;">OK</button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Comparaison annuelle</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Année</th>
+          <th>Statut</th>
+          <th style="text-align:right">Total réel</th>
+          <th style="text-align:right">Budget prévisionnel</th>
+          <th style="text-align:right">Écart</th>
+          <th>Dernier import</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in data_annees %}
+        <tr>
+          <td><strong>{{ d.annee }}</strong></td>
+          <td><span class="badge {{ d.statut }}">{{ 'Validé' if d.statut == 'valide' else 'En cours' }}</span></td>
+          <td class="montant">{{ '{:,.2f}'.format(d.total).replace(',', '\u202f').replace('.', ',') }} €</td>
+          <td class="montant">{{ '{:,.2f}'.format(d.budget).replace(',', '\u202f').replace('.', ',') ~ ' €' if d.budget else '—' }}</td>
+          <td class="montant {% if d.budget %}{{ 'negatif' if d.total <= d.budget else 'danger' }}{% endif %}">
+            {% if d.budget %}{{ '{:+,.2f}'.format(d.total - d.budget).replace(',', '\u202f').replace('.', ',') }} €{% else %}—{% endif %}
+          </td>
+          <td style="color:#6b7280; font-size:0.82rem;">{{ d.date_import[:10] if d.date_import else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Évolution des dépenses totales par année</h2>
+  <div class="toggle-group" id="toggle-annees">
+    {% for d in data_annees %}
+    <label><input type="checkbox" checked data-annee="{{ d.annee }}"> {{ d.annee }}</label>
+    {% endfor %}
+    {% if data_annees | selectattr('budget') | list %}
+    <label><input type="checkbox" checked data-serie="budget" style="accent-color:#f59e0b"> Budget prévisionnel</label>
+    {% endif %}
+  </div>
+  <div class="chart-box"><canvas id="chartBarAnnees"></canvas></div>
+</div>
+
+{% if en_cours %}
+<div class="card">
+  <h2>Évolution mensuelle {{ en_cours.annee }} — Cumul des dépenses</h2>
+  <div class="toggle-group" id="toggle-mensuel">
+    <label><input type="checkbox" checked data-serie="en_cours"> {{ en_cours.annee }} (en cours)</label>
+    {% if evolution_precedente %}
+    <label><input type="checkbox" checked data-serie="precedente"> {{ en_cours.annee - 1 }} (N-1)</label>
+    {% endif %}
+    {% if en_cours.budget %}
+    <label><input type="checkbox" checked data-serie="budget_line" style="accent-color:#f59e0b"> Budget {{ en_cours.annee }}</label>
+    {% endif %}
+  </div>
+  <div class="chart-grid">
+    <div class="chart-box"><canvas id="chartLignesMensuel"></canvas></div>
+    <div class="chart-box"><canvas id="chartBarsMensuel"></canvas></div>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dataAnnees = {{ data_annees | tojson }};
+const evolutionEnCours = {{ evolution_en_cours | map(attribute='mois') | list | tojson }};
+const evolutionEnCoursTotaux = {{ evolution_en_cours | map(attribute='total') | list | tojson }};
+const evolutionPrecedente = {{ evolution_precedente | map(attribute='mois') | list | tojson }};
+const evolutionPrecedenteTotaux = {{ evolution_precedente | map(attribute='total') | list | tojson }};
+const enCours = {{ en_cours | tojson if en_cours else 'null' }};
+
+const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+
+const ctxBar = document.getElementById('chartBarAnnees');
+if (ctxBar) {
+  const labels = dataAnnees.map(d => d.annee.toString());
+  const datasets = [{
+    label: 'Total réel',
+    data: dataAnnees.map(d => d.total),
+    backgroundColor: dataAnnees.map((d, i) => COULEURS[i % COULEURS.length]),
+    borderRadius: 6,
+  }];
+  const hasBudget = dataAnnees.some(d => d.budget);
+  if (hasBudget) {
+    datasets.push({
+      label: 'Budget prévisionnel', data: dataAnnees.map(d => d.budget || null),
+      backgroundColor: 'rgba(245,158,11,0.25)', borderColor: '#f59e0b', borderWidth: 2,
+      type: 'line', pointStyle: 'circle', pointRadius: 5,
+    });
+  }
+  const chartBarAnnees = new Chart(ctxBar, {
+    type: 'bar', data: { labels, datasets },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+
+  document.querySelectorAll('#toggle-annees input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.dataset.serie === 'budget') {
+        const idx = chartBarAnnees.data.datasets.findIndex(d => d.label === 'Budget prévisionnel');
+        if (idx >= 0) { chartBarAnnees.data.datasets[idx].hidden = !cb.checked; chartBarAnnees.update(); }
+      } else {
+        const annee = parseInt(cb.dataset.annee);
+        const idx = chartBarAnnees.data.labels.indexOf(annee.toString());
+        chartBarAnnees.data.datasets[0].data[idx] = cb.checked ? dataAnnees.find(d => d.annee === annee)?.total : null;
+        chartBarAnnees.update();
+      }
+    });
+  });
+}
+
+const moisLabels = evolutionEnCours.length ? evolutionEnCours : evolutionPrecedente;
+
+function buildDatasetsMensuel(cumul) {
+  const datasets = [];
+  if (evolutionEnCoursTotaux.length) {
+    let vals = evolutionEnCoursTotaux;
+    if (cumul) { let s = 0; vals = vals.map(v => (s += v)); }
+    datasets.push({ label: enCours ? enCours.annee.toString() : 'En cours', data: vals, borderColor: '#2d7dd2', backgroundColor: 'rgba(45,125,210,.15)', tension: 0.3, fill: cumul });
+  }
+  if (evolutionPrecedenteTotaux.length) {
+    let vals = evolutionPrecedenteTotaux.slice(0, moisLabels.length);
+    if (cumul) { let s = 0; vals = vals.map(v => v !== null ? (s += v) : null); }
+    datasets.push({ label: enCours ? (enCours.annee - 1).toString() : 'N-1', data: vals, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.1)', tension: 0.3, borderDash: [5,3], fill: false });
+  }
+  if (enCours && enCours.budget) {
+    const budgetMensuel = enCours.budget / 12;
+    let vals = moisLabels.map((_, i) => cumul ? budgetMensuel * (i + 1) : budgetMensuel);
+    datasets.push({ label: 'Budget', data: vals, borderColor: '#f59e0b', borderDash: [4,4], pointRadius: 0, tension: 0, fill: false });
+  }
+  return datasets;
+}
+
+const ctxLigne = document.getElementById('chartLignesMensuel');
+const ctxBars = document.getElementById('chartBarsMensuel');
+let chartLigne, chartBars;
+
+if (ctxLigne && moisLabels.length) {
+  chartLigne = new Chart(ctxLigne, {
+    type: 'line', data: { labels: moisLabels, datasets: buildDatasetsMensuel(true) },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+}
+if (ctxBars && moisLabels.length) {
+  chartBars = new Chart(ctxBars, {
+    type: 'bar', data: { labels: moisLabels, datasets: buildDatasetsMensuel(false) },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+}
+
+document.querySelectorAll('#toggle-mensuel input').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const serie = cb.dataset.serie;
+    const labelMap = { en_cours: enCours?.annee?.toString(), precedente: enCours ? (enCours.annee - 1).toString() : null, budget_line: 'Budget' };
+    const label = labelMap[serie];
+    [chartLigne, chartBars].forEach(chart => {
+      if (!chart) return;
+      const ds = chart.data.datasets.find(d => d.label === label);
+      if (ds) { ds.hidden = !cb.checked; chart.update(); }
+    });
+  });
+});
+</script>
+{% endblock %}

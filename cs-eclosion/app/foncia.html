@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}— Vue Foncia{% endblock %}
+
+{% block content %}
+<div class="page-title">Vue Foncia <span>— Hiérarchie officielle</span></div>
+
+<div class="annee-selector">
+  <label>Exercice :</label>
+  {% for e in exercices %}
+  <a href="{{ url_for('foncia', annee=e['annee']) }}"
+     class="btn {{ 'btn-primary' if e['annee'] == annee_sel else 'btn-secondary' }}"
+     style="padding:0.35rem 0.9rem; font-size:0.85rem;">
+    {{ e['annee'] }}
+    <span class="badge {{ e['statut'] }}" style="margin-left:0.3rem">{{ '✓' if e['statut'] == 'valide' else '…' }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+{% if not annee_sel %}
+<div class="card"><p style="color:#6b7280; text-align:center; padding:2rem;">Aucun exercice disponible. <a href="{{ url_for('import_csv') }}">Importer des données</a></p></div>
+{% else %}
+
+{% set total_exercice = cles | sum(attribute='total') %}
+<div class="stat-grid">
+  <div class="stat-box">
+    <div class="label">Total {{ annee_sel }}</div>
+    <div class="value">{{ '{:,.0f}'.format(total_exercice).replace(',', '\u202f') }} €</div>
+    <div class="sub">{{ cles | length }} postes de charges</div>
+  </div>
+  {% for cle in cles[:4] %}
+  <div class="stat-box">
+    <div class="label" style="font-size:0.72rem;">{{ cle.code }} — {{ cle.libelle | truncate(30) }}</div>
+    <div class="value" style="font-size:1.2rem;">{{ '{:,.0f}'.format(cle.total).replace(',', '\u202f') }} €</div>
+    <div class="sub">{{ '{:.1f}'.format(cle.total / total_exercice * 100) if total_exercice else 0 }}% du total</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Répartition par clé de charges — {{ annee_sel }}</h2>
+  <div class="chart-grid">
+    <div class="chart-box"><canvas id="chartClesBar"></canvas></div>
+    <div class="chart-box"><canvas id="chartClesDoughnut"></canvas></div>
+  </div>
+</div>
+
+{% if evolution %}
+<div class="card">
+  <h2>Évolution mensuelle des dépenses — {{ annee_sel }}</h2>
+  <div class="chart-grid">
+    <div class="chart-box"><canvas id="chartMensuelLigne"></canvas></div>
+    <div class="chart-box"><canvas id="chartMensuelBar"></canvas></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Détail par clé de répartition</h2>
+  {% for cle in cles %}
+  <div class="accordion-item">
+    <div class="accordion-header">
+      <span>{{ cle.code }} — {{ cle.libelle }}</span>
+      <div style="display:flex; align-items:center; gap:1.5rem;">
+        <span style="font-size:0.8rem; color:#d7e6fa;">{{ cle.types | length }} type(s)</span>
+        <span class="montant-cle">{{ '{:,.2f}'.format(cle.total).replace(',', '\u202f').replace('.', ',') }} €</span>
+        <span class="accordion-arrow">▼</span>
+      </div>
+    </div>
+    <div class="accordion-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Code</th><th>Type de charge</th><th style="text-align:right">Total</th><th style="text-align:right">% de la clé</th></tr>
+          </thead>
+          <tbody>
+            {% for t in cle.types %}
+            <tr>
+              <td style="color:#6b7280; font-size:0.82rem;">{{ t.type_code }}</td>
+              <td>{{ t.type_libelle }}</td>
+              <td class="montant {{ 'negatif' if t.total < 0 else 'positif' }}">{{ '{:,.2f}'.format(t.total).replace(',', '\u202f').replace('.', ',') }} €</td>
+              <td style="text-align:right; color:#6b7280;">{{ '{:.1f}'.format(t.total / cle.total * 100) if cle.total else '—' }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2"><strong>Total {{ cle.code }}</strong></td>
+              <td class="montant">{{ '{:,.2f}'.format(cle.total).replace(',', '\u202f').replace('.', ',') }} €</td>
+              <td style="text-align:right; font-size:0.82rem; color:#6b7280;">{{ '{:.1f}'.format(cle.total / total_exercice * 100) if total_exercice else '—' }}% du total</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const clesData = {{ cles | tojson }};
+const evolutionData = {{ evolution | tojson }};
+const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa'];
+
+const ctxBar = document.getElementById('chartClesBar');
+if (ctxBar && clesData.length) {
+  new Chart(ctxBar, {
+    type: 'bar',
+    data: { labels: clesData.map(c => c.code + ' - ' + c.libelle.substring(0, 20)),
+      datasets: [{ label: 'Total (€)', data: clesData.map(c => c.total), backgroundColor: COULEURS.slice(0, clesData.length), borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+}
+
+const ctxDoughnut = document.getElementById('chartClesDoughnut');
+if (ctxDoughnut && clesData.length) {
+  new Chart(ctxDoughnut, {
+    type: 'doughnut',
+    data: { labels: clesData.map(c => c.code + ' ' + c.libelle.substring(0, 20)), datasets: [{ data: clesData.map(c => Math.max(0, c.total)), backgroundColor: COULEURS.slice(0, clesData.length) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } } } }
+  });
+}
+
+const ctxLigne = document.getElementById('chartMensuelLigne');
+const ctxBarsM = document.getElementById('chartMensuelBar');
+if (ctxLigne && evolutionData.length) {
+  const labels = evolutionData.map(e => e.mois);
+  const totaux = evolutionData.map(e => e.total);
+  new Chart(ctxLigne, {
+    type: 'line', data: { labels, datasets: [{ label: 'Dépenses mensuelles', data: totaux, borderColor: '#2d7dd2', backgroundColor: 'rgba(45,125,210,.1)', tension: 0.3, fill: true }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+}
+if (ctxBarsM && evolutionData.length) {
+  const labels = evolutionData.map(e => e.mois);
+  const totaux = evolutionData.map(e => e.total);
+  new Chart(ctxBarsM, {
+    type: 'bar', data: { labels, datasets: [{ label: 'Dépenses mensuelles', data: totaux, backgroundColor: '#2d7dd2', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  });
+}
+</script>
+{% endblock %}
