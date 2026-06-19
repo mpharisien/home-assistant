@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS Eclosion {% block title %}{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Variables couleurs (inspirées Myfoncia) ── */
+    :root {
+      --foncia-header: #3d4a5c;     /* bandeau supérieur */
+      --foncia-blue: #4a6fa5;       /* entêtes accordéon / clés */
+      --foncia-blue-dark: #3d5d8a;
+      --foncia-accent: #2d7dd2;     /* liens actifs, boutons */
+      --foncia-accent-light: #e8f0fc;
+      --bg-page: #f5f6f8;
+      --bg-sidebar: #ffffff;
+      --text-main: #333333;
+      --text-muted: #6b7280;
+      --border-color: #e0e3e8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --individuel: #8b5cf6;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* ── Layout global : sidebar fixe + contenu ── */
+    .app-layout { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar verticale (modules du CS) ── */
+    .sidebar {
+      width: 230px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-header {
+      background: var(--foncia-header);
+      color: #fff;
+      padding: 1rem 1.2rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+    .sidebar-header span { color: #9fc3f5; }
+    .sidebar-nav { padding: 0.75rem 0; flex: 1; }
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.65rem 1.2rem;
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 0.88rem;
+      border-left: 3px solid transparent;
+      transition: background .15s, border-color .15s;
+    }
+    .sidebar-nav a:hover { background: #f7f9fc; }
+    .sidebar-nav a.active {
+      background: var(--foncia-accent-light);
+      border-left-color: var(--foncia-accent);
+      color: var(--foncia-accent);
+      font-weight: 600;
+    }
+    .sidebar-nav .module-icon { font-size: 1.1rem; width: 1.4rem; text-align: center; }
+    .sidebar-nav .module-disabled {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.65rem 1.2rem; font-size: 0.88rem;
+      color: #b0b5bd; cursor: default;
+    }
+    .sidebar-footer {
+      padding: 0.8rem 1.2rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-color);
+    }
+
+    /* ── Zone de contenu ── */
+    .content-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+    /* ── Sous-navigation horizontale (pages du module) ── */
+    .subnav {
+      background: #fff;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 1.5rem;
+      display: flex;
+      gap: 0.3rem;
+    }
+    .subnav a {
+      padding: 0.85rem 1rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .subnav a:hover { color: var(--foncia-accent); }
+    .subnav a.active { color: var(--foncia-accent); border-bottom-color: var(--foncia-accent); }
+
+    main { max-width: 1300px; margin: 0 auto; padding: 1.75rem 1.5rem; width: 100%; }
+
+    /* ── Flash messages ── */
+    .flash-list { list-style: none; margin-bottom: 1.5rem; }
+    .flash-list li {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .flash-list .success { background: #d1fae5; color: #065f46; border-left: 4px solid var(--success); }
+    .flash-list .error   { background: #fee2e2; color: #991b1b; border-left: 4px solid var(--danger); }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border-color);
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--foncia-blue);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--foncia-accent-light);
+    }
+
+    /* ── Grille de statistiques ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.2rem 1.4rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      border: 1px solid var(--border-color);
+    }
+    .stat-box .label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+    .stat-box .value { font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-top: 0.3rem; }
+    .stat-box .sub   { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* ── Sélecteur d'année ── */
+    .annee-selector {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .annee-selector label { font-size: 0.9rem; font-weight: 600; color: #374151; }
+
+    /* ── Tableau ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th {
+      background: var(--foncia-blue);
+      color: #eaf1fb;
+      padding: 0.6rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    tbody tr:hover { background: #f8faff; }
+    tbody td { padding: 0.6rem 1rem; color: #374151; }
+    tbody td.montant { text-align: right; font-weight: 600; font-family: monospace; }
+    tbody td.montant.negatif { color: var(--success); }
+    tbody td.montant.danger { color: var(--danger); }
+    tbody td.montant.positif { color: var(--text-main); }
+    tfoot td {
+      padding: 0.6rem 1rem;
+      font-weight: 700;
+      background: var(--foncia-accent-light);
+      border-top: 2px solid var(--foncia-accent);
+    }
+    tfoot td.montant { text-align: right; font-family: monospace; }
+
+    /* ── Barre de progression ── */
+    .progress-wrap { margin: 0.5rem 0; }
+    .progress-bar-bg { height: 10px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 99px; transition: width .5s; }
+    .progress-bar-fill.ok      { background: var(--foncia-accent); }
+    .progress-bar-fill.warning { background: var(--warning); }
+    .progress-bar-fill.danger  { background: var(--danger); }
+    .progress-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; display: flex; justify-content: space-between; }
+
+    /* ── Toggle checkboxes graphiques ── */
+    .toggle-group { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.85rem; }
+    .toggle-group label {
+      display: flex; align-items: center; gap: 0.4rem; cursor: pointer;
+      padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border-color);
+      background: #fff; transition: background .15s;
+    }
+    .toggle-group label:hover { background: var(--foncia-accent-light); }
+    .toggle-group input[type=checkbox] { cursor: pointer; accent-color: var(--foncia-accent); }
+
+    /* ── Chart containers ── */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+    .chart-box { position: relative; height: 300px; }
+
+    /* ── Badges statut ── */
+    .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .badge.valide    { background: #d1fae5; color: #065f46; }
+    .badge.en_cours  { background: #fef3c7; color: #92400e; }
+
+    /* ── Boutons ── */
+    .btn {
+      display: inline-block; padding: 0.5rem 1.2rem; border-radius: 8px; border: none;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity .15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary   { background: var(--foncia-accent); color: #fff; }
+    .btn-success   { background: var(--success); color: #fff; }
+    .btn-danger    { background: var(--danger); color: #fff; }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+
+    /* ── Formulaires ── */
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color);
+      border-radius: 8px; font-size: 0.9rem; background: #fff;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none; border-color: var(--foncia-accent); box-shadow: 0 0 0 3px rgba(45,125,210,.15);
+    }
+
+    /* ── Accordéon clés de répartition (look Foncia) ── */
+    .accordion-item { margin-bottom: 0.75rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+    .accordion-header {
+      background: var(--foncia-blue);
+      color: #eaf1fb;
+      padding: 0.85rem 1.2rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .accordion-header:hover { background: var(--foncia-blue-dark); }
+    .accordion-header .montant-cle { color: #d7e6fa; font-family: monospace; }
+    .accordion-body { background: #fff; display: none; }
+    .accordion-body.open { display: block; }
+    .accordion-arrow { transition: transform .2s; }
+    .accordion-arrow.open { transform: rotate(180deg); }
+
+    /* ── Page titre ── */
+    .page-title { font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.5rem; }
+    .page-title span { color: var(--foncia-accent); font-weight: 400; }
+
+    @media (max-width: 900px) {
+      .sidebar { width: 64px; }
+      .sidebar-header { font-size: 0; padding: 1rem 0; text-align: center; }
+      .sidebar-nav a span.label-text { display: none; }
+      .sidebar-footer { display: none; }
+    }
+    @media (max-width: 640px) {
+      main { padding: 1rem; }
+      .chart-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .subnav { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── Sidebar : modules du Conseil Syndical ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">CS <span>Eclosion</span></div>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if module_actif == 'depenses' }}">
+        <span class="module-icon">💶</span><span class="label-text">Analyse des dépenses</span>
+      </a>
+      <div class="module-disabled" title="Bientôt disponible">
+        <span class="module-icon">🧾</span><span class="label-text">Appels de fonds</span>
+      </div>
+      <div class="module-disabled" title="Bientôt disponible">
+        <span class="module-icon">💧</span><span class="label-text">Relevés Océa</span>
+      </div>
+      <div class="module-disabled" title="Bientôt disponible">
+        <span class="module-icon">🏠</span><span class="label-text">Logements / Habitants</span>
+      </div>
+      <div class="module-disabled" title="Bientôt disponible">
+        <span class="module-icon">📋</span><span class="label-text">Sujets AG</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">Résidence Eclosion<br>Conseil syndical</div>
+  </aside>
+
+  <div class="content-area">
+
+    <!-- ── Sous-navigation : pages du module actif ── -->
+    {% if module_actif == 'depenses' %}
+    <div class="subnav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('foncia') }}" class="{{ 'active' if request.endpoint == 'foncia' }}">Vue Foncia</a>
+      <a href="{{ url_for('analytique') }}" class="{{ 'active' if request.endpoint == 'analytique' }}">Vue analytique</a>
+      <a href="{{ url_for('fournisseurs') }}" class="{{ 'active' if request.endpoint == 'fournisseurs' }}">Fournisseurs</a>
+      <a href="{{ url_for('import_csv') }}" class="{{ 'active' if request.endpoint == 'import_csv' }}">Import</a>
+    </div>
+    {% endif %}
+
+    <main>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flash-list">
+            {% for category, message in messages %}
+              <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script>
+function formatEur(n) {
+  if (n === null || n === undefined) return '—';
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.accordion-header').forEach(h => {
+    h.addEventListener('click', () => {
+      const body = h.nextElementSibling;
+      const arrow = h.querySelector('.accordion-arrow');
+      body.classList.toggle('open');
+      if (arrow) arrow.classList.toggle('open');
+    });
+  });
+});
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
