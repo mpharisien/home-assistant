@@ -14,6 +14,15 @@ def init_db():
     conn = get_db()
     c = conn.cursor()
 
+    # ── Migration : l'ancienne table 'logements' (schéma simplifié jamais utilisé,
+    # colonnes numero_lot/batiment/etage) doit être supprimée avant de recréer le
+    # nouveau schéma complet. CREATE TABLE IF NOT EXISTS ne modifie pas une table
+    # déjà existante, donc cette vérification manuelle est nécessaire.
+    existing_cols = c.execute("PRAGMA table_info(logements)").fetchall()
+    if existing_cols and not any(col[1] == 'numero_appartement' for col in existing_cols):
+        c.execute("DROP TABLE IF EXISTS logements")
+        conn.commit()
+
     # Table des exercices (une ligne par année)
     c.execute('''
         CREATE TABLE IF NOT EXISTS exercices (
