@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}— Logements{% endblock %}
+
+{% block content %}
+<div class="page-title">Logements <span>— 59 appartements, résidence Eclosion</span></div>
+
+<!-- ── Filtres ── -->
+<div class="card">
+  <form method="get" id="form-filtres" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:end;">
+    <div class="form-group" style="flex:1; min-width:220px; margin-bottom:0;">
+      <label>Rechercher (propriétaire ou habitant, tout historique)</label>
+      <input type="text" name="q" value="{{ recherche }}" placeholder="ex: Dupont">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Surface min (m²)</label>
+      <input type="number" name="surface_min" value="{{ surface_min if surface_min is not none else '' }}" style="width:120px;" step="0.1">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Surface max (m²)</label>
+      <input type="number" name="surface_max" value="{{ surface_max if surface_max is not none else '' }}" style="width:120px;" step="0.1">
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrer</button>
+    {% if recherche or surface_min or surface_max %}
+    <a href="{{ url_for('logements') }}" class="btn btn-secondary">Réinitialiser</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- ── Tableau triable ── -->
+<div class="card">
+  <h2>{{ logements | length }} logement(s)</h2>
+  <div class="table-wrap">
+    <table id="table-logements">
+      <thead>
+        <tr>
+          <th class="sortable" data-key="numero_appartement" data-type="text">N° Appartement ⇅</th>
+          <th class="sortable" data-key="lot_appartement" data-type="text">Lot ⇅</th>
+          <th class="sortable" data-key="nb_pieces" data-type="num">Pièces ⇅</th>
+          <th class="sortable" data-key="surface_m2" data-type="num" style="text-align:right">Surface (m²) ⇅</th>
+          <th class="sortable" data-key="proprietaire_actuel" data-type="text">Propriétaire actuel ⇅</th>
+          <th class="sortable" data-key="habitant_actuel" data-type="text">Habitant actuel ⇅</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in logements %}
+        <tr class="row-logement" data-logement-id="{{ l.id }}" style="cursor:pointer;">
+          <td><strong>{{ l.numero_appartement }}</strong></td>
+          <td style="color:#6b7280;">{{ l.lot_appartement or '—' }}</td>
+          <td>{{ l.nb_pieces or '—' }}</td>
+          <td style="text-align:right;">{{ '%.1f'|format(l.surface_m2) ~ ' m²' if l.surface_m2 else '—' }}</td>
+          <td>{{ l.proprietaire_actuel or '—' }}</td>
+          <td>{{ l.habitant_actuel or '—' }}</td>
+          <td style="text-align:right;">
+            <button type="button" class="btn btn-secondary btn-fiche" data-logement-id="{{ l.id }}" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="event.stopPropagation(); toggleFiche({{ l.id }})">Fiche</button>
+          </td>
+        </tr>
+        <tr class="row-fiche" id="fiche-{{ l.id }}" style="display:none;">
+          <td colspan="7" style="background:#f8faff; padding:1rem 1.5rem;">
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.8rem; font-size:0.85rem;">
+              <div><span style="color:#6b7280;">Tantième</span><br><strong>{{ l.tantieme }}</strong> /10000èmes</div>
+              <div><span style="color:#6b7280;">Terrasse</span><br><strong>{{ l.terrasse }}</strong></div>
+              <div><span style="color:#6b7280;">Balcon</span><br><strong>{{ l.balcon }}</strong></div>
+              <div><span style="color:#6b7280;">Jardin</span><br><strong>{{ l.jardin }}</strong></div>
+              <div><span style="color:#6b7280;">Loggia</span><br><strong>{{ l.loggia }}</strong></div>
+              <div><span style="color:#6b7280;">Lot parking</span><br><strong>{{ l.lot_parking or '—' }}</strong></div>
+              <div><span style="color:#6b7280;">Place parking</span><br><strong>{{ l.place_parking or '—' }}</strong></div>
+              <div><span style="color:#6b7280;">Tantième parking</span><br><strong>{{ l.tantieme_parking if l.tantieme_parking is not none else '—' }}</strong></div>
+            </div>
+          </td>
+        </tr>
+        <tr class="row-historique" id="historique-{{ l.id }}" style="display:none;">
+          <td colspan="7" style="background:#fafbfc; padding:1.2rem 1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+              <strong style="font-size:0.9rem;">Historique — Appartement {{ l.numero_appartement }}</strong>
+              <button type="button" class="btn btn-primary" style="padding:0.3rem 0.8rem; font-size:0.8rem;" onclick="ouvrirFormulaire({{ l.id }})">+ Ajouter une info</button>
+            </div>
+
+            <div id="form-ajout-{{ l.id }}" style="display:none; background:#fff; border:1px solid #e0e3e8; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+              <form method="post">
+                <input type="hidden" name="action" value="ajouter_info">
+                <input type="hidden" name="logement_id" value="{{ l.id }}">
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr) auto; gap:0.8rem; align-items:end;">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label>Date *</label>
+                    <input type="date" name="date" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label>Catégorie *</label>
+                    <select name="categorie" required>
+                      {% for code, label in categories.items() %}
+                      <option value="{{ code }}">{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label>Valeur *</label>
+                    <input type="text" name="valeur" required placeholder="ex: M. Dupont">
+                  </div>
+                  <button type="submit" class="btn btn-success">Ajouter</button>
+                </div>
+              </form>
+            </div>
+
+            {% set hist = historiques.get(l.id, []) %}
+            {% if hist %}
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Date</th><th>Catégorie</th><th>Valeur</th><th></th></tr></thead>
+                <tbody>
+                  {% for h in hist %}
+                  <tr>
+                    <td style="white-space:nowrap;">{{ h.date }}</td>
+                    <td>{{ categories.get(h.categorie, h.categorie) }}</td>
+                    <td>{{ h.valeur }}</td>
+                    <td style="text-align:right;">
+                      <form method="post" onsubmit="return confirm('Supprimer cette information ?');" style="display:inline;">
+                        <input type="hidden" name="action" value="supprimer_info">
+                        <input type="hidden" name="entry_id" value="{{ h.id }}">
+                        <button type="submit" class="btn btn-danger" style="padding:0.2rem 0.5rem; font-size:0.72rem;">Suppr.</button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p style="color:#6b7280; font-size:0.85rem;">Aucune information enregistrée pour ce logement.</p>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleFiche(id) {
+  const row = document.getElementById('fiche-' + id);
+  row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+function ouvrirFormulaire(id) {
+  const form = document.getElementById('form-ajout-' + id);
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+// Clic sur une ligne (hors bouton) -> ouvre/ferme l'historique
+document.querySelectorAll('.row-logement').forEach(row => {
+  row.addEventListener('click', () => {
+    const id = row.dataset.logementId;
+    const hist = document.getElementById('historique-' + id);
+    hist.style.display = hist.style.display === 'none' ? '' : 'none';
+  });
+});
+
+// Tri des colonnes (clic 1 = ASC, clic 2 = DESC)
+let triActuel = { key: null, dir: 1 };
+
+document.querySelectorAll('#table-logements th.sortable').forEach(th => {
+  th.style.cursor = 'pointer';
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    const type = th.dataset.type;
+    triActuel.dir = (triActuel.key === key) ? -triActuel.dir : 1;
+    triActuel.key = key;
+
+    const tbody = document.querySelector('#table-logements tbody');
+    // Regrouper chaque triplet de lignes (logement + fiche + historique) pour les déplacer ensemble
+    const groupes = [];
+    document.querySelectorAll('.row-logement').forEach(row => {
+      const id = row.dataset.logementId;
+      groupes.push({
+        row,
+        ficheRow: document.getElementById('fiche-' + id),
+        histRow: document.getElementById('historique-' + id),
+        valeur: row.children[[...row.parentElement.querySelectorAll('.row-logement')][0] ? 0 : 0]
+      });
+    });
+
+    // Récupérer la valeur de tri depuis la cellule correspondant à la colonne cliquée
+    const headers = [...document.querySelectorAll('#table-logements th.sortable')];
+    const colIndex = headers.indexOf(th);
+
+    groupes.forEach(g => {
+      const cell = g.row.children[colIndex];
+      let val = cell.textContent.trim();
+      if (type === 'num') {
+        val = parseFloat(val.replace(/[^\d.,-]/g, '').replace(',', '.')) || -Infinity;
+      } else {
+        val = val === '—' ? '' : val.toLowerCase();
+      }
+      g.valeur = val;
+    });
+
+    groupes.sort((a, b) => {
+      if (a.valeur < b.valeur) return -1 * triActuel.dir;
+      if (a.valeur > b.valeur) return 1 * triActuel.dir;
+      return 0;
+    });
+
+    groupes.forEach(g => {
+      tbody.appendChild(g.row);
+      tbody.appendChild(g.ficheRow);
+      tbody.appendChild(g.histRow);
+    });
+  });
+});
+</script>
+{% endblock %}
