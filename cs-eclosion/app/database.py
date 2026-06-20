@@ -43,6 +43,20 @@ def init_db():
         )
     ''')
 
+    # Table du budget prévisionnel détaillé par poste (exercice en cours uniquement)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS budget_detail (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exercice_id INTEGER NOT NULL,
+            cle_code TEXT NOT NULL,
+            cle_libelle TEXT NOT NULL,
+            type_code TEXT NOT NULL,
+            type_libelle TEXT NOT NULL,
+            budget REAL NOT NULL,
+            FOREIGN KEY (exercice_id) REFERENCES exercices(id)
+        )
+    ''')
+
     # Table des logements (partagée entre futurs modules : Océa, Habitants...)
     c.execute('''
         CREATE TABLE IF NOT EXISTS logements (
@@ -140,6 +154,78 @@ def get_all_depenses_raw(annee):
     ''', (annee,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def delete_exercice_complet(annee):
+    """Supprime un exercice et toutes ses données associées (dépenses + budget détaillé)."""
+    conn = get_db()
+    row = conn.execute('SELECT id FROM exercices WHERE annee = ?', (annee,)).fetchone()
+    if row:
+        exercice_id = row['id']
+        conn.execute('DELETE FROM depenses WHERE exercice_id = ?', (exercice_id,))
+        conn.execute('DELETE FROM budget_detail WHERE exercice_id = ?', (exercice_id,))
+        conn.execute('DELETE FROM exercices WHERE id = ?', (exercice_id,))
+        conn.commit()
+    conn.close()
+
+
+# ─── Budget détaillé (exercice en cours) ──────────────────────────────────────
+
+def delete_budget_by_exercice(exercice_id):
+    conn = get_db()
+    conn.execute('DELETE FROM budget_detail WHERE exercice_id = ?', (exercice_id,))
+    conn.commit()
+    conn.close()
+
+
+def insert_budget_bulk(exercice_id, rows):
+    """rows = liste de tuples (cle_code, cle_libelle, type_code, type_libelle, budget)"""
+    conn = get_db()
+    conn.executemany(
+        '''INSERT INTO budget_detail
+           (exercice_id, cle_code, cle_libelle, type_code, type_libelle, budget)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        [(exercice_id,) + r for r in rows]
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_budget_total(annee):
+    conn = get_db()
+    row = conn.execute('''
+        SELECT SUM(b.budget) as total
+        FROM budget_detail b
+        JOIN exercices e ON b.exercice_id = e.id
+        WHERE e.annee = ?
+    ''', (annee,)).fetchone()
+    conn.close()
+    return row['total'] if row and row['total'] is not None else None
+
+
+def get_all_budget_raw(annee):
+    """Toutes les lignes de budget détaillé d'un exercice (pour appliquer les regroupements analytiques)."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT b.*
+        FROM budget_detail b
+        JOIN exercices e ON b.exercice_id = e.id
+        WHERE e.annee = ?
+    ''', (annee,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def has_budget_detail(annee):
+    conn = get_db()
+    row = conn.execute('''
+        SELECT COUNT(*) as nb
+        FROM budget_detail b
+        JOIN exercices e ON b.exercice_id = e.id
+        WHERE e.annee = ?
+    ''', (annee,)).fetchone()
+    conn.close()
+    return row['nb'] > 0
 
 
 # ─── Requêtes vue Foncia (hiérarchie officielle, fidèle) ──────────────────────
