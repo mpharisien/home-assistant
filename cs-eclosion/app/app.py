@@ -485,5 +485,21 @@ def logements():
                            surface_max=surface_max)
 
 
+@app.route('/logements/seed-initial')
+def seed_initial():
+    """
+    Route exceptionnelle, à visiter UNE SEULE FOIS pour peupler les 59 logements
+    de démarrage. Protégée contre la double exécution : si des logements existent
+    déjà, elle ne fait rien. Pas besoin de terminal/shell pour la déclencher,
+    juste ouvrir cette URL dans le navigateur.
+    """
+    import seed_logements
+    if db.count_logements() > 0:
+        return f"⚠️ {db.count_logements()} logements existent déjà en base. Rien à faire. <a href='{url_for('logements')}'>Retour à la liste</a>"
+
+    seed_logements.run()
+    return f"✅ Seed terminé avec succès, {db.count_logements()} logements créés. <a href='{url_for('logements')}'>Voir la liste des logements</a>"
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=2000, debug=False, threaded=True)
