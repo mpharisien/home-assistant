@@ -23,6 +23,7 @@ MODULES_PAR_ENDPOINT = {
     'foncia': 'depenses',
     'fournisseurs': 'depenses',
     'import_csv': 'depenses',
+    'logements': 'logements',
 }
 
 
@@ -427,6 +428,61 @@ def import_csv():
             return redirect(url_for('import_csv'))
 
     return render_template('modules/depenses/import.html', exercices=exercices, preview=False)
+
+
+# ─── Module Logements / Habitants ──────────────────────────────────────────────
+
+CATEGORIES_HISTORIQUE = {
+    'proprietaire': 'Propriétaire',
+    'habitant': 'Habitant',
+    'prix_vente': 'Prix de vente',
+}
+
+
+@app.route('/logements', methods=['GET', 'POST'])
+def logements():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'ajouter_info':
+            logement_id = request.form.get('logement_id', type=int)
+            date = request.form.get('date', '').strip()
+            categorie = request.form.get('categorie', '').strip()
+            valeur = request.form.get('valeur', '').strip()
+
+            if not date or not categorie or not valeur:
+                flash('Date, catégorie et valeur sont obligatoires.', 'error')
+            elif categorie not in CATEGORIES_HISTORIQUE:
+                flash('Catégorie invalide.', 'error')
+            else:
+                db.add_historique_entry(logement_id, date, categorie, valeur)
+                flash('Information ajoutée.', 'success')
+
+            return redirect(url_for('logements'))
+
+        elif action == 'supprimer_info':
+            entry_id = request.form.get('entry_id', type=int)
+            if entry_id:
+                db.delete_historique_entry(entry_id)
+                flash('Information supprimée.', 'success')
+            return redirect(url_for('logements'))
+
+    recherche = request.args.get('q', '').strip() or None
+    surface_min = request.args.get('surface_min', type=float)
+    surface_max = request.args.get('surface_max', type=float)
+
+    liste = db.rechercher_logements(recherche_nom=recherche, surface_min=surface_min, surface_max=surface_max)
+
+    # Historique complet pour chaque logement affiché (pour l'accordéon, évite un aller-retour JS)
+    historiques = {l['id']: db.get_historique_logement(l['id']) for l in liste}
+
+    return render_template('modules/logements/liste.html',
+                           logements=liste,
+                           historiques=historiques,
+                           categories=CATEGORIES_HISTORIQUE,
+                           recherche=recherche or '',
+                           surface_min=surface_min,
+                           surface_max=surface_max)
 
 
 if __name__ == '__main__':
