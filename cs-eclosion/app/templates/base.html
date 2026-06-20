@@ -319,7 +319,6 @@
     <div class="subnav">
       <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">Dashboard</a>
       <a href="{{ url_for('foncia') }}" class="{{ 'active' if request.endpoint == 'foncia' }}">Vue Foncia</a>
-      <a href="{{ url_for('analytique') }}" class="{{ 'active' if request.endpoint == 'analytique' }}">Vue analytique</a>
       <a href="{{ url_for('fournisseurs') }}" class="{{ 'active' if request.endpoint == 'fournisseurs' }}">Fournisseurs</a>
       <a href="{{ url_for('import_csv') }}" class="{{ 'active' if request.endpoint == 'import_csv' }}">Import</a>
     </div>
