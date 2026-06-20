@@ -302,9 +302,9 @@
       <div class="module-disabled" title="Bientôt disponible">
         <span class="module-icon">💧</span><span class="label-text">Relevés Océa</span>
       </div>
-      <div class="module-disabled" title="Bientôt disponible">
+      <a href="{{ url_for('logements') }}" class="{{ 'active' if module_actif == 'logements' }}">
         <span class="module-icon">🏠</span><span class="label-text">Logements / Habitants</span>
-      </div>
+      </a>
       <div class="module-disabled" title="Bientôt disponible">
         <span class="module-icon">📋</span><span class="label-text">Sujets AG</span>
       </div>
@@ -321,6 +321,10 @@
       <a href="{{ url_for('foncia') }}" class="{{ 'active' if request.endpoint == 'foncia' }}">Vue Foncia</a>
       <a href="{{ url_for('fournisseurs') }}" class="{{ 'active' if request.endpoint == 'fournisseurs' }}">Fournisseurs</a>
       <a href="{{ url_for('import_csv') }}" class="{{ 'active' if request.endpoint == 'import_csv' }}">Import</a>
+    </div>
+    {% elif module_actif == 'logements' %}
+    <div class="subnav">
+      <a href="{{ url_for('logements') }}" class="active">Logements</a>
     </div>
     {% endif %}
 
