@@ -57,15 +57,34 @@ def init_db():
         )
     ''')
 
-    # Table des logements (partagée entre futurs modules : Océa, Habitants...)
+    # Table des logements (données fixes) — module "Logements / Habitants"
     c.execute('''
         CREATE TABLE IF NOT EXISTS logements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_lot INTEGER UNIQUE NOT NULL,
-            batiment TEXT,
-            etage TEXT,
+            numero_appartement TEXT UNIQUE NOT NULL,
+            lot_appartement TEXT,
+            nb_pieces INTEGER,
             tantieme REAL,
-            actif INTEGER DEFAULT 1
+            terrasse INTEGER DEFAULT 0,
+            balcon INTEGER DEFAULT 0,
+            jardin INTEGER DEFAULT 0,
+            loggia INTEGER DEFAULT 0,
+            surface_m2 REAL,
+            lot_parking TEXT,
+            place_parking TEXT,
+            tantieme_parking REAL
+        )
+    ''')
+
+    # Table de l'historique daté par logement (propriétaire, habitant, prix de vente...)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS logement_historique (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            logement_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            categorie TEXT NOT NULL,  -- 'proprietaire', 'habitant', 'prix_vente'
+            valeur TEXT NOT NULL,
+            FOREIGN KEY (logement_id) REFERENCES logements(id)
         )
     ''')
 
@@ -329,3 +348,125 @@ def get_totaux_par_fournisseur(annee=None):
         ''').fetchall()
     conn.close()
     return rows
+
+
+# ─── Module Logements / Habitants ──────────────────────────────────────────────
+
+def get_all_logements_avec_etat_actuel():
+    """
+    Retourne tous les logements avec leur propriétaire et habitant actuels
+    (= l'entrée la plus récente de chaque catégorie dans l'historique).
+    """
+    conn = get_db()
+    logements = conn.execute('SELECT * FROM logements ORDER BY numero_appartement').fetchall()
+    result = []
+    for l in logements:
+        l = dict(l)
+        proprio = conn.execute('''
+            SELECT valeur, date FROM logement_historique
+            WHERE logement_id = ? AND categorie = 'proprietaire'
+            ORDER BY date DESC LIMIT 1
+        ''', (l['id'],)).fetchone()
+        habitant = conn.execute('''
+            SELECT valeur, date FROM logement_historique
+            WHERE logement_id = ? AND categorie = 'habitant'
+            ORDER BY date DESC LIMIT 1
+        ''', (l['id'],)).fetchone()
+        l['proprietaire_actuel'] = proprio['valeur'] if proprio else None
+        l['habitant_actuel'] = habitant['valeur'] if habitant else None
+        result.append(l)
+    conn.close()
+    return result
+
+
+def get_logement_by_id(logement_id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM logements WHERE id = ?', (logement_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_historique_logement(logement_id):
+    """Historique complet d'un logement, trié du plus récent au plus ancien."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT * FROM logement_historique
+        WHERE logement_id = ?
+        ORDER BY date DESC, id DESC
+    ''', (logement_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def rechercher_logements(recherche_nom=None, surface_min=None, surface_max=None):
+    """
+    Retourne les logements correspondant aux filtres, avec état actuel.
+    recherche_nom : cherche dans TOUT l'historique (propriétaire + habitant, toutes dates).
+    """
+    logements = get_all_logements_avec_etat_actuel()
+
+    if recherche_nom:
+        conn = get_db()
+        terme = f'%{recherche_nom.strip()}%'
+        ids_matches = conn.execute('''
+            SELECT DISTINCT logement_id FROM logement_historique
+            WHERE categorie IN ('proprietaire', 'habitant') AND valeur LIKE ?
+        ''', (terme,)).fetchall()
+        conn.close()
+        ids_set = {r['logement_id'] for r in ids_matches}
+        logements = [l for l in logements if l['id'] in ids_set]
+
+    if surface_min is not None:
+        logements = [l for l in logements if l['surface_m2'] is not None and l['surface_m2'] >= surface_min]
+    if surface_max is not None:
+        logements = [l for l in logements if l['surface_m2'] is not None and l['surface_m2'] <= surface_max]
+
+    return logements
+
+
+def add_historique_entry(logement_id, date, categorie, valeur):
+    conn = get_db()
+    conn.execute('''
+        INSERT INTO logement_historique (logement_id, date, categorie, valeur)
+        VALUES (?, ?, ?, ?)
+    ''', (logement_id, date, categorie, valeur))
+    conn.commit()
+    conn.close()
+
+
+def delete_historique_entry(entry_id):
+    conn = get_db()
+    conn.execute('DELETE FROM logement_historique WHERE id = ?', (entry_id,))
+    conn.commit()
+    conn.close()
+
+
+def count_logements():
+    conn = get_db()
+    row = conn.execute('SELECT COUNT(*) as nb FROM logements').fetchone()
+    conn.close()
+    return row['nb']
+
+
+def insert_logement(numero_appartement, lot_appartement, nb_pieces, tantieme,
+                     terrasse, balcon, jardin, loggia, surface_m2,
+                     lot_parking, place_parking, tantieme_parking):
+    conn = get_db()
+    cur = conn.execute('''
+        INSERT INTO logements
+        (numero_appartement, lot_appartement, nb_pieces, tantieme, terrasse, balcon, jardin, loggia,
+         surface_m2, lot_parking, place_parking, tantieme_parking)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (numero_appartement, lot_appartement, nb_pieces, tantieme, terrasse, balcon, jardin, loggia,
+          surface_m2, lot_parking, place_parking, tantieme_parking))
+    conn.commit()
+    logement_id = cur.lastrowid
+    conn.close()
+    return logement_id
+
+
+def get_logement_id_by_numero(numero_appartement):
+    conn = get_db()
+    row = conn.execute('SELECT id FROM logements WHERE numero_appartement = ?', (numero_appartement,)).fetchone()
+    conn.close()
+    return row['id'] if row else None
