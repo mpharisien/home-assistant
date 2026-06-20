@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-title">Dashboard <span>— Analyse des dépenses</span></div>
 
-{% if not data_annees %}
+{% if not exercices %}
 <div class="card">
   <p style="color:#6b7280; text-align:center; padding:2rem 0;">
     Aucun exercice importé pour l'instant.<br>
@@ -13,99 +13,179 @@
 </div>
 {% else %}
 
-<div class="stat-grid">
-  {% for d in data_annees %}
-  <div class="stat-box">
-    <div class="label">{{ d.annee }} <span class="badge {{ d.statut }}">{{ 'Validé' if d.statut == 'valide' else 'En cours' }}</span></div>
-    <div class="value">{{ '{:,.0f}'.format(d.total).replace(',', '\u202f') }} €</div>
-    {% if d.budget %}
-      {% set pct = (d.total / d.budget * 100) | round(1) %}
-      <div class="sub">Budget : {{ '{:,.0f}'.format(d.budget).replace(',', '\u202f') }} €</div>
-      <div class="progress-wrap">
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill {{ 'danger' if pct > 100 else ('warning' if pct > 85 else 'ok') }}"
-               style="width: {{ [pct, 100] | min }}%"></div>
-        </div>
-        <div class="progress-label">
-          <span>{{ pct }}% consommé</span>
-          <span>{{ '{:,.0f}'.format(d.budget - d.total).replace(',', '\u202f') }} € restant</span>
-        </div>
-      </div>
-    {% else %}
-      <div class="sub">
-        <a href="javascript:void(0)" onclick="document.getElementById('budget-form-{{ d.annee }}').style.display='block'" style="color:#2d7dd2; font-size:0.8rem;">+ Ajouter un budget prévisionnel</a>
-      </div>
-      <div id="budget-form-{{ d.annee }}" style="display:none; margin-top:0.5rem;">
-        <form method="post" action="{{ url_for('update_budget', annee=d.annee) }}" style="display:flex; gap:0.4rem;">
-          <input type="text" name="budget" placeholder="ex: 131000" style="flex:1; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px; font-size:0.8rem;">
-          <button type="submit" class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.8rem;">OK</button>
-        </form>
-      </div>
-    {% endif %}
+<!-- ── Sélecteur d'année + comparaison ── -->
+<div style="display:flex; gap:1rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
+  <div class="annee-selector" style="margin-bottom:0;">
+    <label>Exercice :</label>
+    {% for e in exercices %}
+    <a href="{{ url_for('dashboard', annee=e['annee']) }}"
+       class="btn {{ 'btn-primary' if e['annee'] == annee_sel else 'btn-secondary' }}"
+       style="padding:0.35rem 0.9rem; font-size:0.85rem;">
+      {{ e['annee'] }}
+      <span class="badge {{ e['statut'] }}" style="margin-left:0.3rem">{{ '✓' if e['statut'] == 'valide' else '…' }}</span>
+    </a>
+    {% endfor %}
   </div>
-  {% endfor %}
+
+  {% if exercices | length > 1 %}
+  <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.9rem;">
+    <label style="font-weight:600; color:#374151;">Comparer avec :</label>
+    <select onchange="window.location=this.value" style="padding:0.35rem 0.6rem; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem;">
+      <option value="{{ url_for('dashboard', annee=annee_sel) }}">— aucune —</option>
+      {% for e in exercices %}
+        {% if e['annee'] != annee_sel %}
+        <option value="{{ url_for('dashboard', annee=annee_sel, compare=e['annee']) }}" {{ 'selected' if e['annee'] == annee_comp }}>{{ e['annee'] }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
 </div>
 
+<!-- ── Stats collectif / individuel / budget ── -->
+<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="stat-box">
+    <div class="label">Total charges collectives — {{ annee_sel }}</div>
+    <div class="value">{{ '{:,.0f}'.format(total_collectif).replace(',', '\u202f') }} €</div>
+    <div class="sub">{{ groupes_collectifs | length }} postes</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Consommations individuelles</div>
+    <div class="value" style="color:#8b5cf6;">{{ '{:,.0f}'.format(total_individuel).replace(',', '\u202f') }} €</div>
+    <div class="sub">Eau froide + eau chaude + répartiteurs</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Budget prévisionnel {{ annee_sel }}</div>
+    {% if budget_total %}
+      {% set pct = (total_collectif / budget_total * 100) | round(1) %}
+      <div class="value">{{ '{:,.0f}'.format(budget_total).replace(',', '\u202f') }} €</div>
+      <div class="progress-wrap">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill {{ 'danger' if pct > 100 else ('warning' if pct > 85 else 'ok') }}" style="width: {{ [pct, 100] | min }}%"></div>
+        </div>
+        <div class="progress-label"><span>{{ pct }}% consommé (charges collectives)</span></div>
+      </div>
+    {% else %}
+      <div class="value" style="font-size:1.1rem; color:#9ca3af;">Non importé</div>
+      <div class="sub"><a href="{{ url_for('import_csv') }}" style="color:#2d7dd2;">Importer le budget détaillé</a></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Graphique évolution par année (ordre chronologique) ── -->
 <div class="card">
-  <h2>Comparaison annuelle</h2>
+  <h2>Évolution des dépenses totales par année</h2>
+  <div class="chart-box"><canvas id="chartBarAnnees"></canvas></div>
+</div>
+
+<!-- ── Courbes mensualisées (réel vs prévisionnel) ── -->
+{% if courbes_mensuelles %}
+<div class="card">
+  <h2>Suivi mensuel — réel vs prévisionnel ({{ annee_sel }})</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Uniquement pour les postes à rythme mensuel régulier (ménage, chaufferie/gaz, électricité) — les autres dépenses
+    arrivent trop ponctuellement dans l'année pour qu'une moyenne mensuelle soit pertinente.
+  </p>
+  <div class="chart-grid">
+    {% for courbe in courbes_mensuelles %}
+    <div>
+      <h3 style="font-size:0.88rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">{{ courbe.nom }}</h3>
+      <div class="chart-box" style="height:250px;">
+        <canvas id="chartMensualise{{ loop.index }}"></canvas>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Charges collectives par poste (barres uniquement) ── -->
+<div class="card">
+  <h2>Charges collectives par poste — {{ annee_sel }}{% if annee_comp %} vs {{ annee_comp }}{% endif %}</h2>
+  <div class="chart-box" style="height:380px;"><canvas id="chartGroupesBar"></canvas></div>
+</div>
+
+<!-- ── Tableau détail charges collectives ── -->
+<div class="card">
+  <h2>Charges collectives — détail</h2>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Année</th>
-          <th>Statut</th>
-          <th style="text-align:right">Total réel</th>
-          <th style="text-align:right">Budget prévisionnel</th>
-          <th style="text-align:right">Écart</th>
-          <th>Dernier import</th>
+          <th>Poste</th>
+          <th style="text-align:right">{{ annee_sel }}</th>
+          {% if budget_par_groupe %}<th style="text-align:right">Budget {{ annee_sel }}</th><th style="text-align:right">% consommé</th>{% endif %}
+          {% if annee_comp %}<th style="text-align:right">{{ annee_comp }}</th><th style="text-align:right">Écart</th>{% endif %}
         </tr>
       </thead>
       <tbody>
-        {% for d in data_annees %}
+        {% for g in groupes_collectifs %}
         <tr>
-          <td><strong>{{ d.annee }}</strong></td>
-          <td><span class="badge {{ d.statut }}">{{ 'Validé' if d.statut == 'valide' else 'En cours' }}</span></td>
-          <td class="montant">{{ '{:,.2f}'.format(d.total).replace(',', '\u202f').replace('.', ',') }} €</td>
-          <td class="montant">{{ '{:,.2f}'.format(d.budget).replace(',', '\u202f').replace('.', ',') ~ ' €' if d.budget else '—' }}</td>
-          <td class="montant {% if d.budget %}{{ 'negatif' if d.total <= d.budget else 'danger' }}{% endif %}">
-            {% if d.budget %}{{ '{:+,.2f}'.format(d.total - d.budget).replace(',', '\u202f').replace('.', ',') }} €{% else %}—{% endif %}
-          </td>
-          <td style="color:#6b7280; font-size:0.82rem;">{{ d.date_import[:10] if d.date_import else '—' }}</td>
+          <td><strong>{{ g.groupe_label }}</strong></td>
+          <td class="montant">{{ '{:,.2f}'.format(g.total).replace(',', '\u202f').replace('.', ',') }} €</td>
+          {% if budget_par_groupe %}
+            {% set b = budget_par_groupe.get(g.groupe_label) %}
+            <td class="montant" style="color:#6b7280;">{{ '{:,.2f}'.format(b).replace(',', '\u202f').replace('.', ',') ~ ' €' if b else '—' }}</td>
+            <td style="text-align:right;">
+              {% if b %}
+                {% set pct_g = (g.total / b * 100) | round(0) %}
+                <span class="badge {{ 'valide' if pct_g <= 85 else ('en_cours' if pct_g <= 100 else '') }}" style="{% if pct_g > 100 %}background:#fee2e2; color:#991b1b;{% endif %}">{{ pct_g | int }}%</span>
+              {% else %}—{% endif %}
+            </td>
+          {% endif %}
+          {% if annee_comp %}
+            {% set total_comp = groupes_comp.get(g.groupe_label) %}
+            <td class="montant" style="color:#6b7280;">{{ '{:,.2f}'.format(total_comp).replace(',', '\u202f').replace('.', ',') ~ ' €' if total_comp is not none else '—' }}</td>
+            <td class="montant {% if total_comp is not none %}{{ 'negatif' if g.total <= total_comp else 'danger' }}{% endif %}">
+              {% if total_comp is not none %}{{ '{:+,.2f}'.format(g.total - total_comp).replace(',', '\u202f').replace('.', ',') }} €{% else %}—{% endif %}
+            </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr>
+          <td><strong>Total collectif</strong></td>
+          <td class="montant">{{ '{:,.2f}'.format(total_collectif).replace(',', '\u202f').replace('.', ',') }} €</td>
+          {% if budget_par_groupe %}<td class="montant">{{ '{:,.2f}'.format(budget_total).replace(',', '\u202f').replace('.', ',') if budget_total else '—' }} €</td><td></td>{% endif %}
+          {% if annee_comp %}
+            {% set total_comp_global = groupes_comp.values() | sum %}
+            <td class="montant">{{ '{:,.2f}'.format(total_comp_global).replace(',', '\u202f').replace('.', ',') }} €</td>
+            <td class="montant">{{ '{:+,.2f}'.format(total_collectif - total_comp_global).replace(',', '\u202f').replace('.', ',') }} €</td>
+          {% endif %}
+        </tr>
+      </tfoot>
     </table>
   </div>
 </div>
 
-<div class="card">
-  <h2>Évolution des dépenses totales par année</h2>
-  <div class="toggle-group" id="toggle-annees">
-    {% for d in data_annees %}
-    <label><input type="checkbox" checked data-annee="{{ d.annee }}"> {{ d.annee }}</label>
-    {% endfor %}
-    {% if data_annees | selectattr('budget') | list %}
-    <label><input type="checkbox" checked data-serie="budget" style="accent-color:#f59e0b"> Budget prévisionnel</label>
-    {% endif %}
-  </div>
-  <div class="chart-box"><canvas id="chartBarAnnees"></canvas></div>
-</div>
-
-{% if en_cours %}
-<div class="card">
-  <h2>Évolution mensuelle {{ en_cours.annee }} — Cumul des dépenses</h2>
-  <div class="toggle-group" id="toggle-mensuel">
-    <label><input type="checkbox" checked data-serie="en_cours"> {{ en_cours.annee }} (en cours)</label>
-    {% if evolution_precedente %}
-    <label><input type="checkbox" checked data-serie="precedente"> {{ en_cours.annee - 1 }} (N-1)</label>
-    {% endif %}
-    {% if en_cours.budget %}
-    <label><input type="checkbox" checked data-serie="budget_line" style="accent-color:#f59e0b"> Budget {{ en_cours.annee }}</label>
-    {% endif %}
-  </div>
-  <div class="chart-grid">
-    <div class="chart-box"><canvas id="chartLignesMensuel"></canvas></div>
-    <div class="chart-box"><canvas id="chartBarsMensuel"></canvas></div>
+<!-- ── Encart consommations individuelles ── -->
+{% if groupes_individuels %}
+<div class="card" style="border-left: 4px solid #8b5cf6;">
+  <h2 style="color:#8b5cf6;">Consommations individuelles — ventilation par lot</h2>
+  <p style="font-size:0.88rem; color:#6b7280; margin-bottom:1rem;">
+    Ces montants représentent la quote-part de consommation individuelle (eau froide, eau chaude, répartiteurs chauffage)
+    déduite des charges collectives et refacturée à chaque copropriétaire selon ses relevés de compteurs.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Poste</th><th style="text-align:right">{{ annee_sel }}</th>{% if annee_comp %}<th style="text-align:right">{{ annee_comp }}</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for g in groupes_individuels %}
+        <tr>
+          <td>{{ g.groupe_label }}</td>
+          <td class="montant">{{ '{:,.2f}'.format(g.total).replace(',', '\u202f').replace('.', ',') }} €</td>
+          {% if annee_comp %}
+            {% set total_comp = groupes_comp.get(g.groupe_label) %}
+            <td class="montant" style="color:#6b7280;">{{ '{:,.2f}'.format(total_comp).replace(',', '\u202f').replace('.', ',') ~ ' €' if total_comp is not none else '—' }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><td><strong>Total individuel</strong></td><td class="montant">{{ '{:,.2f}'.format(total_individuel).replace(',', '\u202f').replace('.', ',') }} €</td>{% if annee_comp %}<td></td>{% endif %}</tr>
+      </tfoot>
+    </table>
   </div>
 </div>
 {% endif %}
@@ -115,104 +195,89 @@
 
 {% block scripts %}
 <script>
-const dataAnnees = {{ data_annees | tojson }};
-const evolutionEnCours = {{ evolution_en_cours | map(attribute='mois') | list | tojson }};
-const evolutionEnCoursTotaux = {{ evolution_en_cours | map(attribute='total') | list | tojson }};
-const evolutionPrecedente = {{ evolution_precedente | map(attribute='mois') | list | tojson }};
-const evolutionPrecedenteTotaux = {{ evolution_precedente | map(attribute='total') | list | tojson }};
-const enCours = {{ en_cours | tojson if en_cours else 'null' }};
+const totauxParAnnee = {{ totaux_par_annee | tojson }};
+const anneesAsc = {{ annees_asc | tojson }};
+const groupesCollectifs = {{ groupes_collectifs | tojson }};
+const groupesComp = {{ groupes_comp | tojson }};
+const anneeComp = {{ annee_comp | tojson }};
+const courbesMensuelles = {{ courbes_mensuelles | tojson }};
 
-const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
 
+// ── Graphique évolution par année (ordre chronologique croissant) ──
 const ctxBar = document.getElementById('chartBarAnnees');
-if (ctxBar) {
-  const labels = dataAnnees.map(d => d.annee.toString());
-  const datasets = [{
-    label: 'Total réel',
-    data: dataAnnees.map(d => d.total),
-    backgroundColor: dataAnnees.map((d, i) => COULEURS[i % COULEURS.length]),
-    borderRadius: 6,
-  }];
-  const hasBudget = dataAnnees.some(d => d.budget);
-  if (hasBudget) {
-    datasets.push({
-      label: 'Budget prévisionnel', data: dataAnnees.map(d => d.budget || null),
-      backgroundColor: 'rgba(245,158,11,0.25)', borderColor: '#f59e0b', borderWidth: 2,
-      type: 'line', pointStyle: 'circle', pointRadius: 5,
-    });
-  }
-  const chartBarAnnees = new Chart(ctxBar, {
-    type: 'bar', data: { labels, datasets },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } },
-      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
-  });
-
-  document.querySelectorAll('#toggle-annees input').forEach(cb => {
-    cb.addEventListener('change', () => {
-      if (cb.dataset.serie === 'budget') {
-        const idx = chartBarAnnees.data.datasets.findIndex(d => d.label === 'Budget prévisionnel');
-        if (idx >= 0) { chartBarAnnees.data.datasets[idx].hidden = !cb.checked; chartBarAnnees.update(); }
-      } else {
-        const annee = parseInt(cb.dataset.annee);
-        const idx = chartBarAnnees.data.labels.indexOf(annee.toString());
-        chartBarAnnees.data.datasets[0].data[idx] = cb.checked ? dataAnnees.find(d => d.annee === annee)?.total : null;
-        chartBarAnnees.update();
-      }
-    });
+if (ctxBar && anneesAsc.length) {
+  new Chart(ctxBar, {
+    type: 'bar',
+    data: {
+      labels: anneesAsc.map(a => a.toString()),
+      datasets: [{
+        label: 'Total réel',
+        data: anneesAsc.map(a => totauxParAnnee[a]),
+        backgroundColor: anneesAsc.map((a, i) => COULEURS[i % COULEURS.length]),
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } }
+    }
   });
 }
 
-const moisLabels = evolutionEnCours.length ? evolutionEnCours : evolutionPrecedente;
-
-function buildDatasetsMensuel(cumul) {
-  const datasets = [];
-  if (evolutionEnCoursTotaux.length) {
-    let vals = evolutionEnCoursTotaux;
-    if (cumul) { let s = 0; vals = vals.map(v => (s += v)); }
-    datasets.push({ label: enCours ? enCours.annee.toString() : 'En cours', data: vals, borderColor: '#2d7dd2', backgroundColor: 'rgba(45,125,210,.15)', tension: 0.3, fill: cumul });
+// ── Charges collectives par poste (barres uniquement) ──
+const ctxGroupesBar = document.getElementById('chartGroupesBar');
+if (ctxGroupesBar && groupesCollectifs.length) {
+  const labels = groupesCollectifs.map(g => g.groupe_label);
+  const datasets = [{ label: '{{ annee_sel }}', data: groupesCollectifs.map(g => g.total), backgroundColor: COULEURS.slice(0, groupesCollectifs.length), borderRadius: 6 }];
+  if (anneeComp && Object.keys(groupesComp).length) {
+    datasets.push({ label: anneeComp.toString(), data: groupesCollectifs.map(g => groupesComp[g.groupe_label] || 0), backgroundColor: groupesCollectifs.map((_, i) => COULEURS[i % COULEURS.length] + '66'), borderRadius: 6 });
   }
-  if (evolutionPrecedenteTotaux.length) {
-    let vals = evolutionPrecedenteTotaux.slice(0, moisLabels.length);
-    if (cumul) { let s = 0; vals = vals.map(v => v !== null ? (s += v) : null); }
-    datasets.push({ label: enCours ? (enCours.annee - 1).toString() : 'N-1', data: vals, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.1)', tension: 0.3, borderDash: [5,3], fill: false });
-  }
-  if (enCours && enCours.budget) {
-    const budgetMensuel = enCours.budget / 12;
-    let vals = moisLabels.map((_, i) => cumul ? budgetMensuel * (i + 1) : budgetMensuel);
-    datasets.push({ label: 'Budget', data: vals, borderColor: '#f59e0b', borderDash: [4,4], pointRadius: 0, tension: 0, fill: false });
-  }
-  return datasets;
-}
-
-const ctxLigne = document.getElementById('chartLignesMensuel');
-const ctxBars = document.getElementById('chartBarsMensuel');
-let chartLigne, chartBars;
-
-if (ctxLigne && moisLabels.length) {
-  chartLigne = new Chart(ctxLigne, {
-    type: 'line', data: { labels: moisLabels, datasets: buildDatasetsMensuel(true) },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } },
-      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
-  });
-}
-if (ctxBars && moisLabels.length) {
-  chartBars = new Chart(ctxBars, {
-    type: 'bar', data: { labels: moisLabels, datasets: buildDatasetsMensuel(false) },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } } }
+  new Chart(ctxGroupesBar, {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: !!anneeComp } },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €' } } }
+    }
   });
 }
 
-document.querySelectorAll('#toggle-mensuel input').forEach(cb => {
-  cb.addEventListener('change', () => {
-    const serie = cb.dataset.serie;
-    const labelMap = { en_cours: enCours?.annee?.toString(), precedente: enCours ? (enCours.annee - 1).toString() : null, budget_line: 'Budget' };
-    const label = labelMap[serie];
-    [chartLigne, chartBars].forEach(chart => {
-      if (!chart) return;
-      const ds = chart.data.datasets.find(d => d.label === label);
-      if (ds) { ds.hidden = !cb.checked; chart.update(); }
-    });
+// ── Courbes mensualisées (réel cumulé vs prévisionnel/12 cumulé) ──
+courbesMensuelles.forEach((courbe, idx) => {
+  const ctx = document.getElementById('chartMensualise' + (idx + 1));
+  if (!ctx) return;
+
+  const moisDisponibles = courbe.evolution.map(e => e.mois);
+  // On affiche toujours les 12 mois de l'année pour comparer correctement au prévisionnel
+  const anneeCourante = moisDisponibles.length ? moisDisponibles[0].substring(0, 4) : '{{ annee_sel }}';
+  const tousLesMois = Array.from({length: 12}, (_, i) => `${anneeCourante}-${String(i + 1).padStart(2, '0')}`);
+
+  let cumulReel = 0;
+  const dataReel = tousLesMois.map(m => {
+    const entry = courbe.evolution.find(e => e.mois === m);
+    if (entry) { cumulReel += entry.total; return cumulReel; }
+    return moisDisponibles.includes(m) || m < (moisDisponibles[moisDisponibles.length-1] || '0000-00') ? cumulReel : null;
+  });
+
+  const dataPrevisionnel = tousLesMois.map((_, i) => courbe.budget_mensuel * (i + 1));
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: tousLesMois.map(m => m.substring(5, 7) + '/' + m.substring(2, 4)),
+      datasets: [
+        { label: 'Réel cumulé', data: dataReel, borderColor: '#2d7dd2', backgroundColor: 'rgba(45,125,210,.1)', tension: 0.2, fill: true },
+        { label: 'Prévisionnel', data: dataPrevisionnel, borderColor: '#f59e0b', borderDash: [5,3], pointRadius: 0, tension: 0, fill: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('fr-FR') + ' €', font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } }
+    }
   });
 });
 </script>
