@@ -103,6 +103,12 @@ REGLES = [
 RESTE_GROUPE = ("Charges générales (reste)", 99, False)
 
 
+# Groupes pour lesquels une courbe "prévisionnel mensualisé" (budget annuel / 12) a du sens,
+# car ces dépenses arrivent par écritures régulières tout au long de l'année (constaté sur 2025).
+# Pour les autres groupes, les écritures sont trop ponctuelles/irrégulières pour que ça soit pertinent.
+GROUPES_MENSUALISABLES = ["Ménage", "Chaufferie (gaz, entretien, réparations)", "Électricité"]
+
+
 def assigner_groupe(depense):
     """Retourne (nom_groupe, ordre, is_individuel) pour une écriture donnée."""
     for nom, ordre, is_individuel, condition in REGLES:
@@ -111,11 +117,14 @@ def assigner_groupe(depense):
     return RESTE_GROUPE
 
 
-def regrouper_depenses(depenses):
+def regrouper_depenses(depenses, champ_montant='montant'):
     """
-    Prend une liste de dépenses brutes (dicts) et retourne une liste de groupes
+    Prend une liste de lignes (dépenses ou budget, dicts) et retourne une liste de groupes
     analytiques agrégés : [{groupe_label, groupe_ordre, is_individuel, total}, ...]
     triée par ordre d'affichage.
+
+    champ_montant : nom de la clé contenant le montant à sommer ('montant' pour les dépenses,
+    'budget' pour les lignes de budget détaillé).
     """
     groupes = {}  # nom_groupe -> {ordre, is_individuel, total}
 
@@ -123,7 +132,7 @@ def regrouper_depenses(depenses):
         nom, ordre, is_individuel = assigner_groupe(d)
         if nom not in groupes:
             groupes[nom] = {'groupe_label': nom, 'groupe_ordre': ordre, 'is_individuel': is_individuel, 'total': 0.0}
-        groupes[nom]['total'] += d['montant']
+        groupes[nom]['total'] += d[champ_montant]
 
     return sorted(groupes.values(), key=lambda g: g['groupe_ordre'])
 
@@ -131,3 +140,18 @@ def regrouper_depenses(depenses):
 def get_liste_regles():
     """Retourne la liste des règles sous forme lisible, pour affichage (ex: page d'aide/admin future)."""
     return [{'groupe': nom, 'ordre': ordre, 'individuel': individuel} for nom, ordre, individuel, _ in REGLES]
+
+
+def evolution_mensuelle_groupe(depenses, nom_groupe):
+    """
+    Calcule le cumul mensuel des dépenses appartenant à un groupe analytique donné.
+    Retourne une liste de tuples (mois 'YYYY-MM', total_du_mois) triée par mois.
+    """
+    par_mois = {}
+    for d in depenses:
+        nom, _, _ = assigner_groupe(d)
+        if nom != nom_groupe:
+            continue
+        mois = d['date'][:7]  # 'YYYY-MM-DD' -> 'YYYY-MM'
+        par_mois[mois] = par_mois.get(mois, 0.0) + d['montant']
+    return sorted(par_mois.items())
