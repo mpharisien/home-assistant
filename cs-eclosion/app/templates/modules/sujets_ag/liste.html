@@ -41,7 +41,7 @@
       <div style="display:flex; align-items:center; gap:0.8rem; flex:1;">
         <span style="flex:1;">{{ idee.titre }}</span>
         {% if idee.statut_nom %}
-        <span class="badge" style="background:{{ idee.statut_couleur }}22; color:{{ idee.statut_couleur }}; border:1px solid {{ idee.statut_couleur }};">{{ idee.statut_nom }}</span>
+        <span class="badge" style="background:{{ idee.statut_couleur }}; color:#fff;">{{ idee.statut_nom }}</span>
         {% endif %}
       </div>
       <div class="idee-header-actions" style="display:flex; align-items:center; gap:0.4rem;">
@@ -85,26 +85,16 @@
 
           {% for tache in idee.taches %}
           <div class="tache-row" style="display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0; border-bottom:1px solid #f0f0f0;">
-            <form method="post" style="display:inline;">
-              <input type="hidden" name="action" value="toggle_tache">
-              <input type="hidden" name="tache_id" value="{{ tache.id }}">
-              <button type="submit" class="tache-checkbox" style="width:20px; height:20px; border-radius:4px; border:2px solid {{ '#10b981' if tache.fait else '#d1d5db' }}; background:{{ '#10b981' if tache.fait else '#fff' }}; cursor:pointer; flex-shrink:0;">
-                {% if tache.fait %}<span style="color:#fff; font-size:0.7rem;">✓</span>{% endif %}
-              </button>
-            </form>
+            <button type="button" class="tache-checkbox" data-tache-id="{{ tache.id }}" style="width:20px; height:20px; border-radius:4px; border:2px solid {{ '#10b981' if tache.fait else '#d1d5db' }}; background:{{ '#10b981' if tache.fait else '#fff' }}; cursor:pointer; flex-shrink:0;">
+              {% if tache.fait %}<span style="color:#fff; font-size:0.7rem;">✓</span>{% endif %}
+            </button>
             <input type="text" class="champ-editable tache-texte" data-action="modifier_tache" data-tache-id="{{ tache.id }}" value="{{ tache.texte }}"
                    style="flex:1; border:none; background:transparent; font-size:0.88rem; padding:0.3rem; {{ 'color:#9ca3af; text-decoration:line-through;' if tache.fait }}">
-            <form method="post" style="display:inline;">
-              <input type="hidden" name="action" value="supprimer_tache">
-              <input type="hidden" name="tache_id" value="{{ tache.id }}">
-              <button type="submit" class="btn btn-danger" style="padding:0.15rem 0.45rem; font-size:0.7rem;">✕</button>
-            </form>
+            <button type="button" class="btn btn-danger btn-supprimer-tache" data-tache-id="{{ tache.id }}" style="padding:0.15rem 0.45rem; font-size:0.7rem;">✕</button>
           </div>
           {% endfor %}
 
-          <form method="post" style="display:flex; gap:0.5rem; margin-top:0.6rem;">
-            <input type="hidden" name="action" value="ajouter_tache">
-            <input type="hidden" name="idee_id" value="{{ idee.id }}">
+          <form class="form-ajouter-tache" data-idee-id="{{ idee.id }}" style="display:flex; gap:0.5rem; margin-top:0.6rem;">
             <input type="text" name="texte" placeholder="+ Ajouter une étape…" style="flex:1; padding:0.35rem 0.6rem; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem;">
             <button type="submit" class="btn btn-secondary" style="font-size:0.8rem;">Ajouter</button>
           </form>
@@ -128,30 +118,31 @@
 <!-- ── Gestion des statuts ── -->
 <div class="card">
   <h2>Statuts</h2>
+  <p style="font-size:0.82rem; color:#6b7280; margin-bottom:1rem;">Clique sur un statut pour modifier son nom ou sa couleur.</p>
   <div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-bottom:1rem;">
     {% for s in statuts %}
-    <div style="display:flex; align-items:center; gap:0.5rem; background:{{ s.couleur }}15; border:1px solid {{ s.couleur }}; border-radius:99px; padding:0.3rem 0.5rem 0.3rem 0.9rem; font-size:0.82rem;">
-      <span style="color:{{ s.couleur }}; font-weight:600;">{{ s.nom }}</span>
-      <form method="post" onsubmit="return confirm('Supprimer le statut « {{ s.nom }} » ? Les idées concernées n\'auront plus de statut.');" style="display:inline;">
-        <input type="hidden" name="action" value="supprimer_statut">
-        <input type="hidden" name="statut_id" value="{{ s.id }}">
-        <button type="submit" style="background:none; border:none; color:{{ s.couleur }}; cursor:pointer; font-size:0.9rem; line-height:1;">✕</button>
-      </form>
+    <div class="statut-badge" data-statut-id="{{ s.id }}" data-statut-nom="{{ s.nom }}" data-statut-couleur="{{ s.couleur }}"
+         style="display:flex; align-items:center; gap:0.5rem; background:{{ s.couleur }}; border-radius:99px; padding:0.35rem 0.5rem 0.35rem 0.9rem; font-size:0.82rem; cursor:pointer;">
+      <span style="color:#fff; font-weight:600;">{{ s.nom }}</span>
+      <button type="button" class="btn-supprimer-statut" data-statut-id="{{ s.id }}" data-statut-nom="{{ s.nom }}" style="background:rgba(255,255,255,.25); border:none; color:#fff; cursor:pointer; font-size:0.85rem; line-height:1; width:20px; height:20px; border-radius:50%;">✕</button>
     </div>
     {% endfor %}
   </div>
 
-  <form method="post" style="display:flex; gap:0.6rem; align-items:end;">
-    <input type="hidden" name="action" value="ajouter_statut">
+  <!-- Formulaire d'ajout (par défaut) / édition (basculé par JS) -->
+  <form method="post" id="form-statut" style="display:flex; gap:0.6rem; align-items:end;">
+    <input type="hidden" name="action" value="ajouter_statut" id="form-statut-action">
+    <input type="hidden" name="statut_id" id="form-statut-id" value="">
     <div class="form-group" style="margin-bottom:0; flex:1; max-width:240px;">
-      <label>Nom du statut</label>
-      <input type="text" name="nom" placeholder="ex: À voter" required>
+      <label id="form-statut-label">Nom du statut</label>
+      <input type="text" name="nom" id="form-statut-nom" placeholder="ex: À voter" required>
     </div>
     <div class="form-group" style="margin-bottom:0;">
       <label>Couleur</label>
-      <input type="color" name="couleur" value="#2d7dd2" style="width:60px; height:38px; padding:2px; border:1px solid #d1d5db; border-radius:8px; cursor:pointer;">
+      <input type="color" name="couleur" id="form-statut-couleur" value="#2d7dd2" style="width:60px; height:38px; padding:2px; border:1px solid #d1d5db; border-radius:8px; cursor:pointer;">
     </div>
-    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+    <button type="submit" class="btn btn-primary" id="form-statut-submit">+ Ajouter</button>
+    <button type="button" class="btn btn-secondary" id="form-statut-annuler" style="display:none;" onclick="resetFormStatut()">Annuler</button>
   </form>
 </div>
 {% endblock %}
@@ -161,9 +152,7 @@
 // Ouvre/ferme le détail d'une idée au clic sur l'entête
 document.querySelectorAll('.idee-header').forEach(header => {
   header.addEventListener('click', (e) => {
-    // Ignore le clic s'il vient des boutons d'action (monter/descendre)
     if (e.target.closest('.idee-header-actions')) return;
-
     const id = header.dataset.ideeId;
     const body = document.getElementById('idee-body-' + id);
     const arrow = header.querySelector('.idee-arrow');
@@ -177,8 +166,7 @@ document.querySelectorAll('.idee-body-content').forEach(body => {
   body.addEventListener('click', e => e.stopPropagation());
 });
 
-// Boutons monter / descendre : requête en arrière-plan puis rechargement
-// (pas de <form> imbriqué dans l'entête pour éviter tout conflit avec le clic d'ouverture)
+// Boutons monter / descendre
 document.querySelectorAll('.btn-monter, .btn-descendre').forEach(btn => {
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -187,19 +175,16 @@ document.querySelectorAll('.btn-monter, .btn-descendre').forEach(btn => {
     formData.append('action', 'deplacer_idee');
     formData.append('idee_id', btn.dataset.ideeId);
     formData.append('direction', direction);
-    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
-      window.location.reload();
-    });
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
   });
 });
 
-// Édition en place : sauvegarde au blur (perte de focus) si la valeur a changé
+// Édition en place (titre, description, texte de tâche) : sauvegarde au blur ou à Entrée
 document.querySelectorAll('.champ-editable').forEach(champ => {
-  const valeurInitiale = champ.value;
-  champ.dataset.valeurInitiale = valeurInitiale;
+  champ.dataset.valeurInitiale = champ.value;
 
   champ.addEventListener('blur', () => {
-    if (champ.value === champ.dataset.valeurInitiale) return; // rien à sauvegarder
+    if (champ.value === champ.dataset.valeurInitiale) return;
 
     const action = champ.dataset.action;
     const formData = new FormData();
@@ -218,7 +203,6 @@ document.querySelectorAll('.champ-editable').forEach(champ => {
     });
   });
 
-  // Pour les champs texte (pas textarea) : valider aussi avec Entrée
   if (champ.tagName === 'INPUT') {
     champ.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); champ.blur(); }
@@ -226,16 +210,109 @@ document.querySelectorAll('.champ-editable').forEach(champ => {
   }
 });
 
-// Changement de statut : sauvegarde immédiate au changement de select
+// Changement de statut d'une idée (sans rechargement complet, juste mise à jour visuelle minime)
 document.querySelectorAll('.champ-select-statut').forEach(select => {
   select.addEventListener('change', () => {
     const formData = new FormData();
     formData.append('action', 'modifier_statut');
     formData.append('idee_id', select.dataset.ideeId);
     formData.append('statut_id', select.value);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
+  });
+});
+
+// Toggle tâche (coche/décoche), sans rechargement ni fermeture de l'idée
+document.querySelectorAll('.tache-checkbox').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const formData = new FormData();
+    formData.append('action', 'toggle_tache');
+    formData.append('tache_id', btn.dataset.tacheId);
     fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
-      window.location.reload();
+      const estFait = btn.style.background === 'rgb(16, 185, 129)' || btn.style.backgroundColor === 'rgb(16, 185, 129)';
+      if (estFait) {
+        btn.style.background = '#fff';
+        btn.style.borderColor = '#d1d5db';
+        btn.innerHTML = '';
+        const texte = btn.nextElementSibling;
+        texte.style.color = '';
+        texte.style.textDecoration = '';
+      } else {
+        btn.style.background = '#10b981';
+        btn.style.borderColor = '#10b981';
+        btn.innerHTML = '<span style="color:#fff; font-size:0.7rem;">✓</span>';
+        const texte = btn.nextElementSibling;
+        texte.style.color = '#9ca3af';
+        texte.style.textDecoration = 'line-through';
+      }
     });
+  });
+});
+
+// Suppression d'une tâche, sans rechargement ni fermeture de l'idée
+document.querySelectorAll('.btn-supprimer-tache').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const formData = new FormData();
+    formData.append('action', 'supprimer_tache');
+    formData.append('tache_id', btn.dataset.tacheId);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
+      btn.closest('.tache-row').remove();
+    });
+  });
+});
+
+// Ajout d'une tâche, sans rechargement ni fermeture de l'idée
+document.querySelectorAll('.form-ajouter-tache').forEach(form => {
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const input = form.querySelector('input[name="texte"]');
+    const texte = input.value.trim();
+    if (!texte) return;
+
+    const formData = new FormData();
+    formData.append('action', 'ajouter_tache');
+    formData.append('idee_id', form.dataset.ideeId);
+    formData.append('texte', texte);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
+  });
+});
+
+// ── Gestion des statuts (en bas de page) ──
+
+document.querySelectorAll('.statut-badge').forEach(badge => {
+  badge.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-supprimer-statut')) return;
+    document.getElementById('form-statut-action').value = 'modifier_statut_ag';
+    document.getElementById('form-statut-id').value = badge.dataset.statutId;
+    document.getElementById('form-statut-nom').value = badge.dataset.statutNom;
+    document.getElementById('form-statut-couleur').value = badge.dataset.statutCouleur;
+    document.getElementById('form-statut-label').textContent = 'Modifier le statut';
+    document.getElementById('form-statut-submit').textContent = 'Enregistrer';
+    document.getElementById('form-statut-annuler').style.display = 'inline-block';
+    document.getElementById('form-statut').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+});
+
+function resetFormStatut() {
+  document.getElementById('form-statut-action').value = 'ajouter_statut';
+  document.getElementById('form-statut-id').value = '';
+  document.getElementById('form-statut-nom').value = '';
+  document.getElementById('form-statut-couleur').value = '#2d7dd2';
+  document.getElementById('form-statut-label').textContent = 'Nom du statut';
+  document.getElementById('form-statut-submit').textContent = '+ Ajouter';
+  document.getElementById('form-statut-annuler').style.display = 'none';
+}
+
+document.querySelectorAll('.btn-supprimer-statut').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!confirm(`Supprimer le statut « ${btn.dataset.statutNom} » ? Les idées concernées n'auront plus de statut.`)) return;
+    const formData = new FormData();
+    formData.append('action', 'supprimer_statut');
+    formData.append('statut_id', btn.dataset.statutId);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
   });
 });
 </script>
