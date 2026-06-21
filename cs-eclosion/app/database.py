@@ -97,6 +97,41 @@ def init_db():
         )
     ''')
 
+    # ── Module Sujets AG ──
+
+    # Statuts personnalisés (nom + couleur)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS statuts_ag (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT UNIQUE NOT NULL,
+            couleur TEXT NOT NULL DEFAULT '#2d7dd2'
+        )
+    ''')
+
+    # Idées à remonter en AG
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS idees_ag (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titre TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            statut_id INTEGER,
+            ordre INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (statut_id) REFERENCES statuts_ag(id) ON DELETE SET NULL
+        )
+    ''')
+
+    # Tâches (sous-idées) d'une idée AG
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS taches_ag (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            idee_id INTEGER NOT NULL,
+            texte TEXT NOT NULL,
+            fait INTEGER NOT NULL DEFAULT 0,
+            ordre INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (idee_id) REFERENCES idees_ag(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -479,3 +514,152 @@ def get_logement_id_by_numero(numero_appartement):
     row = conn.execute('SELECT id FROM logements WHERE numero_appartement = ?', (numero_appartement,)).fetchone()
     conn.close()
     return row['id'] if row else None
+
+
+# ─── Module Sujets AG ───────────────────────────────────────────────────────────
+
+# Statuts
+
+def get_all_statuts_ag():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM statuts_ag ORDER BY nom').fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_statut_ag(nom, couleur):
+    conn = get_db()
+    conn.execute('INSERT INTO statuts_ag (nom, couleur) VALUES (?, ?)', (nom, couleur))
+    conn.commit()
+    conn.close()
+
+
+def delete_statut_ag(statut_id):
+    conn = get_db()
+    # Les idées qui utilisaient ce statut repassent à NULL (pas de statut) automatiquement
+    # grâce à ON DELETE SET NULL défini dans le schéma.
+    conn.execute('DELETE FROM statuts_ag WHERE id = ?', (statut_id,))
+    conn.commit()
+    conn.close()
+
+
+# Idées
+
+def get_all_idees_ag():
+    """Retourne toutes les idées triées par ordre, avec leur statut (nom+couleur) et leurs tâches."""
+    conn = get_db()
+    idees = conn.execute('''
+        SELECT i.*, s.nom as statut_nom, s.couleur as statut_couleur
+        FROM idees_ag i
+        LEFT JOIN statuts_ag s ON i.statut_id = s.id
+        ORDER BY i.ordre, i.id
+    ''').fetchall()
+    result = []
+    for idee in idees:
+        idee = dict(idee)
+        taches = conn.execute('''
+            SELECT * FROM taches_ag WHERE idee_id = ? ORDER BY ordre, id
+        ''', (idee['id'],)).fetchall()
+        idee['taches'] = [dict(t) for t in taches]
+        result.append(idee)
+    conn.close()
+    return result
+
+
+def add_idee_ag(titre):
+    conn = get_db()
+    max_ordre = conn.execute('SELECT MAX(ordre) as m FROM idees_ag').fetchone()['m']
+    ordre = (max_ordre or 0) + 1
+    cur = conn.execute('INSERT INTO idees_ag (titre, ordre) VALUES (?, ?)', (titre, ordre))
+    conn.commit()
+    idee_id = cur.lastrowid
+    conn.close()
+    return idee_id
+
+
+def update_idee_ag_titre(idee_id, titre):
+    conn = get_db()
+    conn.execute('UPDATE idees_ag SET titre = ? WHERE id = ?', (titre, idee_id))
+    conn.commit()
+    conn.close()
+
+
+def update_idee_ag_description(idee_id, description):
+    conn = get_db()
+    conn.execute('UPDATE idees_ag SET description = ? WHERE id = ?', (description, idee_id))
+    conn.commit()
+    conn.close()
+
+
+def update_idee_ag_statut(idee_id, statut_id):
+    conn = get_db()
+    conn.execute('UPDATE idees_ag SET statut_id = ? WHERE id = ?', (statut_id, idee_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_idee_ag(idee_id):
+    conn = get_db()
+    conn.execute('DELETE FROM taches_ag WHERE idee_id = ?', (idee_id,))
+    conn.execute('DELETE FROM idees_ag WHERE id = ?', (idee_id,))
+    conn.commit()
+    conn.close()
+
+
+def deplacer_idee_ag(idee_id, direction):
+    """direction: 'haut' ou 'bas'. Échange l'ordre avec l'idée voisine."""
+    conn = get_db()
+    idees = conn.execute('SELECT id, ordre FROM idees_ag ORDER BY ordre, id').fetchall()
+    idees = [dict(i) for i in idees]
+    idx = next((i for i, x in enumerate(idees) if x['id'] == idee_id), None)
+    if idx is None:
+        conn.close()
+        return
+
+    if direction == 'haut' and idx > 0:
+        voisin = idees[idx - 1]
+    elif direction == 'bas' and idx < len(idees) - 1:
+        voisin = idees[idx + 1]
+    else:
+        conn.close()
+        return
+
+    actuel = idees[idx]
+    conn.execute('UPDATE idees_ag SET ordre = ? WHERE id = ?', (voisin['ordre'], actuel['id']))
+    conn.execute('UPDATE idees_ag SET ordre = ? WHERE id = ?', (actuel['ordre'], voisin['id']))
+    conn.commit()
+    conn.close()
+
+
+# Tâches
+
+def add_tache_ag(idee_id, texte):
+    conn = get_db()
+    max_ordre = conn.execute('SELECT MAX(ordre) as m FROM taches_ag WHERE idee_id = ?', (idee_id,)).fetchone()['m']
+    ordre = (max_ordre or 0) + 1
+    conn.execute('INSERT INTO taches_ag (idee_id, texte, ordre) VALUES (?, ?, ?)', (idee_id, texte, ordre))
+    conn.commit()
+    conn.close()
+
+
+def update_tache_ag_texte(tache_id, texte):
+    conn = get_db()
+    conn.execute('UPDATE taches_ag SET texte = ? WHERE id = ?', (texte, tache_id))
+    conn.commit()
+    conn.close()
+
+
+def toggle_tache_ag_fait(tache_id):
+    conn = get_db()
+    row = conn.execute('SELECT fait FROM taches_ag WHERE id = ?', (tache_id,)).fetchone()
+    if row:
+        conn.execute('UPDATE taches_ag SET fait = ? WHERE id = ?', (0 if row['fait'] else 1, tache_id))
+        conn.commit()
+    conn.close()
+
+
+def delete_tache_ag(tache_id):
+    conn = get_db()
+    conn.execute('DELETE FROM taches_ag WHERE id = ?', (tache_id,))
+    conn.commit()
+    conn.close()
