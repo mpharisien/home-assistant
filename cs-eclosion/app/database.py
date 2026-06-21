@@ -534,6 +534,13 @@ def add_statut_ag(nom, couleur):
     conn.close()
 
 
+def update_statut_ag(statut_id, nom, couleur):
+    conn = get_db()
+    conn.execute('UPDATE statuts_ag SET nom = ?, couleur = ? WHERE id = ?', (nom, couleur, statut_id))
+    conn.commit()
+    conn.close()
+
+
 def delete_statut_ag(statut_id):
     conn = get_db()
     # Les idées qui utilisaient ce statut repassent à NULL (pas de statut) automatiquement
