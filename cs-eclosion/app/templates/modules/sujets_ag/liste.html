@@ -2,6 +2,22 @@
 {% block title %}— Sujets AG{% endblock %}
 
 {% block content %}
+<style>
+  /* Styles dédiés au module Sujets AG — volontairement séparés du système .accordion-*
+     générique de base.html pour éviter tout conflit de gestionnaire JS partagé. */
+  .idee-item { margin-bottom: 0.75rem; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .idee-header {
+    background: var(--foncia-blue); color: #eaf1fb; padding: 0.85rem 1.2rem;
+    cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600; font-size: 0.9rem; user-select: none;
+  }
+  .idee-header:hover { background: var(--foncia-blue-dark); }
+  .idee-body-content { background: #fff; display: none; }
+  .idee-body-content.open { display: block; }
+  .idee-arrow { transition: transform .2s; }
+  .idee-arrow.open { transform: rotate(180deg); }
+</style>
+
 <div class="page-title">Sujets AG <span>— Idées à remonter au conseil syndical</span></div>
 
 <!-- ── Ajout d'une idée ── -->
@@ -20,32 +36,22 @@
   {% endif %}
 
   {% for idee in idees %}
-  <div class="accordion-item idee-item">
-    <div class="accordion-header idee-header" data-idee-id="{{ idee.id }}" style="cursor:pointer;">
+  <div class="idee-item">
+    <div class="idee-header" data-idee-id="{{ idee.id }}">
       <div style="display:flex; align-items:center; gap:0.8rem; flex:1;">
-        <span class="idee-titre-display" data-idee-id="{{ idee.id }}" style="flex:1;">{{ idee.titre }}</span>
+        <span style="flex:1;">{{ idee.titre }}</span>
         {% if idee.statut_nom %}
         <span class="badge" style="background:{{ idee.statut_couleur }}22; color:{{ idee.statut_couleur }}; border:1px solid {{ idee.statut_couleur }};">{{ idee.statut_nom }}</span>
         {% endif %}
       </div>
-      <div style="display:flex; align-items:center; gap:0.4rem;" onclick="event.stopPropagation();">
-        <form method="post" style="display:inline;">
-          <input type="hidden" name="action" value="deplacer_idee">
-          <input type="hidden" name="idee_id" value="{{ idee.id }}">
-          <input type="hidden" name="direction" value="haut">
-          <button type="submit" class="btn btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.7rem;" title="Monter">▲</button>
-        </form>
-        <form method="post" style="display:inline;">
-          <input type="hidden" name="action" value="deplacer_idee">
-          <input type="hidden" name="idee_id" value="{{ idee.id }}">
-          <input type="hidden" name="direction" value="bas">
-          <button type="submit" class="btn btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.7rem;" title="Descendre">▼</button>
-        </form>
-        <span class="accordion-arrow" style="margin-left:0.3rem;">▼</span>
+      <div class="idee-header-actions" style="display:flex; align-items:center; gap:0.4rem;">
+        <button type="button" class="btn btn-secondary btn-monter" data-idee-id="{{ idee.id }}" style="padding:0.2rem 0.5rem; font-size:0.7rem;" title="Monter">▲</button>
+        <button type="button" class="btn btn-secondary btn-descendre" data-idee-id="{{ idee.id }}" style="padding:0.2rem 0.5rem; font-size:0.7rem;" title="Descendre">▼</button>
+        <span class="idee-arrow" style="margin-left:0.3rem;">▼</span>
       </div>
     </div>
 
-    <div class="accordion-body idee-body" id="idee-body-{{ idee.id }}">
+    <div class="idee-body-content" id="idee-body-{{ idee.id }}">
       <div style="padding:1.2rem;">
 
         <!-- Titre éditable -->
@@ -152,20 +158,39 @@
 
 {% block scripts %}
 <script>
-// Ouvre/ferme le détail d'une idée au clic sur l'entête (hors boutons monter/descendre)
+// Ouvre/ferme le détail d'une idée au clic sur l'entête
 document.querySelectorAll('.idee-header').forEach(header => {
   header.addEventListener('click', (e) => {
+    // Ignore le clic s'il vient des boutons d'action (monter/descendre)
+    if (e.target.closest('.idee-header-actions')) return;
+
     const id = header.dataset.ideeId;
     const body = document.getElementById('idee-body-' + id);
-    const arrow = header.querySelector('.accordion-arrow');
+    const arrow = header.querySelector('.idee-arrow');
     body.classList.toggle('open');
     if (arrow) arrow.classList.toggle('open');
   });
 });
 
-// Empêche le clic dans les champs édités d'ouvrir/fermer l'accordéon par accident
-document.querySelectorAll('.idee-body').forEach(body => {
+// Empêche le clic dans le contenu déroulé de refermer l'accordéon par accident
+document.querySelectorAll('.idee-body-content').forEach(body => {
   body.addEventListener('click', e => e.stopPropagation());
+});
+
+// Boutons monter / descendre : requête en arrière-plan puis rechargement
+// (pas de <form> imbriqué dans l'entête pour éviter tout conflit avec le clic d'ouverture)
+document.querySelectorAll('.btn-monter, .btn-descendre').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const direction = btn.classList.contains('btn-monter') ? 'haut' : 'bas';
+    const formData = new FormData();
+    formData.append('action', 'deplacer_idee');
+    formData.append('idee_id', btn.dataset.ideeId);
+    formData.append('direction', direction);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
+      window.location.reload();
+    });
+  });
 });
 
 // Édition en place : sauvegarde au blur (perte de focus) si la valeur a changé
