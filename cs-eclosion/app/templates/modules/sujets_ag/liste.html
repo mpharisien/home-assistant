@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}— Sujets AG{% endblock %}
+
+{% block content %}
+<div class="page-title">Sujets AG <span>— Idées à remonter au conseil syndical</span></div>
+
+<!-- ── Ajout d'une idée ── -->
+<div class="card">
+  <form method="post" style="display:flex; gap:0.8rem;">
+    <input type="hidden" name="action" value="ajouter_idee">
+    <input type="text" name="titre" placeholder="Nouvelle idée… (ex: Mettre en concurrence le contrat espaces verts)" required style="flex:1; padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem;">
+    <button type="submit" class="btn btn-primary">+ Ajouter une idée</button>
+  </form>
+</div>
+
+<!-- ── Liste des idées ── -->
+<div class="card">
+  {% if not idees %}
+  <p style="color:#6b7280; text-align:center; padding:1.5rem 0;">Aucune idée pour l'instant. Ajoute la première ci-dessus !</p>
+  {% endif %}
+
+  {% for idee in idees %}
+  <div class="accordion-item idee-item">
+    <div class="accordion-header idee-header" data-idee-id="{{ idee.id }}" style="cursor:pointer;">
+      <div style="display:flex; align-items:center; gap:0.8rem; flex:1;">
+        <span class="idee-titre-display" data-idee-id="{{ idee.id }}" style="flex:1;">{{ idee.titre }}</span>
+        {% if idee.statut_nom %}
+        <span class="badge" style="background:{{ idee.statut_couleur }}22; color:{{ idee.statut_couleur }}; border:1px solid {{ idee.statut_couleur }};">{{ idee.statut_nom }}</span>
+        {% endif %}
+      </div>
+      <div style="display:flex; align-items:center; gap:0.4rem;" onclick="event.stopPropagation();">
+        <form method="post" style="display:inline;">
+          <input type="hidden" name="action" value="deplacer_idee">
+          <input type="hidden" name="idee_id" value="{{ idee.id }}">
+          <input type="hidden" name="direction" value="haut">
+          <button type="submit" class="btn btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.7rem;" title="Monter">▲</button>
+        </form>
+        <form method="post" style="display:inline;">
+          <input type="hidden" name="action" value="deplacer_idee">
+          <input type="hidden" name="idee_id" value="{{ idee.id }}">
+          <input type="hidden" name="direction" value="bas">
+          <button type="submit" class="btn btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.7rem;" title="Descendre">▼</button>
+        </form>
+        <span class="accordion-arrow" style="margin-left:0.3rem;">▼</span>
+      </div>
+    </div>
+
+    <div class="accordion-body idee-body" id="idee-body-{{ idee.id }}">
+      <div style="padding:1.2rem;">
+
+        <!-- Titre éditable -->
+        <div class="form-group">
+          <label>Titre</label>
+          <input type="text" class="champ-editable" data-action="modifier_titre" data-idee-id="{{ idee.id }}" data-field="titre" value="{{ idee.titre }}">
+        </div>
+
+        <!-- Statut -->
+        <div class="form-group" style="max-width:280px;">
+          <label>Statut</label>
+          <select class="champ-select-statut" data-idee-id="{{ idee.id }}">
+            <option value="">— aucun —</option>
+            {% for s in statuts %}
+            <option value="{{ s.id }}" {{ 'selected' if idee.statut_id == s.id }}>{{ s.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Description éditable -->
+        <div class="form-group">
+          <label>Description</label>
+          <textarea class="champ-editable" data-action="modifier_description" data-idee-id="{{ idee.id }}" data-field="description" rows="3" style="width:100%; padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; font-family:inherit;" placeholder="Décris cette idée…">{{ idee.description }}</textarea>
+        </div>
+
+        <!-- Tâches -->
+        <div style="margin-top:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+            <strong style="font-size:0.85rem; color:#374151;">Étapes</strong>
+          </div>
+
+          {% for tache in idee.taches %}
+          <div class="tache-row" style="display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0; border-bottom:1px solid #f0f0f0;">
+            <form method="post" style="display:inline;">
+              <input type="hidden" name="action" value="toggle_tache">
+              <input type="hidden" name="tache_id" value="{{ tache.id }}">
+              <button type="submit" class="tache-checkbox" style="width:20px; height:20px; border-radius:4px; border:2px solid {{ '#10b981' if tache.fait else '#d1d5db' }}; background:{{ '#10b981' if tache.fait else '#fff' }}; cursor:pointer; flex-shrink:0;">
+                {% if tache.fait %}<span style="color:#fff; font-size:0.7rem;">✓</span>{% endif %}
+              </button>
+            </form>
+            <input type="text" class="champ-editable tache-texte" data-action="modifier_tache" data-tache-id="{{ tache.id }}" value="{{ tache.texte }}"
+                   style="flex:1; border:none; background:transparent; font-size:0.88rem; padding:0.3rem; {{ 'color:#9ca3af; text-decoration:line-through;' if tache.fait }}">
+            <form method="post" style="display:inline;">
+              <input type="hidden" name="action" value="supprimer_tache">
+              <input type="hidden" name="tache_id" value="{{ tache.id }}">
+              <button type="submit" class="btn btn-danger" style="padding:0.15rem 0.45rem; font-size:0.7rem;">✕</button>
+            </form>
+          </div>
+          {% endfor %}
+
+          <form method="post" style="display:flex; gap:0.5rem; margin-top:0.6rem;">
+            <input type="hidden" name="action" value="ajouter_tache">
+            <input type="hidden" name="idee_id" value="{{ idee.id }}">
+            <input type="text" name="texte" placeholder="+ Ajouter une étape…" style="flex:1; padding:0.35rem 0.6rem; border:1px solid #d1d5db; border-radius:6px; font-size:0.85rem;">
+            <button type="submit" class="btn btn-secondary" style="font-size:0.8rem;">Ajouter</button>
+          </form>
+        </div>
+
+        <!-- Suppression idée -->
+        <div style="margin-top:1.2rem; text-align:right;">
+          <form method="post" onsubmit="return confirm('Supprimer définitivement cette idée et toutes ses étapes ?');" style="display:inline;">
+            <input type="hidden" name="action" value="supprimer_idee">
+            <input type="hidden" name="idee_id" value="{{ idee.id }}">
+            <button type="submit" class="btn btn-danger" style="font-size:0.8rem;">Supprimer cette idée</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ── Gestion des statuts ── -->
+<div class="card">
+  <h2>Statuts</h2>
+  <div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin-bottom:1rem;">
+    {% for s in statuts %}
+    <div style="display:flex; align-items:center; gap:0.5rem; background:{{ s.couleur }}15; border:1px solid {{ s.couleur }}; border-radius:99px; padding:0.3rem 0.5rem 0.3rem 0.9rem; font-size:0.82rem;">
+      <span style="color:{{ s.couleur }}; font-weight:600;">{{ s.nom }}</span>
+      <form method="post" onsubmit="return confirm('Supprimer le statut « {{ s.nom }} » ? Les idées concernées n\'auront plus de statut.');" style="display:inline;">
+        <input type="hidden" name="action" value="supprimer_statut">
+        <input type="hidden" name="statut_id" value="{{ s.id }}">
+        <button type="submit" style="background:none; border:none; color:{{ s.couleur }}; cursor:pointer; font-size:0.9rem; line-height:1;">✕</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" style="display:flex; gap:0.6rem; align-items:end;">
+    <input type="hidden" name="action" value="ajouter_statut">
+    <div class="form-group" style="margin-bottom:0; flex:1; max-width:240px;">
+      <label>Nom du statut</label>
+      <input type="text" name="nom" placeholder="ex: À voter" required>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Couleur</label>
+      <input type="color" name="couleur" value="#2d7dd2" style="width:60px; height:38px; padding:2px; border:1px solid #d1d5db; border-radius:8px; cursor:pointer;">
+    </div>
+    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Ouvre/ferme le détail d'une idée au clic sur l'entête (hors boutons monter/descendre)
+document.querySelectorAll('.idee-header').forEach(header => {
+  header.addEventListener('click', (e) => {
+    const id = header.dataset.ideeId;
+    const body = document.getElementById('idee-body-' + id);
+    const arrow = header.querySelector('.accordion-arrow');
+    body.classList.toggle('open');
+    if (arrow) arrow.classList.toggle('open');
+  });
+});
+
+// Empêche le clic dans les champs édités d'ouvrir/fermer l'accordéon par accident
+document.querySelectorAll('.idee-body').forEach(body => {
+  body.addEventListener('click', e => e.stopPropagation());
+});
+
+// Édition en place : sauvegarde au blur (perte de focus) si la valeur a changé
+document.querySelectorAll('.champ-editable').forEach(champ => {
+  const valeurInitiale = champ.value;
+  champ.dataset.valeurInitiale = valeurInitiale;
+
+  champ.addEventListener('blur', () => {
+    if (champ.value === champ.dataset.valeurInitiale) return; // rien à sauvegarder
+
+    const action = champ.dataset.action;
+    const formData = new FormData();
+    formData.append('action', action);
+
+    if (action === 'modifier_tache') {
+      formData.append('tache_id', champ.dataset.tacheId);
+      formData.append('texte', champ.value);
+    } else {
+      formData.append('idee_id', champ.dataset.ideeId);
+      formData.append(champ.dataset.field, champ.value);
+    }
+
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
+      champ.dataset.valeurInitiale = champ.value;
+    });
+  });
+
+  // Pour les champs texte (pas textarea) : valider aussi avec Entrée
+  if (champ.tagName === 'INPUT') {
+    champ.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); champ.blur(); }
+    });
+  }
+});
+
+// Changement de statut : sauvegarde immédiate au changement de select
+document.querySelectorAll('.champ-select-statut').forEach(select => {
+  select.addEventListener('change', () => {
+    const formData = new FormData();
+    formData.append('action', 'modifier_statut');
+    formData.append('idee_id', select.dataset.ideeId);
+    formData.append('statut_id', select.value);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
+      window.location.reload();
+    });
+  });
+});
+</script>
+{% endblock %}
