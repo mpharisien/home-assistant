@@ -305,9 +305,9 @@
       <a href="{{ url_for('logements') }}" class="{{ 'active' if module_actif == 'logements' }}">
         <span class="module-icon">🏠</span><span class="label-text">Logements / Habitants</span>
       </a>
-      <div class="module-disabled" title="Bientôt disponible">
+      <a href="{{ url_for('sujets_ag') }}" class="{{ 'active' if module_actif == 'sujets_ag' }}">
         <span class="module-icon">📋</span><span class="label-text">Sujets AG</span>
-      </div>
+      </a>
     </nav>
     <div class="sidebar-footer">Résidence Eclosion<br>Conseil syndical</div>
   </aside>
@@ -325,6 +325,10 @@
     {% elif module_actif == 'logements' %}
     <div class="subnav">
       <a href="{{ url_for('logements') }}" class="active">Logements</a>
+    </div>
+    {% elif module_actif == 'sujets_ag' %}
+    <div class="subnav">
+      <a href="{{ url_for('sujets_ag') }}" class="active">Sujets AG</a>
     </div>
     {% endif %}
 
