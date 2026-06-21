@@ -24,6 +24,7 @@ MODULES_PAR_ENDPOINT = {
     'fournisseurs': 'depenses',
     'import_csv': 'depenses',
     'logements': 'logements',
+    'sujets_ag': 'sujets_ag',
 }
 
 
@@ -499,6 +500,92 @@ def seed_initial():
 
     seed_logements.run()
     return f"✅ Seed terminé avec succès, {db.count_logements()} logements créés. <a href='{url_for('logements')}'>Voir la liste des logements</a>"
+
+
+# ─── Module Sujets AG ───────────────────────────────────────────────────────────
+
+@app.route('/sujets-ag', methods=['GET', 'POST'])
+def sujets_ag():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'ajouter_idee':
+            titre = request.form.get('titre', '').strip()
+            if titre:
+                db.add_idee_ag(titre)
+                flash('Idée ajoutée.', 'success')
+
+        elif action == 'modifier_titre':
+            idee_id = request.form.get('idee_id', type=int)
+            titre = request.form.get('titre', '').strip()
+            if idee_id and titre:
+                db.update_idee_ag_titre(idee_id, titre)
+
+        elif action == 'modifier_description':
+            idee_id = request.form.get('idee_id', type=int)
+            description = request.form.get('description', '').strip()
+            if idee_id:
+                db.update_idee_ag_description(idee_id, description)
+
+        elif action == 'modifier_statut':
+            idee_id = request.form.get('idee_id', type=int)
+            statut_id = request.form.get('statut_id', type=int)
+            if idee_id:
+                db.update_idee_ag_statut(idee_id, statut_id)
+
+        elif action == 'supprimer_idee':
+            idee_id = request.form.get('idee_id', type=int)
+            if idee_id:
+                db.delete_idee_ag(idee_id)
+                flash('Idée supprimée.', 'success')
+
+        elif action == 'deplacer_idee':
+            idee_id = request.form.get('idee_id', type=int)
+            direction = request.form.get('direction')
+            if idee_id and direction in ('haut', 'bas'):
+                db.deplacer_idee_ag(idee_id, direction)
+
+        elif action == 'ajouter_tache':
+            idee_id = request.form.get('idee_id', type=int)
+            texte = request.form.get('texte', '').strip()
+            if idee_id and texte:
+                db.add_tache_ag(idee_id, texte)
+
+        elif action == 'modifier_tache':
+            tache_id = request.form.get('tache_id', type=int)
+            texte = request.form.get('texte', '').strip()
+            if tache_id and texte:
+                db.update_tache_ag_texte(tache_id, texte)
+
+        elif action == 'toggle_tache':
+            tache_id = request.form.get('tache_id', type=int)
+            if tache_id:
+                db.toggle_tache_ag_fait(tache_id)
+
+        elif action == 'supprimer_tache':
+            tache_id = request.form.get('tache_id', type=int)
+            if tache_id:
+                db.delete_tache_ag(tache_id)
+
+        elif action == 'ajouter_statut':
+            nom = request.form.get('nom', '').strip()
+            couleur = request.form.get('couleur', '#2d7dd2').strip()
+            if nom:
+                try:
+                    db.add_statut_ag(nom, couleur)
+                except Exception:
+                    flash(f"Le statut « {nom} » existe déjà.", 'error')
+
+        elif action == 'supprimer_statut':
+            statut_id = request.form.get('statut_id', type=int)
+            if statut_id:
+                db.delete_statut_ag(statut_id)
+
+        return redirect(url_for('sujets_ag'))
+
+    idees = db.get_all_idees_ag()
+    statuts = db.get_all_statuts_ag()
+    return render_template('modules/sujets_ag/liste.html', idees=idees, statuts=statuts)
 
 
 if __name__ == '__main__':
