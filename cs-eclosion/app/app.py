@@ -576,6 +576,13 @@ def sujets_ag():
                 except Exception:
                     flash(f"Le statut « {nom} » existe déjà.", 'error')
 
+        elif action == 'modifier_statut_ag':
+            statut_id = request.form.get('statut_id', type=int)
+            nom = request.form.get('nom', '').strip()
+            couleur = request.form.get('couleur', '#2d7dd2').strip()
+            if statut_id and nom:
+                db.update_statut_ag(statut_id, nom, couleur)
+
         elif action == 'supprimer_statut':
             statut_id = request.form.get('statut_id', type=int)
             if statut_id:
