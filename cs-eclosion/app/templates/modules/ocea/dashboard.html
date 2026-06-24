@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}— Océa — Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-title">Relevés Océa <span>— Vue d'ensemble des 59 logements</span></div>
+
+{% set nb_releves = data | selectattr('dernier_releve_index') | list | length %}
+
+<div class="stat-grid">
+  <div class="stat-box">
+    <div class="label">Logements avec au moins 1 relevé</div>
+    <div class="value">{{ nb_releves }} / {{ data | length }}</div>
+  </div>
+  <div class="stat-box">
+    <div class="label">Logements jamais relevés</div>
+    <div class="value" style="color:#f59e0b;">{{ data | length - nb_releves }}</div>
+  </div>
+</div>
+
+{% if nb_releves == 0 %}
+<div class="card">
+  <p style="color:#6b7280; text-align:center; padding:2rem;">Aucun relevé pour l'instant. <a href="{{ url_for('ocea_saisie') }}">Commencer la saisie</a></p>
+</div>
+{% else %}
+
+<!-- ── Tableau classement ── -->
+<div class="card">
+  <h2>Derniers relevés — classement</h2>
+  <div class="table-wrap">
+    <table id="table-releves">
+      <thead>
+        <tr>
+          <th class="sortable" data-key="numero_appartement" data-type="text">N° Appartement ⇅</th>
+          <th class="sortable" data-key="surface_m2" data-type="num" style="text-align:right">Surface (m²) ⇅</th>
+          <th class="sortable" data-key="dernier_releve_date" data-type="text">Date dernier relevé ⇅</th>
+          <th class="sortable" data-key="dernier_releve_index" data-type="num" style="text-align:right">Index (m³) ⇅</th>
+          <th class="sortable" data-key="derniere_conso_m3" data-type="num" style="text-align:right">Dernière conso (m³) ⇅</th>
+          <th class="sortable" data-key="conso_par_m2" data-type="num" style="text-align:right">Conso / m² ⇅</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in data %}
+        <tr>
+          <td><strong>{{ d.numero_appartement }}</strong></td>
+          <td style="text-align:right;">{{ '%.1f'|format(d.surface_m2) if d.surface_m2 else '—' }}</td>
+          <td>{{ d.dernier_releve_date or '—' }}</td>
+          <td class="montant">{{ '%.3f'|format(d.dernier_releve_index) if d.dernier_releve_index is not none else '—' }}</td>
+          <td class="montant">{{ '%.3f'|format(d.derniere_conso_m3) if d.derniere_conso_m3 is not none else '—' }}</td>
+          <td class="montant" style="{{ 'color:#ef4444; font-weight:700;' if d.conso_par_m2 and d.conso_par_m2 > 0.15 }}">{{ '%.4f'|format(d.conso_par_m2) if d.conso_par_m2 is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Graphiques comparatifs (dernier relevé) ── -->
+<div class="card">
+  <h2>Index actuel par logement — barres</h2>
+  <div class="chart-box" style="height:400px;"><canvas id="chartBarIndex"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Dernière consommation par logement — barres triées</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">Consommation entre les 2 derniers relevés de chaque logement, triée du plus petit au plus grand.</p>
+  <div class="chart-box" style="height:400px;"><canvas id="chartBarConso"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Consommation par m² — repérer les anomalies</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Un logement qui consomme beaucoup plus que les autres rapporté à sa surface peut indiquer une fuite ou un usage atypique.
+  </p>
+  <div class="chart-box" style="height:400px;"><canvas id="chartScatterSurface"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Surface vs consommation — nuage de points</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">Chaque point est un logement. Permet de voir si les grands logements consomment proportionnellement plus ou moins.</p>
+  <div class="chart-box" style="height:400px;"><canvas id="chartScatterSurfaceConso"></canvas></div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const data = {{ data | tojson }};
+const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+
+// Tri du tableau (réutilise le même pattern que la page Logements)
+let triActuel = { key: null, dir: 1 };
+document.querySelectorAll('#table-releves th.sortable').forEach((th, colIndex) => {
+  th.style.cursor = 'pointer';
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    const type = th.dataset.type;
+    triActuel.dir = (triActuel.key === key) ? -triActuel.dir : 1;
+    triActuel.key = key;
+
+    const tbody = document.querySelector('#table-releves tbody');
+    const rows = [...tbody.querySelectorAll('tr')];
+    rows.sort((a, b) => {
+      let va = a.children[colIndex].textContent.trim();
+      let vb = b.children[colIndex].textContent.trim();
+      if (type === 'num') {
+        va = parseFloat(va.replace(',', '.')) || -Infinity;
+        vb = parseFloat(vb.replace(',', '.')) || -Infinity;
+      } else {
+        va = va === '—' ? '' : va.toLowerCase();
+        vb = vb === '—' ? '' : vb.toLowerCase();
+      }
+      if (va < vb) return -1 * triActuel.dir;
+      if (va > vb) return 1 * triActuel.dir;
+      return 0;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+  });
+});
+
+// Graphique 1 : index actuel par logement (barres)
+const dataIndex = data.filter(d => d.dernier_releve_index !== null).sort((a, b) => a.numero_appartement.localeCompare(b.numero_appartement));
+const ctx1 = document.getElementById('chartBarIndex');
+if (ctx1 && dataIndex.length) {
+  new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: dataIndex.map(d => d.numero_appartement),
+      datasets: [{ label: 'Index (m³)', data: dataIndex.map(d => d.dernier_releve_index), backgroundColor: '#2d7dd2', borderRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } } }
+  });
+}
+
+// Graphique 2 : dernière conso, triée croissant
+const dataConso = data.filter(d => d.derniere_conso_m3 !== null).sort((a, b) => a.derniere_conso_m3 - b.derniere_conso_m3);
+const ctx2 = document.getElementById('chartBarConso');
+if (ctx2 && dataConso.length) {
+  new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: dataConso.map(d => d.numero_appartement),
+      datasets: [{ label: 'Consommation (m³)', data: dataConso.map(d => d.derniere_conso_m3), backgroundColor: '#10b981', borderRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } } }
+  });
+}
+
+// Graphique 3 : conso par m², trié croissant (pour repérer les outliers à droite)
+const dataConsoM2 = data.filter(d => d.conso_par_m2 !== null).sort((a, b) => a.conso_par_m2 - b.conso_par_m2);
+const ctx3 = document.getElementById('chartScatterSurface');
+if (ctx3 && dataConsoM2.length) {
+  new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: dataConsoM2.map(d => d.numero_appartement),
+      datasets: [{
+        label: 'Conso / m²',
+        data: dataConsoM2.map(d => d.conso_par_m2),
+        backgroundColor: dataConsoM2.map(d => d.conso_par_m2 > 0.15 ? '#ef4444' : '#8b5cf6'),
+        borderRadius: 3
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } } }
+  });
+}
+
+// Graphique 4 : nuage de points surface (x) vs consommation (y)
+const dataScatter = data.filter(d => d.surface_m2 && d.derniere_conso_m3 !== null);
+const ctx4 = document.getElementById('chartScatterSurfaceConso');
+if (ctx4 && dataScatter.length) {
+  new Chart(ctx4, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Logements',
+        data: dataScatter.map(d => ({ x: d.surface_m2, y: d.derniere_conso_m3 })),
+        backgroundColor: '#2d7dd2',
+        pointRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => {
+          const d = dataScatter[ctx.dataIndex];
+          return `Appt ${d.numero_appartement} : ${d.surface_m2} m² — ${d.derniere_conso_m3.toFixed(3)} m³`;
+        } } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Surface (m²)' } },
+        y: { title: { display: true, text: 'Consommation (m³)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}
