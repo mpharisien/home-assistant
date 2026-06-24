@@ -132,6 +132,48 @@ def init_db():
         )
     ''')
 
+    # ── Module Relevés Océa ──
+
+    # Eau froide : un INDEX cumulatif (m³) par logement et par date, relevé manuellement
+    # dans le couloir. Tous les 59 logements peuvent avoir des relevés ici.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS releves_eau_froide (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            logement_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            index_m3 REAL NOT NULL,
+            FOREIGN KEY (logement_id) REFERENCES logements(id)
+        )
+    ''')
+
+    # Eau chaude : consommation mensuelle (déjà calculée par Océa), pour le logement
+    # de Marc-Antoine uniquement. mois au format 'YYYY-MM'.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS releves_eau_chaude_mensuel (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            logement_id INTEGER NOT NULL,
+            mois TEXT NOT NULL,
+            consommation_m3 REAL NOT NULL,
+            FOREIGN KEY (logement_id) REFERENCES logements(id),
+            UNIQUE(logement_id, mois)
+        )
+    ''')
+
+    # Thermique : plusieurs index (INDEX 1 à 16 sur le boîtier) par relevé, pour le
+    # logement de Marc-Antoine uniquement. Table générique pour encaisser les index
+    # manquants/variables d'un relevé à l'autre (cf. principe "données brutes intactes").
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS releves_thermique (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            logement_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            numero_index INTEGER NOT NULL,
+            valeur REAL NOT NULL,
+            unite TEXT,
+            FOREIGN KEY (logement_id) REFERENCES logements(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -668,5 +710,164 @@ def toggle_tache_ag_fait(tache_id):
 def delete_tache_ag(tache_id):
     conn = get_db()
     conn.execute('DELETE FROM taches_ag WHERE id = ?', (tache_id,))
+    conn.commit()
+    conn.close()
+
+
+# ─── Module Relevés Océa ────────────────────────────────────────────────────────
+
+# Eau froide (tous logements, index cumulatif m³)
+
+def get_releves_eau_froide_logement(logement_id):
+    """Historique complet des relevés d'un logement, du plus ancien au plus récent."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT * FROM releves_eau_froide WHERE logement_id = ? ORDER BY date
+    ''', (logement_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_dernier_releve_eau_froide_tous_logements():
+    """Pour chaque logement, son dernier relevé en date (ou aucun si jamais relevé)."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT r.logement_id, r.date, r.index_m3
+        FROM releves_eau_froide r
+        WHERE r.id IN (
+            SELECT id FROM releves_eau_froide r2
+            WHERE r2.logement_id = r.logement_id
+            ORDER BY date DESC LIMIT 1
+        )
+    ''').fetchall()
+    conn.close()
+    return {r['logement_id']: dict(r) for r in rows}
+
+
+def add_releve_eau_froide(logement_id, date, index_m3):
+    conn = get_db()
+    conn.execute('''
+        INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
+    ''', (logement_id, date, index_m3))
+    conn.commit()
+    conn.close()
+
+
+def add_releves_eau_froide_bulk(date, valeurs_par_logement):
+    """valeurs_par_logement : dict {logement_id: index_m3}. Utilisé par la grille de saisie."""
+    conn = get_db()
+    conn.executemany('''
+        INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
+    ''', [(lid, date, val) for lid, val in valeurs_par_logement.items()])
+    conn.commit()
+    conn.close()
+
+
+def delete_releve_eau_froide(releve_id):
+    conn = get_db()
+    conn.execute('DELETE FROM releves_eau_froide WHERE id = ?', (releve_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_all_releves_eau_froide():
+    """Tous les relevés eau froide, toutes dates et logements confondus (pour le tableau croisé et les calculs de conso)."""
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM releves_eau_froide ORDER BY logement_id, date').fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def calculer_consommations_eau_froide():
+    """
+    Calcule la consommation (différence entre relevés successifs) pour chaque logement.
+    Retourne un dict {logement_id: [{date_debut, date_fin, jours, index_debut, index_fin, conso_m3, conso_par_jour}, ...]}
+    triée chronologiquement. Le premier relevé d'un logement n'a pas de consommation associée
+    (rien à comparer avant lui).
+    """
+    from datetime import datetime as dt
+    releves = get_all_releves_eau_froide()
+    par_logement = {}
+    for r in releves:
+        par_logement.setdefault(r['logement_id'], []).append(r)
+
+    result = {}
+    for logement_id, liste in par_logement.items():
+        liste.sort(key=lambda r: r['date'])
+        consos = []
+        for i in range(1, len(liste)):
+            prec, cur = liste[i - 1], liste[i]
+            d1 = dt.strptime(prec['date'], '%Y-%m-%d')
+            d2 = dt.strptime(cur['date'], '%Y-%m-%d')
+            jours = (d2 - d1).days or 1
+            conso = cur['index_m3'] - prec['index_m3']
+            consos.append({
+                'date_debut': prec['date'], 'date_fin': cur['date'], 'jours': jours,
+                'index_debut': prec['index_m3'], 'index_fin': cur['index_m3'],
+                'conso_m3': conso, 'conso_par_jour': conso / jours,
+            })
+        result[logement_id] = consos
+    return result
+
+
+# Eau chaude mensuelle (logement de Marc-Antoine uniquement)
+
+def get_releves_eau_chaude(logement_id):
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT * FROM releves_eau_chaude_mensuel WHERE logement_id = ? ORDER BY mois
+    ''', (logement_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def upsert_releve_eau_chaude(logement_id, mois, consommation_m3):
+    conn = get_db()
+    conn.execute('''
+        INSERT INTO releves_eau_chaude_mensuel (logement_id, mois, consommation_m3) VALUES (?, ?, ?)
+        ON CONFLICT(logement_id, mois) DO UPDATE SET consommation_m3 = excluded.consommation_m3
+    ''', (logement_id, mois, consommation_m3))
+    conn.commit()
+    conn.close()
+
+
+def delete_releve_eau_chaude(releve_id):
+    conn = get_db()
+    conn.execute('DELETE FROM releves_eau_chaude_mensuel WHERE id = ?', (releve_id,))
+    conn.commit()
+    conn.close()
+
+
+# Thermique (logement de Marc-Antoine uniquement, plusieurs index par relevé)
+
+def get_releves_thermique(logement_id):
+    """Retourne les relevés groupés par date : [{date, index: {numero: {valeur, unite, id}}}, ...] triés du plus récent au plus ancien."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT * FROM releves_thermique WHERE logement_id = ? ORDER BY date DESC, numero_index
+    ''', (logement_id,)).fetchall()
+    conn.close()
+
+    par_date = {}
+    for r in rows:
+        r = dict(r)
+        par_date.setdefault(r['date'], {})[r['numero_index']] = {'valeur': r['valeur'], 'unite': r['unite'], 'id': r['id']}
+    return [{'date': d, 'index': idx} for d, idx in par_date.items()]
+
+
+def add_releve_thermique_bulk(logement_id, date, valeurs_par_index):
+    """valeurs_par_index : dict {numero_index: (valeur, unite)}. Seuls les index renseignés sont insérés."""
+    conn = get_db()
+    conn.executemany('''
+        INSERT INTO releves_thermique (logement_id, date, numero_index, valeur, unite) VALUES (?, ?, ?, ?, ?)
+    ''', [(logement_id, date, num, val, unite) for num, (val, unite) in valeurs_par_index.items()])
+    conn.commit()
+    conn.close()
+
+
+def delete_releve_thermique_date(logement_id, date):
+    """Supprime tous les index d'un relevé thermique complet (identifié par sa date)."""
+    conn = get_db()
+    conn.execute('DELETE FROM releves_thermique WHERE logement_id = ? AND date = ?', (logement_id, date))
     conn.commit()
     conn.close()
