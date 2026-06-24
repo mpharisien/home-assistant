@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}— Mon logement{% endblock %}
+
+{% block content %}
+<div class="page-title">Mon logement <span>— Appartement {{ logement.numero_appartement if logement else '?' }}</span></div>
+
+<div style="background:#e8f0fc; border:1px solid #2d7dd2; border-radius:8px; padding:0.8rem 1.2rem; margin-bottom:1.5rem; font-size:0.85rem; color:#1a4a7a;">
+  ℹ️ Les compteurs Océa ont été installés et démarrent leurs relevés au <strong>1er mai 2026</strong>. Pas d'historique antérieur disponible.
+</div>
+
+<!-- ── Eau froide ── -->
+<div class="card">
+  <h2>💧 Eau froide</h2>
+  <form method="post" style="display:flex; gap:0.8rem; align-items:end; margin-bottom:1.2rem; flex-wrap:wrap;">
+    <input type="hidden" name="action" value="ajouter_eau_froide">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Date</label>
+      <input type="date" name="date" required>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Index relevé (m³)</label>
+      <input type="number" name="index_m3" step="0.001" required style="width:140px;">
+    </div>
+    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+  </form>
+
+  {% if eau_froide %}
+  <div class="chart-box" style="height:280px; margin-bottom:1.2rem;"><canvas id="chartEauFroide"></canvas></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th style="text-align:right">Index (m³)</th><th></th></tr></thead>
+      <tbody>
+        {% for r in eau_froide %}
+        <tr>
+          <td>{{ r.date }}</td>
+          <td class="montant">{{ '%.3f'|format(r.index_m3) }}</td>
+          <td style="text-align:right;">
+            <form method="post" onsubmit="return confirm('Supprimer ce relevé ?');" style="display:inline;">
+              <input type="hidden" name="action" value="supprimer_eau_froide">
+              <input type="hidden" name="releve_id" value="{{ r.id }}">
+              <button type="submit" class="btn btn-danger" style="padding:0.15rem 0.5rem; font-size:0.72rem;">Suppr.</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:#6b7280; font-size:0.88rem;">Aucun relevé pour l'instant.</p>
+  {% endif %}
+</div>
+
+<!-- ── Eau chaude (mensuelle, depuis export Océa) ── -->
+<div class="card">
+  <h2>🔥 Eau chaude — consommation mensuelle (export Océa)</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    À renseigner depuis l'export mensuel de ton espace Océa (colonne « Eau Chaude »), ou en estimant depuis le suivi journalier.
+  </p>
+  <form method="post" style="display:flex; gap:0.8rem; align-items:end; margin-bottom:1.2rem; flex-wrap:wrap;">
+    <input type="hidden" name="action" value="ajouter_eau_chaude">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Mois</label>
+      <input type="month" name="mois" required>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Consommation (m³)</label>
+      <input type="number" name="conso_m3" step="0.001" required style="width:140px;">
+    </div>
+    <button type="submit" class="btn btn-primary">+ Enregistrer</button>
+  </form>
+
+  {% if eau_chaude %}
+  <div class="chart-box" style="height:280px; margin-bottom:1.2rem;"><canvas id="chartEauChaude"></canvas></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Mois</th><th style="text-align:right">Consommation (m³)</th><th></th></tr></thead>
+      <tbody>
+        {% for r in eau_chaude %}
+        <tr>
+          <td>{{ r.mois }}</td>
+          <td class="montant">{{ '%.3f'|format(r.consommation_m3) }}</td>
+          <td style="text-align:right;">
+            <form method="post" onsubmit="return confirm('Supprimer ce relevé ?');" style="display:inline;">
+              <input type="hidden" name="action" value="supprimer_eau_chaude">
+              <input type="hidden" name="releve_id" value="{{ r.id }}">
+              <button type="submit" class="btn btn-danger" style="padding:0.15rem 0.5rem; font-size:0.72rem;">Suppr.</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:#6b7280; font-size:0.88rem;">Aucun relevé pour l'instant.</p>
+  {% endif %}
+</div>
+
+<!-- ── Thermique (multi-index) ── -->
+<div class="card">
+  <h2>🌡️ Compteur thermique — relevé complet</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Renseigne uniquement les index que tu as relevés — tous les champs sont facultatifs.
+  </p>
+  <form method="post" style="margin-bottom:1.5rem;">
+    <input type="hidden" name="action" value="ajouter_thermique">
+    <div class="form-group" style="max-width:220px;">
+      <label>Date du relevé</label>
+      <input type="date" name="date" required>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>INDEX</th><th>Valeur</th><th>Unité</th></tr></thead>
+        <tbody>
+          {% for num in numeros_index %}
+          <tr>
+            <td><strong>INDEX {{ num }}</strong></td>
+            <td><input type="number" step="any" name="index_{{ num }}_valeur" style="width:140px; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;"></td>
+            <td>
+              <select name="index_{{ num }}_unite" style="padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;">
+                <option value="">—</option>
+                {% for u in unites %}
+                <option value="{{ u }}">{{ u }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:1rem;">+ Enregistrer ce relevé</button>
+  </form>
+
+  {% if thermique %}
+  <h3 style="font-size:0.9rem; color:#374151; margin-bottom:0.8rem;">Historique des relevés</h3>
+  {% for releve in thermique %}
+  <div class="card" style="background:#fafbfc; margin-bottom:1rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+      <strong>{{ releve.date }}</strong>
+      <form method="post" onsubmit="return confirm('Supprimer tout le relevé thermique du {{ releve.date }} ?');" style="display:inline;">
+        <input type="hidden" name="action" value="supprimer_thermique">
+        <input type="hidden" name="date" value="{{ releve.date }}">
+        <button type="submit" class="btn btn-danger" style="padding:0.15rem 0.5rem; font-size:0.72rem;">Supprimer ce relevé</button>
+      </form>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.6rem; font-size:0.85rem;">
+      {% for num, info in releve.index.items() | sort %}
+      <div><span style="color:#6b7280;">INDEX {{ num }}</span><br><strong>{{ info.valeur }} {{ info.unite or '' }}</strong></div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p style="color:#6b7280; font-size:0.88rem;">Aucun relevé pour l'instant.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const eauFroide = {{ eau_froide | tojson }};
+const eauChaude = {{ eau_chaude | tojson }};
+
+const ctx1 = document.getElementById('chartEauFroide');
+if (ctx1 && eauFroide.length) {
+  new Chart(ctx1, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'Index eau froide (m³)',
+        data: eauFroide.map(r => ({ x: r.date, y: r.index_m3 })),
+        borderColor: '#2d7dd2', backgroundColor: 'rgba(45,125,210,.1)', tension: 0.2, fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { type: 'time', time: { unit: 'month' } }, y: { beginAtZero: false } }
+    }
+  });
+}
+
+const ctx2 = document.getElementById('chartEauChaude');
+if (ctx2 && eauChaude.length) {
+  new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: eauChaude.map(r => r.mois),
+      datasets: [{ label: 'Consommation eau chaude (m³)', data: eauChaude.map(r => r.consommation_m3), backgroundColor: '#f59e0b', borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+</script>
+{% endblock %}
