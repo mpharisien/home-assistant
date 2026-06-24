@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}— Océa — Saisie{% endblock %}
+
+{% block content %}
+<div class="page-title">Saisie <span>— Relevés eau froide</span></div>
+
+<div class="card">
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Renseigne uniquement les logements relevés aujourd'hui — les autres champs peuvent rester vides.
+  </p>
+
+  <form method="post">
+    <div class="form-group" style="max-width:220px; margin-bottom:1.2rem;">
+      <label>Date du relevé</label>
+      <input type="date" name="date" value="{{ aujourd_hui }}" required>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>N° Appt</th>
+            <th style="text-align:right">Surface</th>
+            <th>Dernier relevé</th>
+            <th style="text-align:right">Nouvel index (m³)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in logements %}
+          {% set dernier = derniers_releves.get(l.id) %}
+          <tr>
+            <td><strong>{{ l.numero_appartement }}</strong></td>
+            <td style="text-align:right; color:#6b7280;">{{ '%.0f'|format(l.surface_m2) ~ ' m²' if l.surface_m2 else '—' }}</td>
+            <td style="color:#6b7280; font-size:0.82rem;">
+              {% if dernier %}{{ dernier.date }} — {{ '%.3f'|format(dernier.index_m3) }} m³{% else %}— jamais relevé{% endif %}
+            </td>
+            <td style="text-align:right;">
+              <input type="number" step="0.001" name="logement_{{ l.id }}" placeholder="ex: 32.450" style="width:140px; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px; text-align:right;">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <button type="submit" class="btn btn-success" style="margin-top:1.2rem;">✓ Enregistrer les relevés saisis</button>
+  </form>
+</div>
+{% endblock %}
