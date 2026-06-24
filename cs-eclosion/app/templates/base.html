@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CS Eclosion {% block title %}{% endblock %}</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     /* ── Variables couleurs (inspirées Myfoncia) ── */
     :root {
@@ -299,9 +300,9 @@
       <div class="module-disabled" title="Bientôt disponible">
         <span class="module-icon">🧾</span><span class="label-text">Appels de fonds</span>
       </div>
-      <div class="module-disabled" title="Bientôt disponible">
+      <a href="{{ url_for('ocea_dashboard') }}" class="{{ 'active' if module_actif == 'ocea' }}">
         <span class="module-icon">💧</span><span class="label-text">Relevés Océa</span>
-      </div>
+      </a>
       <a href="{{ url_for('logements') }}" class="{{ 'active' if module_actif == 'logements' }}">
         <span class="module-icon">🏠</span><span class="label-text">Logements / Habitants</span>
       </a>
@@ -329,6 +330,13 @@
     {% elif module_actif == 'sujets_ag' %}
     <div class="subnav">
       <a href="{{ url_for('sujets_ag') }}" class="active">Sujets AG</a>
+    </div>
+    {% elif module_actif == 'ocea' %}
+    <div class="subnav">
+      <a href="{{ url_for('ocea_dashboard') }}" class="{{ 'active' if request.endpoint == 'ocea_dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('ocea_mon_logement') }}" class="{{ 'active' if request.endpoint == 'ocea_mon_logement' }}">Mon logement</a>
+      <a href="{{ url_for('ocea_suivi') }}" class="{{ 'active' if request.endpoint == 'ocea_suivi' }}">Suivi complet</a>
+      <a href="{{ url_for('ocea_saisie') }}" class="{{ 'active' if request.endpoint == 'ocea_saisie' }}">Saisie</a>
     </div>
     {% endif %}
 
