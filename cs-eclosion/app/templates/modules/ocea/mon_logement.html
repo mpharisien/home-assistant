@@ -2,10 +2,36 @@
 {% block title %}— Mon logement{% endblock %}
 
 {% block content %}
-<div class="page-title">Mon logement <span>— Appartement {{ logement.numero_appartement if logement else '?' }}</span></div>
+<style>
+  /* Supprime les flèches d'incrémentation des champs numériques de cette page, sur tous navigateurs */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .no-spinner[type=number] { -moz-appearance: textfield; appearance: textfield; }
+</style>
+
+<div class="page-title">
+  Logement consulté <span>— Appartement {{ logement.numero_appartement if logement else '?' }}</span>
+</div>
+
+<!-- ── Sélecteur de logement ── -->
+<div class="card" style="padding:1rem 1.5rem;">
+  <form method="post" style="display:flex; gap:0.8rem; align-items:end;">
+    <input type="hidden" name="action" value="changer_logement">
+    <div class="form-group" style="margin-bottom:0; max-width:280px;">
+      <label>Choisir un logement à consulter</label>
+      <select name="numero_appartement" onchange="this.form.submit()">
+        {% for l in tous_logements %}
+        <option value="{{ l.numero_appartement }}" {{ 'selected' if l.numero_appartement == numero_actuel }}>
+          Appartement {{ l.numero_appartement }}{{ ' (le mien)' if l.numero_appartement == '241' }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
 
 <div style="background:#e8f0fc; border:1px solid #2d7dd2; border-radius:8px; padding:0.8rem 1.2rem; margin-bottom:1.5rem; font-size:0.85rem; color:#1a4a7a;">
-  ℹ️ Les compteurs Océa ont été installés et démarrent leurs relevés au <strong>1er mai 2026</strong>. Pas d'historique antérieur disponible.
+  ℹ️ Les compteurs Océa ont été installés les <strong>17, 18 et 19 mars</strong>. Les relevés débutent au <strong>1er mai 2026</strong>.
 </div>
 
 <!-- ── Eau froide ── -->
@@ -15,11 +41,11 @@
     <input type="hidden" name="action" value="ajouter_eau_froide">
     <div class="form-group" style="margin-bottom:0;">
       <label>Date</label>
-      <input type="date" name="date" required>
+      <input type="date" name="date" value="{{ aujourd_hui }}" required>
     </div>
     <div class="form-group" style="margin-bottom:0;">
       <label>Index relevé (m³)</label>
-      <input type="number" name="index_m3" step="0.001" required style="width:140px;">
+      <input type="number" name="index_m3" step="0.001" required class="no-spinner" style="width:140px;">
     </div>
     <button type="submit" class="btn btn-primary">+ Ajouter</button>
   </form>
@@ -65,7 +91,7 @@
     </div>
     <div class="form-group" style="margin-bottom:0;">
       <label>Consommation (m³)</label>
-      <input type="number" name="conso_m3" step="0.001" required style="width:140px;">
+      <input type="number" name="conso_m3" step="0.001" required class="no-spinner" style="width:140px;">
     </div>
     <button type="submit" class="btn btn-primary">+ Enregistrer</button>
   </form>
@@ -101,13 +127,13 @@
 <div class="card">
   <h2>🌡️ Compteur thermique — relevé complet</h2>
   <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
-    Renseigne uniquement les index que tu as relevés — tous les champs sont facultatifs.
+    Renseigne uniquement les index que tu as relevés — tous les champs sont facultatifs. L'unité de chaque INDEX est fixe.
   </p>
   <form method="post" style="margin-bottom:1.5rem;">
     <input type="hidden" name="action" value="ajouter_thermique">
     <div class="form-group" style="max-width:220px;">
       <label>Date du relevé</label>
-      <input type="date" name="date" required>
+      <input type="date" name="date" value="{{ aujourd_hui }}" required>
     </div>
     <div class="table-wrap">
       <table>
@@ -116,15 +142,14 @@
           {% for num in numeros_index %}
           <tr>
             <td><strong>INDEX {{ num }}</strong></td>
-            <td><input type="number" step="any" name="index_{{ num }}_valeur" style="width:140px; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;"></td>
             <td>
-              <select name="index_{{ num }}_unite" style="padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;">
-                <option value="">—</option>
-                {% for u in unites %}
-                <option value="{{ u }}">{{ u }}</option>
-                {% endfor %}
-              </select>
+              {% if num == 4 %}
+              <input type="text" name="index_{{ num }}_valeur" placeholder="ex: Lr 6A19" style="width:160px; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;">
+              {% else %}
+              <input type="number" step="any" name="index_{{ num }}_valeur" class="no-spinner" style="width:140px; padding:0.3rem 0.5rem; border:1px solid #d1d5db; border-radius:6px;">
+              {% endif %}
             </td>
+            <td style="color:#6b7280;">{{ unites_index.get(num, '') }}</td>
           </tr>
           {% endfor %}
         </tbody>
