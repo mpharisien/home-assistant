@@ -20,7 +20,7 @@
           <th>N° Appt</th>
           <th style="text-align:right">Surface</th>
           {% for d in dates %}
-          <th style="text-align:right; white-space:nowrap;">{{ d }}</th>
+          <th style="text-align:right; white-space:nowrap;">{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}</th>
           {% endfor %}
         </tr>
       </thead>
