@@ -4,7 +4,7 @@ import csv
 import json
 import tempfile
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 
 import database as db
 import regroupements as regr
@@ -29,6 +29,7 @@ MODULES_PAR_ENDPOINT = {
     'ocea_mon_logement': 'ocea',
     'ocea_suivi': 'ocea',
     'ocea_saisie': 'ocea',
+    'ocea_saisie_thermique': 'ocea',
 }
 
 
@@ -601,13 +602,13 @@ def sujets_ag():
 
 # ─── Module Relevés Océa ────────────────────────────────────────────────────────
 
-# Numéro d'appartement de Marc-Antoine, le seul logement pour lequel on a
-# l'eau chaude et le thermique (les autres logements n'ont que l'eau froide
-# relevée manuellement dans le couloir).
+# Numéro d'appartement de Marc-Antoine, valeur par défaut du sélecteur de logement
+# sur la page "Mon logement" (mémorisée en session si l'utilisateur en choisit un autre).
 MON_NUMERO_APPARTEMENT = '241'
 
-# Labels des unités possibles pour les index thermiques, proposés dans le formulaire
-UNITES_THERMIQUE = ['kWh', 'm3', 'h', 'C°', 'K', '(sans unité)']
+# INDEX 4 contient parfois des lettres (ex: "Lr 6A19") -> champ texte libre, pas de unité fixe affichée.
+# Les autres index ont toujours la même unité, fixée en dur (cf. db.UNITES_INDEX_THERMIQUE).
+INDEX_4_EST_TEXTE_LIBRE = True
 
 
 def get_mon_logement_id():
@@ -617,27 +618,20 @@ def get_mon_logement_id():
 @app.route('/ocea')
 def ocea_dashboard():
     logements = db.get_all_logements_avec_etat_actuel()
-    derniers_releves = db.get_dernier_releve_eau_froide_tous_logements()
-    consommations = db.calculer_consommations_eau_froide()
+    derniers_eau_froide = db.get_dernier_releve_eau_froide_tous_logements()
+    derniers_thermique = db.get_dernier_releve_thermique_index5_tous_logements()
 
     data = []
     for l in logements:
-        dernier = derniers_releves.get(l['id'])
-        consos = consommations.get(l['id'], [])
-        derniere_conso = consos[-1] if consos else None
-        conso_par_m2 = None
-        if derniere_conso and l['surface_m2']:
-            conso_par_m2 = derniere_conso['conso_m3'] / l['surface_m2']
+        eau = derniers_eau_froide.get(l['id'])
+        thermique = derniers_thermique.get(l['id'])
         data.append({
             'id': l['id'],
             'numero_appartement': l['numero_appartement'],
             'surface_m2': l['surface_m2'],
             'nb_pieces': l['nb_pieces'],
-            'dernier_releve_date': dernier['date'] if dernier else None,
-            'dernier_releve_index': dernier['index_m3'] if dernier else None,
-            'derniere_conso_m3': derniere_conso['conso_m3'] if derniere_conso else None,
-            'derniere_conso_par_jour': derniere_conso['conso_par_jour'] if derniere_conso else None,
-            'conso_par_m2': conso_par_m2,
+            'eau_froide_index': eau['index_m3'] if eau else None,
+            'thermique_index5': thermique['valeur'] if thermique else None,
         })
 
     return render_template('modules/ocea/dashboard.html', data=data)
@@ -645,17 +639,26 @@ def ocea_dashboard():
 
 @app.route('/ocea/mon-logement', methods=['GET', 'POST'])
 def ocea_mon_logement():
-    logement_id = get_mon_logement_id()
-
     if request.method == 'POST':
         action = request.form.get('action')
+
+        if action == 'changer_logement':
+            numero = request.form.get('numero_appartement', '').strip()
+            if numero:
+                session['ocea_logement_consulte'] = numero
+            return redirect(url_for('ocea_mon_logement'))
+
+        # Pour toutes les actions de saisie, le logement concerné est celui actuellement
+        # affiché (peut être différent de MON_NUMERO_APPARTEMENT si on consulte un autre logement).
+        numero_actuel = session.get('ocea_logement_consulte', MON_NUMERO_APPARTEMENT)
+        logement_id = db.get_logement_id_by_numero(numero_actuel)
 
         if action == 'ajouter_eau_froide':
             date = request.form.get('date', '').strip()
             index_m3 = request.form.get('index_m3', type=float)
             if date and index_m3 is not None:
                 db.add_releve_eau_froide(logement_id, date, index_m3)
-                flash('Relevé eau froide ajouté.', 'success')
+                flash('Relevé eau froide enregistré.', 'success')
 
         elif action == 'supprimer_eau_froide':
             releve_id = request.form.get('releve_id', type=int)
@@ -680,15 +683,11 @@ def ocea_mon_logement():
                 valeurs = {}
                 for num in range(1, 17):
                     val = request.form.get(f'index_{num}_valeur', '').strip()
-                    unite = request.form.get(f'index_{num}_unite', '').strip()
                     if val:
-                        try:
-                            valeurs[num] = (float(val), unite or None)
-                        except ValueError:
-                            pass
+                        valeurs[num] = val
                 if valeurs:
                     db.add_releve_thermique_bulk(logement_id, date, valeurs)
-                    flash(f'Relevé thermique ajouté ({len(valeurs)} index renseignés).', 'success')
+                    flash(f'Relevé thermique enregistré ({len(valeurs)} index renseignés).', 'success')
                 else:
                     flash('Aucun index renseigné, rien à enregistrer.', 'error')
 
@@ -699,18 +698,30 @@ def ocea_mon_logement():
 
         return redirect(url_for('ocea_mon_logement'))
 
+    numero_actuel = session.get('ocea_logement_consulte', MON_NUMERO_APPARTEMENT)
+    logement_id = db.get_logement_id_by_numero(numero_actuel)
+    if not logement_id:
+        # Le logement mémorisé n'existe plus (changement de numérotation) -> retombe sur le défaut
+        numero_actuel = MON_NUMERO_APPARTEMENT
+        logement_id = db.get_logement_id_by_numero(numero_actuel)
+
     eau_froide = db.get_releves_eau_froide_logement(logement_id)
     eau_chaude = db.get_releves_eau_chaude(logement_id)
     thermique = db.get_releves_thermique(logement_id)
     logement = db.get_logement_by_id(logement_id)
+    tous_logements = db.get_all_logements_avec_etat_actuel()
 
+    from datetime import date as date_today
     return render_template('modules/ocea/mon_logement.html',
                            logement=logement,
+                           numero_actuel=numero_actuel,
+                           tous_logements=tous_logements,
                            eau_froide=list(reversed(eau_froide)),
                            eau_chaude=list(reversed(eau_chaude)),
                            thermique=thermique,
-                           unites=UNITES_THERMIQUE,
-                           numeros_index=range(1, 17))
+                           unites_index=db.UNITES_INDEX_THERMIQUE,
+                           numeros_index=range(1, 17),
+                           aujourd_hui=date_today.today().isoformat())
 
 
 @app.route('/ocea/suivi')
@@ -761,6 +772,35 @@ def ocea_saisie():
 
     from datetime import date as date_today
     return render_template('modules/ocea/saisie.html',
+                           logements=logements,
+                           derniers_releves=derniers_releves,
+                           aujourd_hui=date_today.today().isoformat())
+
+
+@app.route('/ocea/saisie-thermique', methods=['GET', 'POST'])
+def ocea_saisie_thermique():
+    if request.method == 'POST':
+        date = request.form.get('date', '').strip()
+        valeurs = {}
+        for key, val in request.form.items():
+            if key.startswith('logement_') and val.strip():
+                logement_id = int(key.replace('logement_', ''))
+                try:
+                    valeurs[logement_id] = float(val.strip())
+                except ValueError:
+                    pass
+        if date and valeurs:
+            db.add_releves_thermique_index5_bulk(date, valeurs)
+            flash(f'{len(valeurs)} relevé(s) thermique(s) enregistré(s) pour le {date}.', 'success')
+        else:
+            flash('Aucune valeur saisie.', 'error')
+        return redirect(url_for('ocea_saisie_thermique'))
+
+    logements = db.get_all_logements_avec_etat_actuel()
+    derniers_releves = db.get_dernier_releve_thermique_index5_tous_logements()
+
+    from datetime import date as date_today
+    return render_template('modules/ocea/saisie_thermique.html',
                            logements=logements,
                            derniers_releves=derniers_releves,
                            aujourd_hui=date_today.today().isoformat())
