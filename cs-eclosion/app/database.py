@@ -23,6 +23,73 @@ def init_db():
         c.execute("DROP TABLE IF EXISTS logements")
         conn.commit()
 
+    # ── Migration : les tables de relevés Océa créées avant l'ajout des contraintes
+    # anti-doublon (UNIQUE) et du changement de type de 'valeur' (REAL -> TEXT pour
+    # gérer l'INDEX 4 alphanumérique) doivent être recréées en conservant les données
+    # déjà saisies. On garde, pour chaque doublon (même logement+date[+index]), la
+    # ligne avec le plus grand id (= la plus récemment insérée).
+    def colonne_existe(table, colonne):
+        cols = c.execute(f"PRAGMA table_info({table})").fetchall()
+        return any(col[1] == colonne for col in cols)
+
+    def table_existe(table):
+        return c.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone() is not None
+
+    def a_contrainte_unique(table):
+        sql = c.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        return sql and 'UNIQUE' in sql['sql']
+
+    if table_existe('releves_eau_froide') and not a_contrainte_unique('releves_eau_froide'):
+        anciennes = c.execute('SELECT * FROM releves_eau_froide ORDER BY id').fetchall()
+        c.execute('ALTER TABLE releves_eau_froide RENAME TO releves_eau_froide_old')
+        conn.commit()
+        c.execute('''
+            CREATE TABLE releves_eau_froide (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                logement_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                index_m3 REAL NOT NULL,
+                FOREIGN KEY (logement_id) REFERENCES logements(id),
+                UNIQUE(logement_id, date)
+            )
+        ''')
+        for r in anciennes:
+            c.execute('''
+                INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
+                ON CONFLICT(logement_id, date) DO UPDATE SET index_m3 = excluded.index_m3
+            ''', (r['logement_id'], r['date'], r['index_m3']))
+        c.execute('DROP TABLE releves_eau_froide_old')
+        conn.commit()
+
+    if table_existe('releves_thermique') and (
+        not a_contrainte_unique('releves_thermique') or colonne_existe('releves_thermique', 'unite')
+    ):
+        anciennes = c.execute('SELECT * FROM releves_thermique ORDER BY id').fetchall()
+        c.execute('ALTER TABLE releves_thermique RENAME TO releves_thermique_old')
+        conn.commit()
+        c.execute('''
+            CREATE TABLE releves_thermique (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                logement_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                numero_index INTEGER NOT NULL,
+                valeur TEXT NOT NULL,
+                FOREIGN KEY (logement_id) REFERENCES logements(id),
+                UNIQUE(logement_id, date, numero_index)
+            )
+        ''')
+        for r in anciennes:
+            c.execute('''
+                INSERT INTO releves_thermique (logement_id, date, numero_index, valeur) VALUES (?, ?, ?, ?)
+                ON CONFLICT(logement_id, date, numero_index) DO UPDATE SET valeur = excluded.valeur
+            ''', (r['logement_id'], r['date'], r['numero_index'], str(r['valeur'])))
+        c.execute('DROP TABLE releves_thermique_old')
+        conn.commit()
+
     # Table des exercices (une ligne par année)
     c.execute('''
         CREATE TABLE IF NOT EXISTS exercices (
@@ -136,13 +203,15 @@ def init_db():
 
     # Eau froide : un INDEX cumulatif (m³) par logement et par date, relevé manuellement
     # dans le couloir. Tous les 59 logements peuvent avoir des relevés ici.
+    # UNIQUE(logement_id, date) : une 2e saisie le même jour remplace la précédente (upsert).
     c.execute('''
         CREATE TABLE IF NOT EXISTS releves_eau_froide (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             logement_id INTEGER NOT NULL,
             date TEXT NOT NULL,
             index_m3 REAL NOT NULL,
-            FOREIGN KEY (logement_id) REFERENCES logements(id)
+            FOREIGN KEY (logement_id) REFERENCES logements(id),
+            UNIQUE(logement_id, date)
         )
     ''')
 
@@ -159,18 +228,22 @@ def init_db():
         )
     ''')
 
-    # Thermique : plusieurs index (INDEX 1 à 16 sur le boîtier) par relevé, pour le
-    # logement de Marc-Antoine uniquement. Table générique pour encaisser les index
-    # manquants/variables d'un relevé à l'autre (cf. principe "données brutes intactes").
+    # Thermique : plusieurs index (INDEX 1 à 16 sur le boîtier). Pour le logement de
+    # Marc-Antoine, tous les index peuvent être renseignés (relevé détaillé). Pour les
+    # 59 logements, seul l'INDEX 5 (consommation cumulée m³) est saisi.
+    # valeur en TEXT car l'INDEX 4 contient des lettres (ex: "Lr 6A19") — conversion en
+    # nombre faite à la lecture uniquement quand c'est pertinent (ex: INDEX 5 pour les calculs).
+    # UNIQUE(logement_id, date, numero_index) : une 2e saisie du même index le même jour
+    # remplace la précédente (upsert).
     c.execute('''
         CREATE TABLE IF NOT EXISTS releves_thermique (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             logement_id INTEGER NOT NULL,
             date TEXT NOT NULL,
             numero_index INTEGER NOT NULL,
-            valeur REAL NOT NULL,
-            unite TEXT,
-            FOREIGN KEY (logement_id) REFERENCES logements(id)
+            valeur TEXT NOT NULL,
+            FOREIGN KEY (logement_id) REFERENCES logements(id),
+            UNIQUE(logement_id, date, numero_index)
         )
     ''')
 
@@ -716,6 +789,14 @@ def delete_tache_ag(tache_id):
 
 # ─── Module Relevés Océa ────────────────────────────────────────────────────────
 
+# Unité fixe par numéro d'INDEX du compteur thermique (affichage uniquement, le
+# boîtier donne toujours la même grandeur pour un même index).
+UNITES_INDEX_THERMIQUE = {
+    1: 'kWh', 2: 'kWh', 3: '', 4: '', 5: 'm3', 6: 'h',
+    7: 'C°', 8: 'C°', 9: 'K', 10: '', 11: '', 12: '',
+    13: '', 14: '', 15: '', 16: '',
+}
+
 # Eau froide (tous logements, index cumulatif m³)
 
 def get_releves_eau_froide_logement(logement_id):
@@ -745,19 +826,22 @@ def get_dernier_releve_eau_froide_tous_logements():
 
 
 def add_releve_eau_froide(logement_id, date, index_m3):
+    """Upsert : si un relevé existe déjà pour ce logement à cette date, sa valeur est remplacée."""
     conn = get_db()
     conn.execute('''
         INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
+        ON CONFLICT(logement_id, date) DO UPDATE SET index_m3 = excluded.index_m3
     ''', (logement_id, date, index_m3))
     conn.commit()
     conn.close()
 
 
 def add_releves_eau_froide_bulk(date, valeurs_par_logement):
-    """valeurs_par_logement : dict {logement_id: index_m3}. Utilisé par la grille de saisie."""
+    """valeurs_par_logement : dict {logement_id: index_m3}. Utilisé par la grille de saisie. Upsert (cf. add_releve_eau_froide)."""
     conn = get_db()
     conn.executemany('''
         INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
+        ON CONFLICT(logement_id, date) DO UPDATE SET index_m3 = excluded.index_m3
     ''', [(lid, date, val) for lid, val in valeurs_par_logement.items()])
     conn.commit()
     conn.close()
@@ -838,7 +922,7 @@ def delete_releve_eau_chaude(releve_id):
     conn.close()
 
 
-# Thermique (logement de Marc-Antoine uniquement, plusieurs index par relevé)
+# Thermique — relevé détaillé (logement de Marc-Antoine, tous les index 1-16)
 
 def get_releves_thermique(logement_id):
     """Retourne les relevés groupés par date : [{date, index: {numero: {valeur, unite, id}}}, ...] triés du plus récent au plus ancien."""
@@ -851,16 +935,19 @@ def get_releves_thermique(logement_id):
     par_date = {}
     for r in rows:
         r = dict(r)
-        par_date.setdefault(r['date'], {})[r['numero_index']] = {'valeur': r['valeur'], 'unite': r['unite'], 'id': r['id']}
+        par_date.setdefault(r['date'], {})[r['numero_index']] = {
+            'valeur': r['valeur'], 'unite': UNITES_INDEX_THERMIQUE.get(r['numero_index'], ''), 'id': r['id']
+        }
     return [{'date': d, 'index': idx} for d, idx in par_date.items()]
 
 
 def add_releve_thermique_bulk(logement_id, date, valeurs_par_index):
-    """valeurs_par_index : dict {numero_index: (valeur, unite)}. Seuls les index renseignés sont insérés."""
+    """valeurs_par_index : dict {numero_index: valeur_texte}. Seuls les index renseignés sont insérés. Upsert par (logement, date, index)."""
     conn = get_db()
     conn.executemany('''
-        INSERT INTO releves_thermique (logement_id, date, numero_index, valeur, unite) VALUES (?, ?, ?, ?, ?)
-    ''', [(logement_id, date, num, val, unite) for num, (val, unite) in valeurs_par_index.items()])
+        INSERT INTO releves_thermique (logement_id, date, numero_index, valeur) VALUES (?, ?, ?, ?)
+        ON CONFLICT(logement_id, date, numero_index) DO UPDATE SET valeur = excluded.valeur
+    ''', [(logement_id, date, num, str(val)) for num, val in valeurs_par_index.items()])
     conn.commit()
     conn.close()
 
@@ -869,5 +956,52 @@ def delete_releve_thermique_date(logement_id, date):
     """Supprime tous les index d'un relevé thermique complet (identifié par sa date)."""
     conn = get_db()
     conn.execute('DELETE FROM releves_thermique WHERE logement_id = ? AND date = ?', (logement_id, date))
+    conn.commit()
+    conn.close()
+
+
+# Thermique — relevé simplifié pour les 59 logements (INDEX 5 uniquement, conso cumulée m³)
+
+def get_dernier_releve_thermique_index5_tous_logements():
+    """Pour chaque logement, le dernier relevé de l'INDEX 5 (consommation cumulée thermique)."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT r.logement_id, r.date, r.valeur
+        FROM releves_thermique r
+        WHERE r.numero_index = 5
+          AND r.id IN (
+              SELECT id FROM releves_thermique r2
+              WHERE r2.logement_id = r.logement_id AND r2.numero_index = 5
+              ORDER BY date DESC LIMIT 1
+          )
+    ''').fetchall()
+    conn.close()
+    result = {}
+    for r in rows:
+        try:
+            result[r['logement_id']] = {'date': r['date'], 'valeur': float(r['valeur'])}
+        except (ValueError, TypeError):
+            pass
+    return result
+
+
+def add_releve_thermique_index5_simple(logement_id, date, valeur_m3):
+    """Saisie simplifiée pour les 59 logements : un seul chiffre, toujours INDEX 5. Upsert."""
+    conn = get_db()
+    conn.execute('''
+        INSERT INTO releves_thermique (logement_id, date, numero_index, valeur) VALUES (?, ?, 5, ?)
+        ON CONFLICT(logement_id, date, numero_index) DO UPDATE SET valeur = excluded.valeur
+    ''', (logement_id, date, str(valeur_m3)))
+    conn.commit()
+    conn.close()
+
+
+def add_releves_thermique_index5_bulk(date, valeurs_par_logement):
+    """valeurs_par_logement : dict {logement_id: valeur_m3}. Utilisé par la grille de saisie thermique. Upsert."""
+    conn = get_db()
+    conn.executemany('''
+        INSERT INTO releves_thermique (logement_id, date, numero_index, valeur) VALUES (?, ?, 5, ?)
+        ON CONFLICT(logement_id, date, numero_index) DO UPDATE SET valeur = excluded.valeur
+    ''', [(lid, date, str(val)) for lid, val in valeurs_par_logement.items()])
     conn.commit()
     conn.close()
