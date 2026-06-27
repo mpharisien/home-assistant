@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}— Océa — Saisie{% endblock %}
+{% block title %}— Océa — Saisie eau froide{% endblock %}
 
 {% block content %}
 <div class="page-title">Saisie <span>— Relevés eau froide</span></div>
@@ -20,7 +20,6 @@
         <thead>
           <tr>
             <th>N° Appt</th>
-            <th style="text-align:right">Surface</th>
             <th>Dernier relevé</th>
             <th style="text-align:right">Nouvel index (m³)</th>
           </tr>
@@ -30,7 +29,6 @@
           {% set dernier = derniers_releves.get(l.id) %}
           <tr>
             <td><strong>{{ l.numero_appartement }}</strong></td>
-            <td style="text-align:right; color:#6b7280;">{{ '%.0f'|format(l.surface_m2) ~ ' m²' if l.surface_m2 else '—' }}</td>
             <td style="color:#6b7280; font-size:0.82rem;">
               {% if dernier %}{{ dernier.date }} — {{ '%.3f'|format(dernier.index_m3) }} m³{% else %}— jamais relevé{% endif %}
             </td>
