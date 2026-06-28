@@ -66,6 +66,8 @@
               <div><span style="color:#6b7280;">Lot parking</span><br><strong>{{ l.lot_parking or '—' }}</strong></div>
               <div><span style="color:#6b7280;">Place parking</span><br><strong>{{ l.place_parking or '—' }}</strong></div>
               <div><span style="color:#6b7280;">Tantième parking</span><br><strong>{{ l.tantieme_parking if l.tantieme_parking is not none else '—' }}</strong></div>
+              <div><span style="color:#6b7280;">N° compteur eau froide</span><br><strong>{{ l.numero_compteur_eau_froide or '—' }}</strong></div>
+              <div><span style="color:#6b7280;">N° compteur thermique</span><br><strong>{{ l.numero_compteur_thermique or '—' }}</strong></div>
             </div>
           </td>
         </tr>
