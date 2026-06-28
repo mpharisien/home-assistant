@@ -151,13 +151,12 @@ function construireDatasetsEvolution(historique, champValeur) {
   });
   return Object.entries(parLogement).map(([numero, points], i) => ({
     label: numero,
-    data: points.sort((a, b) => a.x.localeCompare(b.x)),
+    data: [{ x: '2026-05-01', y: 0 }, ...points.sort((a, b) => a.x.localeCompare(b.x))],
     borderColor: COULEURS_EVOLUTION[i % COULEURS_EVOLUTION.length],
     backgroundColor: 'transparent',
     tension: 0.15,
   }));
 }
-
 const ctxEvolEau = document.getElementById('chartEvolutionEauFroide');
 if (ctxEvolEau && eauFroideHistorique.length) {
   new Chart(ctxEvolEau, {
