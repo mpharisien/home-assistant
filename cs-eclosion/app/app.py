@@ -27,8 +27,9 @@ MODULES_PAR_ENDPOINT = {
     'sujets_ag': 'sujets_ag',
     'ocea_dashboard': 'ocea',
     'ocea_mon_logement': 'ocea',
-    'ocea_suivi': 'ocea',
-    'ocea_saisie': 'ocea',
+    'ocea_historique_eau_froide': 'ocea',
+    'ocea_historique_thermique': 'ocea',
+    'ocea_saisie_eau_froide': 'ocea',
     'ocea_saisie_thermique': 'ocea',
 }
 
@@ -634,7 +635,13 @@ def ocea_dashboard():
             'thermique_index5': thermique['valeur'] if thermique else None,
         })
 
-    return render_template('modules/ocea/dashboard.html', data=data)
+    eau_froide_historique = db.get_all_releves_eau_froide()
+    thermique_historique = db.get_all_releves_thermique_index5()
+
+    return render_template('modules/ocea/dashboard.html',
+                           data=data,
+                           eau_froide_historique=eau_froide_historique,
+                           thermique_historique=thermique_historique)
 
 
 @app.route('/ocea/mon-logement', methods=['GET', 'POST'])
@@ -696,6 +703,12 @@ def ocea_mon_logement():
             if date:
                 db.delete_releve_thermique_date(logement_id, date)
 
+        elif action == 'modifier_compteurs':
+            num_eau = request.form.get('numero_compteur_eau_froide', '').strip()
+            num_thermique = request.form.get('numero_compteur_thermique', '').strip()
+            db.update_numeros_compteurs(logement_id, num_eau, num_thermique)
+            flash('Numéros de compteur mis à jour.', 'success')
+
         return redirect(url_for('ocea_mon_logement'))
 
     numero_actuel = session.get('ocea_logement_consulte', MON_NUMERO_APPARTEMENT)
@@ -724,8 +737,8 @@ def ocea_mon_logement():
                            aujourd_hui=date_today.today().isoformat())
 
 
-@app.route('/ocea/suivi')
-def ocea_suivi():
+@app.route('/ocea/historique-eau-froide')
+def ocea_historique_eau_froide():
     logements = db.get_all_logements_avec_etat_actuel()
     releves = db.get_all_releves_eau_froide()
 
@@ -741,20 +754,42 @@ def ocea_suivi():
     for l in logements:
         lignes.append({
             'numero_appartement': l['numero_appartement'],
-            'surface_m2': l['surface_m2'],
             'valeurs': pivot.get(l['id'], {}),
         })
 
-    return render_template('modules/ocea/suivi.html', lignes=lignes, dates=dates)
+    return render_template('modules/ocea/historique_eau_froide.html', lignes=lignes, dates=dates)
 
 
-@app.route('/ocea/saisie', methods=['GET', 'POST'])
-def ocea_saisie():
+@app.route('/ocea/historique-thermique')
+def ocea_historique_thermique():
+    logements = db.get_all_logements_avec_etat_actuel()
+    releves = db.get_all_releves_thermique_index5()
+
+    dates = sorted({r['date'] for r in releves})
+
+    pivot = {}
+    for r in releves:
+        pivot.setdefault(r['logement_id'], {})[r['date']] = r['valeur']
+
+    lignes = []
+    for l in logements:
+        lignes.append({
+            'numero_appartement': l['numero_appartement'],
+            'valeurs': pivot.get(l['id'], {}),
+        })
+
+    return render_template('modules/ocea/historique_thermique.html', lignes=lignes, dates=dates)
+
+
+@app.route('/ocea/saisie-eau-froide', methods=['GET', 'POST'])
+def ocea_saisie_eau_froide():
     if request.method == 'POST':
         date = request.form.get('date', '').strip()
         valeurs = {}
         for key, val in request.form.items():
-            if key.startswith('logement_') and val.strip():
+            # On ne filtre plus sur "val non vide seulement" : un champ à blanc est ignoré,
+            # mais un champ à "0" doit être traité (= commande de suppression du relevé existant).
+            if key.startswith('logement_') and val.strip() != '':
                 logement_id = int(key.replace('logement_', ''))
                 try:
                     valeurs[logement_id] = float(val.strip())
@@ -762,16 +797,21 @@ def ocea_saisie():
                     pass
         if date and valeurs:
             db.add_releves_eau_froide_bulk(date, valeurs)
-            flash(f'{len(valeurs)} relevé(s) enregistré(s) pour le {date}.', 'success')
+            nb_supprimes = sum(1 for v in valeurs.values() if v == 0)
+            nb_ajoutes = len(valeurs) - nb_supprimes
+            msg = f'{nb_ajoutes} relevé(s) enregistré(s)'
+            if nb_supprimes:
+                msg += f', {nb_supprimes} supprimé(s) (valeur 0)'
+            flash(msg + f' pour le {date}.', 'success')
         else:
             flash('Aucune valeur saisie.', 'error')
-        return redirect(url_for('ocea_saisie'))
+        return redirect(url_for('ocea_saisie_eau_froide'))
 
     logements = db.get_all_logements_avec_etat_actuel()
     derniers_releves = db.get_dernier_releve_eau_froide_tous_logements()
 
     from datetime import date as date_today
-    return render_template('modules/ocea/saisie.html',
+    return render_template('modules/ocea/saisie_eau_froide.html',
                            logements=logements,
                            derniers_releves=derniers_releves,
                            aujourd_hui=date_today.today().isoformat())
@@ -783,7 +823,7 @@ def ocea_saisie_thermique():
         date = request.form.get('date', '').strip()
         valeurs = {}
         for key, val in request.form.items():
-            if key.startswith('logement_') and val.strip():
+            if key.startswith('logement_') and val.strip() != '':
                 logement_id = int(key.replace('logement_', ''))
                 try:
                     valeurs[logement_id] = float(val.strip())
@@ -791,7 +831,12 @@ def ocea_saisie_thermique():
                     pass
         if date and valeurs:
             db.add_releves_thermique_index5_bulk(date, valeurs)
-            flash(f'{len(valeurs)} relevé(s) thermique(s) enregistré(s) pour le {date}.', 'success')
+            nb_supprimes = sum(1 for v in valeurs.values() if v == 0)
+            nb_ajoutes = len(valeurs) - nb_supprimes
+            msg = f'{nb_ajoutes} relevé(s) thermique(s) enregistré(s)'
+            if nb_supprimes:
+                msg += f', {nb_supprimes} supprimé(s) (valeur 0)'
+            flash(msg + f' pour le {date}.', 'success')
         else:
             flash('Aucune valeur saisie.', 'error')
         return redirect(url_for('ocea_saisie_thermique'))
