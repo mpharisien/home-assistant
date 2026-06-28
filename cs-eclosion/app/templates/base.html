@@ -335,8 +335,9 @@
     <div class="subnav">
       <a href="{{ url_for('ocea_dashboard') }}" class="{{ 'active' if request.endpoint == 'ocea_dashboard' }}">Dashboard</a>
       <a href="{{ url_for('ocea_mon_logement') }}" class="{{ 'active' if request.endpoint == 'ocea_mon_logement' }}">Mon logement</a>
-      <a href="{{ url_for('ocea_suivi') }}" class="{{ 'active' if request.endpoint == 'ocea_suivi' }}">Suivi complet</a>
-      <a href="{{ url_for('ocea_saisie') }}" class="{{ 'active' if request.endpoint == 'ocea_saisie' }}">Saisie eau froide</a>
+      <a href="{{ url_for('ocea_historique_eau_froide') }}" class="{{ 'active' if request.endpoint == 'ocea_historique_eau_froide' }}">Historique eau froide</a>
+      <a href="{{ url_for('ocea_historique_thermique') }}" class="{{ 'active' if request.endpoint == 'ocea_historique_thermique' }}">Historique thermique</a>
+      <a href="{{ url_for('ocea_saisie_eau_froide') }}" class="{{ 'active' if request.endpoint == 'ocea_saisie_eau_froide' }}">Saisie eau froide</a>
       <a href="{{ url_for('ocea_saisie_thermique') }}" class="{{ 'active' if request.endpoint == 'ocea_saisie_thermique' }}">Saisie thermique</a>
     </div>
     {% endif %}
