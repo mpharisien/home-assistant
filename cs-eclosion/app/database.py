@@ -148,9 +148,20 @@ def init_db():
             surface_m2 REAL,
             lot_parking TEXT,
             place_parking TEXT,
-            tantieme_parking REAL
+            tantieme_parking REAL,
+            numero_compteur_eau_froide TEXT,
+            numero_compteur_thermique TEXT
         )
     ''')
+
+    # Migration : ajout des numéros de compteur sur une table 'logements' déjà existante
+    # (ALTER TABLE ADD COLUMN, car CREATE TABLE IF NOT EXISTS ne modifie pas une table existante).
+    cols_logements = [col[1] for col in c.execute("PRAGMA table_info(logements)").fetchall()]
+    if 'numero_compteur_eau_froide' not in cols_logements:
+        c.execute("ALTER TABLE logements ADD COLUMN numero_compteur_eau_froide TEXT")
+    if 'numero_compteur_thermique' not in cols_logements:
+        c.execute("ALTER TABLE logements ADD COLUMN numero_compteur_thermique TEXT")
+    conn.commit()
 
     # Table de l'historique daté par logement (propriétaire, habitant, prix de vente...)
     c.execute('''
@@ -631,6 +642,15 @@ def get_logement_id_by_numero(numero_appartement):
     return row['id'] if row else None
 
 
+def update_numeros_compteurs(logement_id, numero_compteur_eau_froide, numero_compteur_thermique):
+    conn = get_db()
+    conn.execute('''
+        UPDATE logements SET numero_compteur_eau_froide = ?, numero_compteur_thermique = ? WHERE id = ?
+    ''', (numero_compteur_eau_froide or None, numero_compteur_thermique or None, logement_id))
+    conn.commit()
+    conn.close()
+
+
 # ─── Module Sujets AG ───────────────────────────────────────────────────────────
 
 # Statuts
@@ -837,12 +857,22 @@ def add_releve_eau_froide(logement_id, date, index_m3):
 
 
 def add_releves_eau_froide_bulk(date, valeurs_par_logement):
-    """valeurs_par_logement : dict {logement_id: index_m3}. Utilisé par la grille de saisie. Upsert (cf. add_releve_eau_froide)."""
+    """
+    valeurs_par_logement : dict {logement_id: index_m3}. Utilisé par la grille de saisie.
+    Upsert normal, SAUF si la valeur est 0 : dans ce cas, le relevé existant à cette date
+    pour ce logement est supprimé (un index réel ne peut jamais valoir 0, donc 0 est
+    utilisé comme commande de suppression dans cette grille). S'il n'existait rien à
+    cette date, rien à supprimer : aucune ligne n'est créée.
+    """
     conn = get_db()
-    conn.executemany('''
-        INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
-        ON CONFLICT(logement_id, date) DO UPDATE SET index_m3 = excluded.index_m3
-    ''', [(lid, date, val) for lid, val in valeurs_par_logement.items()])
+    for lid, val in valeurs_par_logement.items():
+        if val == 0:
+            conn.execute('DELETE FROM releves_eau_froide WHERE logement_id = ? AND date = ?', (lid, date))
+        else:
+            conn.execute('''
+                INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, ?)
+                ON CONFLICT(logement_id, date) DO UPDATE SET index_m3 = excluded.index_m3
+            ''', (lid, date, val))
     conn.commit()
     conn.close()
 
@@ -985,6 +1015,23 @@ def get_dernier_releve_thermique_index5_tous_logements():
     return result
 
 
+def get_all_releves_thermique_index5():
+    """Tous les relevés thermique INDEX 5 (consommation cumulée), toutes dates et logements confondus (pour la page Historique thermique)."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT logement_id, date, valeur FROM releves_thermique
+        WHERE numero_index = 5 ORDER BY logement_id, date
+    ''').fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        try:
+            result.append({'logement_id': r['logement_id'], 'date': r['date'], 'valeur': float(r['valeur'])})
+        except (ValueError, TypeError):
+            pass
+    return result
+
+
 def add_releve_thermique_index5_simple(logement_id, date, valeur_m3):
     """Saisie simplifiée pour les 59 logements : un seul chiffre, toujours INDEX 5. Upsert."""
     conn = get_db()
@@ -997,11 +1044,19 @@ def add_releve_thermique_index5_simple(logement_id, date, valeur_m3):
 
 
 def add_releves_thermique_index5_bulk(date, valeurs_par_logement):
-    """valeurs_par_logement : dict {logement_id: valeur_m3}. Utilisé par la grille de saisie thermique. Upsert."""
+    """
+    valeurs_par_logement : dict {logement_id: valeur_m3}. Utilisé par la grille de saisie thermique.
+    Upsert normal, SAUF si la valeur est 0 : dans ce cas, le relevé existant à cette date pour
+    ce logement est supprimé (même règle que pour l'eau froide, cf. add_releves_eau_froide_bulk).
+    """
     conn = get_db()
-    conn.executemany('''
-        INSERT INTO releves_thermique (logement_id, date, numero_index, valeur) VALUES (?, ?, 5, ?)
-        ON CONFLICT(logement_id, date, numero_index) DO UPDATE SET valeur = excluded.valeur
-    ''', [(lid, date, str(val)) for lid, val in valeurs_par_logement.items()])
+    for lid, val in valeurs_par_logement.items():
+        if val == 0:
+            conn.execute('DELETE FROM releves_thermique WHERE logement_id = ? AND date = ? AND numero_index = 5', (lid, date))
+        else:
+            conn.execute('''
+                INSERT INTO releves_thermique (logement_id, date, numero_index, valeur) VALUES (?, ?, 5, ?)
+                ON CONFLICT(logement_id, date, numero_index) DO UPDATE SET valeur = excluded.valeur
+            ''', (lid, date, str(val)))
     conn.commit()
     conn.close()
