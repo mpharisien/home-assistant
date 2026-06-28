@@ -8,7 +8,7 @@
 
 {% if not a_des_donnees %}
 <div class="card">
-  <p style="color:#6b7280; text-align:center; padding:2rem;">Aucun relevé pour l'instant. <a href="{{ url_for('ocea_saisie') }}">Commencer la saisie</a></p>
+  <p style="color:#6b7280; text-align:center; padding:2rem;">Aucun relevé pour l'instant. <a href="{{ url_for('ocea_saisie_eau_froide') }}">Commencer la saisie</a></p>
 </div>
 {% else %}
 
@@ -51,6 +51,18 @@
 </div>
 
 <div class="card">
+  <h2>Eau froide — évolution dans le temps, tous logements</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">L'axe horizontal respecte l'espacement réel entre les dates de relevé.</p>
+  <div class="chart-box" style="height:420px;"><canvas id="chartEvolutionEauFroide"></canvas></div>
+</div>
+
+<div class="card">
+  <h2>Thermique — évolution dans le temps, tous logements</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">L'axe horizontal respecte l'espacement réel entre les dates de relevé.</p>
+  <div class="chart-box" style="height:420px;"><canvas id="chartEvolutionThermique"></canvas></div>
+</div>
+
+<div class="card">
   <h2>Surface vs eau froide — nuage de points</h2>
   <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">Chaque point est un logement. Permet de voir si les grands logements ont un index proportionnellement plus ou moins élevé.</p>
   <div class="chart-box" style="height:400px;"><canvas id="chartScatterSurfaceEau"></canvas></div>
@@ -62,6 +74,9 @@
 {% block scripts %}
 <script>
 const data = {{ data | tojson }};
+const eauFroideHistorique = {{ eau_froide_historique | tojson }};
+const thermiqueHistorique = {{ thermique_historique | tojson }};
+const numerosParId = Object.fromEntries(data.map(d => [d.id, d.numero_appartement]));
 
 // Tri du tableau
 let triActuel = { key: null, dir: 1 };
@@ -123,7 +138,59 @@ if (ctx2 && dataThermique.length) {
   });
 }
 
-// Graphique 3 : nuage de points surface (x) vs eau froide (y)
+// Graphique 3 : courbe évolution eau froide, tous logements (sans checkboxes)
+const COULEURS_EVOLUTION = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa','#14b8a6','#eab308'];
+
+function construireDatasetsEvolution(historique, champValeur) {
+  const parLogement = {};
+  historique.forEach(r => {
+    const numero = numerosParId[r.logement_id];
+    if (!numero) return;
+    if (!parLogement[numero]) parLogement[numero] = [];
+    parLogement[numero].push({ x: r.date, y: r[champValeur] });
+  });
+  return Object.entries(parLogement).map(([numero, points], i) => ({
+    label: numero,
+    data: points.sort((a, b) => a.x.localeCompare(b.x)),
+    borderColor: COULEURS_EVOLUTION[i % COULEURS_EVOLUTION.length],
+    backgroundColor: 'transparent',
+    tension: 0.15,
+  }));
+}
+
+const ctxEvolEau = document.getElementById('chartEvolutionEauFroide');
+if (ctxEvolEau && eauFroideHistorique.length) {
+  new Chart(ctxEvolEau, {
+    type: 'line',
+    data: { datasets: construireDatasetsEvolution(eauFroideHistorique, 'index_m3') },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'right', labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: {
+        x: { type: 'time', time: { unit: 'month' }, title: { display: true, text: 'Date du relevé' } },
+        y: { title: { display: true, text: 'Index eau froide (m³)' } }
+      }
+    }
+  });
+}
+
+const ctxEvolThermique = document.getElementById('chartEvolutionThermique');
+if (ctxEvolThermique && thermiqueHistorique.length) {
+  new Chart(ctxEvolThermique, {
+    type: 'line',
+    data: { datasets: construireDatasetsEvolution(thermiqueHistorique, 'valeur') },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'right', labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: {
+        x: { type: 'time', time: { unit: 'month' }, title: { display: true, text: 'Date du relevé' } },
+        y: { title: { display: true, text: 'Index thermique (m³)' } }
+      }
+    }
+  });
+}
+
+// Graphique 4 : nuage de points surface (x) vs eau froide (y)
 const dataScatter = data.filter(d => d.surface_m2 && d.eau_froide_index !== null);
 const ctx3 = document.getElementById('chartScatterSurfaceEau');
 if (ctx3 && dataScatter.length) {
