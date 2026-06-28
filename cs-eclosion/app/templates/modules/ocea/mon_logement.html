@@ -30,6 +30,22 @@
   </form>
 </div>
 
+<!-- ── Numéros de compteur (fixes, affichés et modifiables ici) ── -->
+<div class="card" style="padding:1rem 1.5rem;">
+  <form method="post" style="display:flex; gap:1.5rem; align-items:end; flex-wrap:wrap;">
+    <input type="hidden" name="action" value="modifier_compteurs">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>N° compteur eau froide</label>
+      <input type="text" name="numero_compteur_eau_froide" value="{{ logement.numero_compteur_eau_froide or '' }}" placeholder="ex: L25LA219102" style="width:200px;">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>N° compteur thermique</label>
+      <input type="text" name="numero_compteur_thermique" value="{{ logement.numero_compteur_thermique or '' }}" placeholder="ex: 54651762" style="width:200px;">
+    </div>
+    <button type="submit" class="btn btn-secondary">Enregistrer</button>
+  </form>
+</div>
+
 <div style="background:#e8f0fc; border:1px solid #2d7dd2; border-radius:8px; padding:0.8rem 1.2rem; margin-bottom:1.5rem; font-size:0.85rem; color:#1a4a7a;">
   ℹ️ Les compteurs Océa ont été installés les <strong>17, 18 et 19 mars</strong>. Les relevés débutent au <strong>1er mai 2026</strong>.
 </div>
