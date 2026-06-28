@@ -184,7 +184,7 @@ if (ctxEvolThermique && thermiqueHistorique.length) {
       plugins: { legend: { display: true, position: 'right', labels: { font: { size: 10 }, boxWidth: 10 } } },
       scales: {
         x: { type: 'time', time: { unit: 'month' }, title: { display: true, text: 'Date du relevé' } },
-        y: { title: { display: true, text: 'Index thermique (m³)' } }
+        y: { title: { display: true, text: 'Index thermique (m³)' }, beginAtZero: true }
       }
     }
   });
