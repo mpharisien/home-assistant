@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}— Océa — Historique eau froide{% endblock %}
+
+{% block content %}
+<div class="page-title">Historique eau froide <span>— Tous logements</span></div>
+
+{% if not dates %}
+<div class="card">
+  <p style="color:#6b7280; text-align:center; padding:2rem;">Aucun relevé pour l'instant. <a href="{{ url_for('ocea_saisie_eau_froide') }}">Commencer la saisie</a></p>
+</div>
+{% else %}
+
+<!-- ── Tableau croisé ── -->
+<div class="card">
+  <h2>Index relevés (m³) — un logement par ligne, une date par colonne</h2>
+  <div class="table-wrap">
+    <table style="font-size:0.82rem;">
+      <thead>
+        <tr>
+          <th>N° Appt</th>
+          {% for d in dates %}
+          <th style="text-align:right; white-space:nowrap;">{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lignes %}
+        <tr>
+          <td><strong>{{ l.numero_appartement }}</strong></td>
+          {% for d in dates %}
+          <td class="montant" style="{{ '' if d in l.valeurs else 'color:#d1d5db;' }}">{{ '%.3f'|format(l.valeurs[d]) if d in l.valeurs else '—' }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Courbe d'évolution multi-logements ── -->
+<div class="card">
+  <h2>Évolution de l'index dans le temps — tous logements</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Chaque ligne est un logement. L'axe horizontal respecte l'espacement réel entre les dates de relevé.
+  </p>
+  <div class="toggle-group" id="toggle-logements" style="max-height:120px; overflow-y:auto;">
+    {% for l in lignes %}
+    {% if l.valeurs %}
+    <label><input type="checkbox" checked data-logement="{{ l.numero_appartement }}"> {{ l.numero_appartement }}</label>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="chart-box" style="height:450px;"><canvas id="chartEvolution"></canvas></div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const lignes = {{ lignes | tojson }};
+const COULEURS = ['#2d7dd2','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa','#14b8a6','#eab308'];
+
+const ctx = document.getElementById('chartEvolution');
+let chartEvolution;
+if (ctx) {
+  const lignesAvecData = lignes.filter(l => Object.keys(l.valeurs).length > 0);
+  const datasets = lignesAvecData.map((l, i) => ({
+    label: l.numero_appartement,
+    data: Object.entries(l.valeurs).map(([date, val]) => ({ x: date, y: val })).sort((a, b) => a.x.localeCompare(b.x)),
+    borderColor: COULEURS[i % COULEURS.length],
+    backgroundColor: 'transparent',
+    tension: 0.15,
+  }));
+
+  chartEvolution = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'right', labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: {
+        x: { type: 'time', time: { unit: 'month' }, title: { display: true, text: 'Date du relevé' } },
+        y: { title: { display: true, text: 'Index (m³)' } }
+      }
+    }
+  });
+}
+
+document.querySelectorAll('#toggle-logements input').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const numero = cb.dataset.logement;
+    const ds = chartEvolution.data.datasets.find(d => d.label === numero);
+    if (ds) { ds.hidden = !cb.checked; chartEvolution.update(); }
+  });
+});
+</script>
+{% endblock %}
