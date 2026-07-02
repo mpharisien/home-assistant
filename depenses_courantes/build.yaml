@@ -1,0 +1,10 @@
+# ============================================================================
+# IMAGE DE BASE POUR LA CONSTRUCTION DE L'ADD-ON
+# ----------------------------------------------------------------------------
+# Home Assistant part toujours d'une "image de base" officielle (un système
+# Linux minimal préparé pour les add-ons) puis on ajoute nos propres fichiers
+# par-dessus dans le Dockerfile. On ne déclare ici que amd64 (NUC Intel).
+# ============================================================================
+
+build_from:
+  amd64: ghcr.io/home-assistant/amd64-base:3.19
