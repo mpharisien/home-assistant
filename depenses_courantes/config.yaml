@@ -1,0 +1,35 @@
+# ============================================================================
+# CONFIGURATION DE L'ADD-ON "Dépenses Courantes"
+# ----------------------------------------------------------------------------
+# Ce fichier est lu par Home Assistant pour savoir comment afficher et
+# installer l'add-on. C'est un peu la "carte d'identité" de l'add-on.
+# À chaque fois qu'on veut publier une nouvelle version testable dans HA,
+# il faudra augmenter le numéro "version" ci-dessous.
+# ============================================================================
+
+name: "Dépenses Courantes"
+description: "Regroupe et analyse les dépenses de nos comptes bancaires"
+version: "0.1.0"
+slug: "depenses_courantes"
+
+# Architecture du processeur de ta machine. Un NUC Intel = amd64.
+# On ne met que celle-ci pour l'instant, ça simplifie et accélère les tests.
+arch:
+  - amd64
+
+# "application" = l'add-on doit rester en fonctionnement continu (ce n'est
+# pas une simple tâche qui s'exécute une fois et s'arrête).
+startup: application
+
+# "auto" = l'add-on démarre automatiquement avec Home Assistant.
+boot: auto
+
+# Port sur lequel notre page web sera accessible.
+# Format "port_dans_le_conteneur/tcp": port_exposé_sur_ta_machine
+ports:
+  8000/tcp: 8000
+ports_description:
+  8000/tcp: "Interface web Dépenses Courantes"
+
+# Permet d'avoir un bouton "Ouvrir l'interface web" directement dans HA.
+webui: "http://[HOST]:[PORT:8000]/"
