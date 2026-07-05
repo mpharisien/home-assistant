@@ -1,37 +1,47 @@
 """
 Enregistrement des opérations importées dans la base de données.
 
-Deux règles importantes sont appliquées ici :
+Trois règles importantes sont appliquées ici :
 
-1. Anti-doublon : chaque opération a un "identifiant_unique" (voir
+1. Résolution du compte : chaque opération est rattachée à un compte
+   (créé automatiquement s'il est nouveau, voir gestion_comptes.py).
+   Seules les opérations d'un compte au statut "suivi" sont réellement
+   enregistrées. Celles d'un compte "en_attente" ou "ignore" sont
+   simplement comptabilisées à part, pour en informer l'utilisateur.
+
+2. Anti-doublon : chaque opération a un "identifiant_unique" (voir
    app/operations/modele_operation.py). Si cet identifiant existe déjà
    en base, l'opération est ignorée - elle n'écrase jamais une opération
    déjà enregistrée (donc ne touche pas non plus à sa catégorie, même si
    elle a été modifiée à la main entre-temps).
 
-2. Correspondance des catégories : la catégorie brute fournie par la
+3. Correspondance des catégories : la catégorie brute fournie par la
    banque (ex: "Alimentation") est traduite vers une catégorie du projet
    via la table "correspondances_categories_bancaires". Si c'est la
    première fois qu'on voit cette catégorie pour cette banque, une
    nouvelle catégorie du projet est créée automatiquement avec le même
-   nom, et la correspondance est mémorisée pour la suite. Si l'utilisateur
-   renomme ensuite cette catégorie du projet, la correspondance continuera
-   à pointer dessus : les prochains imports iront donc automatiquement
-   dans la catégorie renommée.
+   nom, et la correspondance est mémorisée pour la suite.
 """
 
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from app.base_de_donnees.gestion_comptes import obtenir_ou_creer_compte
 from app.operations.modele_operation import Operation
 
 
 @dataclass
-class ResultatImport:
-    """Petit résumé renvoyé après un import, utile à afficher à l'utilisateur."""
+class RapportImport:
+    """Compte-rendu complet d'un import, destiné à être affiché à l'utilisateur."""
 
     nb_operations_ajoutees: int = 0
     nb_operations_deja_connues: int = 0
+
+    # Noms des comptes détectés mais pas encore validés par l'utilisateur
+    comptes_en_attente: set[str] = field(default_factory=set)
+
+    # Noms des comptes que l'utilisateur a choisi d'ignorer
+    comptes_ignores: set[str] = field(default_factory=set)
 
 
 def obtenir_ou_creer_categorie(connexion: sqlite3.Connection, banque: str, categorie_source: str) -> int:
@@ -42,7 +52,6 @@ def obtenir_ou_creer_categorie(connexion: sqlite3.Connection, banque: str, categ
     """
     curseur = connexion.cursor()
 
-    # 1. Cette correspondance banque -> catégorie existe-t-elle déjà ?
     curseur.execute(
         """
         SELECT categorie_id FROM correspondances_categories_bancaires
@@ -54,18 +63,14 @@ def obtenir_ou_creer_categorie(connexion: sqlite3.Connection, banque: str, categ
     if ligne_trouvee is not None:
         return ligne_trouvee["categorie_id"]
 
-    # 2. Pas de correspondance : une catégorie du projet porte-t-elle déjà
-    #    ce nom (ex: importée depuis une autre banque au même nom) ?
     curseur.execute("SELECT id FROM categories WHERE nom = ?", (categorie_source,))
     ligne_trouvee = curseur.fetchone()
     if ligne_trouvee is not None:
         categorie_id = ligne_trouvee["id"]
     else:
-        # 3. Ni l'une ni l'autre : on crée une nouvelle catégorie du projet
         curseur.execute("INSERT INTO categories (nom) VALUES (?)", (categorie_source,))
         categorie_id = curseur.lastrowid
 
-    # On mémorise la correspondance pour que les prochains imports la retrouvent
     curseur.execute(
         """
         INSERT INTO correspondances_categories_bancaires (banque, categorie_source, categorie_id)
@@ -77,19 +82,27 @@ def obtenir_ou_creer_categorie(connexion: sqlite3.Connection, banque: str, categ
     return categorie_id
 
 
-def enregistrer_operations(connexion: sqlite3.Connection, operations: list[Operation]) -> ResultatImport:
+def enregistrer_operations(connexion: sqlite3.Connection, operations: list[Operation]) -> RapportImport:
     """
     Enregistre une liste d'opérations (issues d'un lecteur de banque) en
-    base de données. Renvoie un résumé du nombre d'opérations ajoutées et
-    ignorées (doublons déjà connus).
+    base de données. Renvoie un compte-rendu complet de ce qui s'est passé.
     """
-    resultat = ResultatImport()
+    rapport = RapportImport()
 
     for operation in operations:
-        # Une opération sans catégorie fournie par la banque (ex: Crédit
-        # Agricole) reste sans catégorie pour l'instant - elle sera
-        # catégorisée plus tard, manuellement ou via une règle automatique
-        # (fonctionnalité à venir dans une prochaine étape).
+        compte = obtenir_ou_creer_compte(
+            connexion, operation.banque, operation.identifiant_compte_brut, operation.nom_compte_suggere
+        )
+
+        if compte["statut"] == "en_attente":
+            rapport.comptes_en_attente.add(compte["nom_affiche"])
+            continue
+
+        if compte["statut"] == "ignore":
+            rapport.comptes_ignores.add(compte["nom_affiche"])
+            continue
+
+        # statut == "suivi" : on enregistre réellement cette opération
         categorie_id = None
         if operation.categorie_banque:
             categorie_id = obtenir_ou_creer_categorie(
@@ -99,27 +112,24 @@ def enregistrer_operations(connexion: sqlite3.Connection, operations: list[Opera
         curseur = connexion.execute(
             """
             INSERT OR IGNORE INTO operations
-                (identifiant_unique, date_operation, montant, compte, banque, libelle, categorie_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (identifiant_unique, date_operation, montant, compte_id, libelle, categorie_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
                 operation.identifiant_unique,
                 operation.date_operation.isoformat(),
                 operation.montant,
-                operation.compte,
-                operation.banque,
+                compte["id"],
                 operation.libelle,
                 categorie_id,
             ),
         )
 
-        # "INSERT OR IGNORE" ne fait rien si l'identifiant_unique existait
-        # déjà (contrainte UNIQUE) : rowcount vaut alors 0.
         if curseur.rowcount == 1:
-            resultat.nb_operations_ajoutees += 1
+            rapport.nb_operations_ajoutees += 1
         else:
-            resultat.nb_operations_deja_connues += 1
+            rapport.nb_operations_deja_connues += 1
 
     connexion.commit()
 
-    return resultat
+    return rapport
