@@ -19,12 +19,24 @@ colonne accountNum) : chaque ligne est donc traitée indépendamment.
 """
 
 import csv
+import re
 from datetime import datetime
 
 from app.operations.modele_operation import Operation
 from app.operations.resultat_lecture import ResultatLecture
 
 NOM_BANQUE = "Boursobank"
+
+
+def _convertir_montant_boursobank(montant_brut: str) -> float:
+    """
+    Convertit un montant écrit à la française en nombre. Boursobank
+    utilise une virgule comme séparateur décimal (ex: "-9,00"), et,
+    pour les montants à partir de 1000, un espace comme séparateur de
+    milliers (ex: "1 000,00") : les deux doivent être gérés.
+    """
+    montant_sans_espaces = re.sub(r"\s", "", montant_brut)
+    return float(montant_sans_espaces.replace(",", "."))
 
 
 def lire_fichier_csv(chemin_fichier: str) -> ResultatLecture:
@@ -41,7 +53,7 @@ def lire_fichier_csv(chemin_fichier: str) -> ResultatLecture:
 
         for ligne in lignes:
             date_operation = datetime.strptime(ligne["dateOp"], "%Y-%m-%d").date()
-            montant = float(ligne["amount"].replace(",", "."))
+            montant = _convertir_montant_boursobank(ligne["amount"])
             categorie_banque = ligne["category"].strip()
 
             nom_suggere = ligne.get("accountLabel", "").strip()
