@@ -2,9 +2,8 @@
 Lecteur d'exports Boursobank, au format CSV.
 
 Contrairement au Crédit Agricole, Boursobank fournit déjà une
-catégorisation de chaque opération (colonnes "category" et
-"categoryParent"). On la récupère directement plutôt que de la
-redeviner nous-mêmes.
+catégorisation de chaque opération (colonne "category"). On la
+récupère directement plutôt que de la redeviner nous-mêmes.
 
 Le fichier n'a en revanche pas d'identifiant unique fourni par la
 banque : on en fabrique un nous-mêmes à partir d'informations qui,
@@ -44,11 +43,11 @@ def lire_fichier_csv(chemin_fichier: str, nom_compte: str) -> list[Operation]:
             # la virgule par un point pour pouvoir le convertir en nombre.
             montant = float(ligne["amount"].replace(",", "."))
 
-            # Une catégorie vaut "Non catégorisé" quand Boursobank n'a pas
-            # réussi à en deviner une : on la garde telle quelle, on la
-            # traitera comme une catégorie "à corriger" plus tard.
-            categorie = ligne["categoryParent"].strip()
-            sous_categorie = ligne["category"].strip()
+            # On ne garde qu'un seul niveau de catégorie : la colonne
+            # "category" de Boursobank (la plus précise). La colonne
+            # "categoryParent", plus générale, n'est volontairement pas
+            # utilisée pour garder les choses simples.
+            categorie_banque = ligne["category"].strip()
 
             identifiant_unique = (
                 f"BB-{ligne['accountNum']}-{ligne['dateOp']}-"
@@ -62,8 +61,7 @@ def lire_fichier_csv(chemin_fichier: str, nom_compte: str) -> list[Operation]:
                     compte=nom_compte,
                     banque=NOM_BANQUE,
                     libelle=ligne["label"].strip(),
-                    categorie=categorie,
-                    sous_categorie=sous_categorie,
+                    categorie_banque=categorie_banque,
                     identifiant_unique=identifiant_unique,
                 )
             )
