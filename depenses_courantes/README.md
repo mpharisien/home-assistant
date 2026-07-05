@@ -30,9 +30,9 @@ dans cet add-on pour l'instant.)
 ## Développement en local (sans Home Assistant)
 
 ```bash
-cd depenses_courantes/app
-pip install -r requirements.txt
-python main.py
+cd depenses_courantes
+pip install -r app/requirements.txt
+python -m app.main
 ```
 
 Puis ouvrir http://localhost:8000 dans un navigateur.
