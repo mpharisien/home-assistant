@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block titre %}Importer un relevé — Dépenses Courantes{% endblock %}
+
+{% block contenu %}
+  <h2>Importer un relevé bancaire</h2>
+  <p class="description">
+    Dépose un export <strong>.ofx</strong> (Crédit Agricole) ou
+    <strong>.csv</strong> (Boursobank). Le compte concerné est reconnu
+    automatiquement à partir du fichier — pas besoin de le préciser.
+  </p>
+
+  <form class="formulaire-import" action="{{ url_for('importer') }}" method="post" enctype="multipart/form-data">
+    <input type="file" name="fichier_operations" accept=".ofx,.csv" required>
+    <button type="submit">Importer ce fichier</button>
+  </form>
+{% endblock %}
