@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}Dépenses Courantes{% endblock %}</title>
+  <style>
+    :root {
+      --couleur-fond: #f6f5f1;
+      --couleur-texte: #23291f;
+      --couleur-accent: #3f6b52;
+      --couleur-accent-clair: #e3ebe4;
+      --couleur-depense: #a1503d;
+      --couleur-depense-claire: #f5e6e1;
+      --couleur-recette: #3f6b52;
+      --couleur-bordure: #ddd8cd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--couleur-fond);
+      color: var(--couleur-texte);
+    }
+    header {
+      background: var(--couleur-texte);
+      color: #f6f5f1;
+      padding: 1.1rem 2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+    }
+    header h1 {
+      font-size: 1.15rem;
+      margin: 0;
+      letter-spacing: 0.02em;
+      font-weight: 600;
+    }
+    nav a {
+      color: #cdd6cd;
+      text-decoration: none;
+      font-size: 0.95rem;
+      margin-right: 1.3rem;
+    }
+    nav a:hover, nav a:focus-visible { color: white; text-decoration: underline; }
+    main { max-width: 950px; margin: 2rem auto; padding: 0 1.5rem 3rem; }
+    h2 { font-weight: 600; font-size: 1.3rem; }
+    p.description { color: #55604f; max-width: 55ch; }
+
+    .message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.3rem;
+      font-size: 0.95rem;
+    }
+    .message.succes {
+      background: var(--couleur-accent-clair);
+      color: var(--couleur-accent);
+      border: 1px solid var(--couleur-accent);
+    }
+    .message.erreur {
+      background: var(--couleur-depense-claire);
+      color: var(--couleur-depense);
+      border: 1px solid var(--couleur-depense);
+    }
+
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--couleur-bordure); font-size: 0.92rem; }
+    th { font-weight: 600; color: #55604f; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; }
+    td.colonne-montant, th.colonne-montant { text-align: right; }
+    .montant-depense { color: var(--couleur-depense); }
+    .montant-recette { color: var(--couleur-recette); }
+    .etiquette-categorie {
+      background: var(--couleur-accent-clair);
+      color: var(--couleur-accent);
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .etiquette-sans-categorie { color: #99a092; font-size: 0.85rem; }
+
+    form.formulaire-import {
+      background: white;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 10px;
+      padding: 1.5rem;
+      max-width: 420px;
+    }
+    form.formulaire-import input[type=file] { display: block; margin-bottom: 1rem; width: 100%; }
+    button {
+      background: var(--couleur-accent);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.3rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.92; }
+    button:focus-visible, a:focus-visible {
+      outline: 2px solid var(--couleur-accent);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Dépenses Courantes</h1>
+    <nav>
+      <a href="{{ url_for('page_accueil') }}">Importer</a>
+      <a href="{{ url_for('page_operations') }}">Opérations</a>
+    </nav>
+  </header>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for categorie, message in messages %}
+        <div class="message {{ categorie }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block contenu %}{% endblock %}
+  </main>
+</body>
+</html>
