@@ -10,4 +10,7 @@
 # du conteneur, qui repart de zéro à chaque mise à jour).
 export CHEMIN_BASE_DE_DONNEES="/data/depenses.db"
 
-python3 /app/main.py
+# On lance l'application comme un module Python ("-m app.main") et non
+# comme un simple script : c'est nécessaire pour que les imports internes
+# du type "from app.xxx import ..." fonctionnent correctement.
+python3 -m app.main
