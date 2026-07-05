@@ -31,11 +31,12 @@ class Operation:
     # Description de l'opération, nettoyée pour être lisible
     libelle: str
 
-    # Catégorie principale (ex: "Vie quotidienne"). None si non disponible.
-    categorie: Optional[str] = None
-
-    # Sous-catégorie plus précise (ex: "Alimentation"). None si non disponible.
-    sous_categorie: Optional[str] = None
+    # Catégorie telle que fournie par la banque, si elle en fournit une
+    # (ex: "Alimentation" pour Boursobank). None si la banque n'en fournit
+    # pas (ex: Crédit Agricole). Cette valeur brute sera ensuite transformée
+    # en une de nos propres catégories du projet au moment de l'enregistrement
+    # en base de données (voir app/base_de_donnees/enregistrement_operations.py).
+    categorie_banque: Optional[str] = None
 
     # Identifiant unique et stable de l'opération, utilisé pour éviter
     # de compter deux fois la même opération si on réimporte une période
