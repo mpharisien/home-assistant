@@ -6,14 +6,26 @@
   <title>{% block titre %}Dépenses Courantes{% endblock %}</title>
   <style>
     :root {
-      --couleur-fond: #f6f5f1;
-      --couleur-texte: #23291f;
-      --couleur-accent: #3f6b52;
-      --couleur-accent-clair: #e3ebe4;
-      --couleur-depense: #a1503d;
-      --couleur-depense-claire: #f5e6e1;
-      --couleur-recette: #3f6b52;
-      --couleur-bordure: #ddd8cd;
+      /* Palette principale : violet / blanc / bleu clair */
+      --couleur-fond: #ffffff;
+      --couleur-texte: #2b2033;
+      --couleur-violet: #6a2c91;
+      --couleur-violet-clair: #f1e8f7;
+      --couleur-bleu: #2f9bd6;
+      --couleur-bleu-clair: #e7f4fb;
+      --couleur-bordure: #e6e1ea;
+
+      /* Couleurs fonctionnelles : uniquement pour distinguer dépense/recette
+         d'un coup d'oeil, indépendamment de l'identité visuelle */
+      --couleur-depense: #b3452f;
+      --couleur-depense-claire: #f7e9e5;
+      --couleur-recette: var(--couleur-bleu);
+
+      /* Statuts de compte */
+      --couleur-attente: #a5751f;
+      --couleur-attente-claire: #faf1de;
+      --couleur-ignore: #857f89;
+      --couleur-ignore-claire: #f1eef2;
     }
     * { box-sizing: border-box; }
     body {
@@ -23,8 +35,8 @@
       color: var(--couleur-texte);
     }
     header {
-      background: var(--couleur-texte);
-      color: #f6f5f1;
+      background: var(--couleur-violet);
+      color: white;
       padding: 1.1rem 2rem;
       display: flex;
       align-items: baseline;
@@ -37,7 +49,7 @@
       font-weight: 600;
     }
     nav a {
-      color: #cdd6cd;
+      color: #e6d9ef;
       text-decoration: none;
       font-size: 0.95rem;
       margin-right: 1.3rem;
@@ -45,7 +57,9 @@
     nav a:hover, nav a:focus-visible { color: white; text-decoration: underline; }
     main { max-width: 950px; margin: 2rem auto; padding: 0 1.5rem 3rem; }
     h2 { font-weight: 600; font-size: 1.3rem; }
-    p.description { color: #55604f; max-width: 55ch; }
+    h3 { color: var(--couleur-violet); }
+    p.description { color: #63596b; max-width: 60ch; }
+    a { color: var(--couleur-bleu); }
 
     .message {
       padding: 0.75rem 1rem;
@@ -54,52 +68,101 @@
       font-size: 0.95rem;
     }
     .message.succes {
-      background: var(--couleur-accent-clair);
-      color: var(--couleur-accent);
-      border: 1px solid var(--couleur-accent);
+      background: var(--couleur-bleu-clair);
+      color: #205a7a;
+      border: 1px solid var(--couleur-bleu);
     }
     .message.erreur {
       background: var(--couleur-depense-claire);
       color: var(--couleur-depense);
       border: 1px solid var(--couleur-depense);
     }
+    .message.avertissement {
+      background: var(--couleur-attente-claire);
+      color: var(--couleur-attente);
+      border: 1px solid #d9b26b;
+    }
 
     table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-    th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--couleur-bordure); font-size: 0.92rem; }
-    th { font-weight: 600; color: #55604f; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; }
+    th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--couleur-bordure); font-size: 0.92rem; vertical-align: middle; }
+    th { font-weight: 600; color: #6b6272; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; }
     td.colonne-montant, th.colonne-montant { text-align: right; }
+    td.colonne-numero { font-variant-numeric: tabular-nums; color: #6b6272; font-size: 0.85rem; }
     .montant-depense { color: var(--couleur-depense); }
     .montant-recette { color: var(--couleur-recette); }
+
     .etiquette-categorie {
-      background: var(--couleur-accent-clair);
-      color: var(--couleur-accent);
+      background: var(--couleur-violet-clair);
+      color: var(--couleur-violet);
       padding: 0.15rem 0.55rem;
       border-radius: 999px;
       font-size: 0.78rem;
       white-space: nowrap;
     }
-    .etiquette-sans-categorie { color: #99a092; font-size: 0.85rem; }
+    .etiquette-sans-categorie { color: #a99fb0; font-size: 0.85rem; }
+
+    .badge-statut {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .badge-statut.statut-suivi { background: var(--couleur-bleu-clair); color: #205a7a; }
+    .badge-statut.statut-en_attente { background: var(--couleur-attente-claire); color: var(--couleur-attente); }
+    .badge-statut.statut-ignore { background: var(--couleur-ignore-claire); color: var(--couleur-ignore); }
 
     form.formulaire-import {
       background: white;
       border: 1px solid var(--couleur-bordure);
       border-radius: 10px;
       padding: 1.5rem;
-      max-width: 420px;
     }
     form.formulaire-import input[type=file] { display: block; margin-bottom: 1rem; width: 100%; }
-    button {
-      background: var(--couleur-accent);
+
+    .zones-import {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+    }
+    @media (max-width: 640px) {
+      .zones-import { grid-template-columns: 1fr; }
+    }
+    form.formulaire-import h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+    p.description-zone { color: #63596b; font-size: 0.88rem; margin-top: 0; }
+
+    form.formulaire-renommer { display: flex; gap: 0.4rem; }
+    form.formulaire-renommer input[type=text] {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      width: 100%;
+    }
+    .actions-compte { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+    button, .bouton {
+      background: var(--couleur-violet);
       color: white;
       border: none;
-      padding: 0.6rem 1.3rem;
+      padding: 0.5rem 1.1rem;
       border-radius: 6px;
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       cursor: pointer;
     }
-    button:hover { opacity: 0.92; }
+    button:hover, .bouton:hover { opacity: 0.9; }
+    button.bouton-secondaire {
+      background: white;
+      color: var(--couleur-violet);
+      border: 1px solid var(--couleur-violet);
+    }
+    button.bouton-discret {
+      background: white;
+      color: var(--couleur-ignore);
+      border: 1px solid var(--couleur-bordure);
+    }
     button:focus-visible, a:focus-visible {
-      outline: 2px solid var(--couleur-accent);
+      outline: 2px solid var(--couleur-violet);
       outline-offset: 2px;
     }
   </style>
@@ -110,6 +173,7 @@
     <nav>
       <a href="{{ url_for('page_accueil') }}">Importer</a>
       <a href="{{ url_for('page_operations') }}">Opérations</a>
+      <a href="{{ url_for('page_comptes') }}">Comptes</a>
     </nav>
   </header>
   <main>
