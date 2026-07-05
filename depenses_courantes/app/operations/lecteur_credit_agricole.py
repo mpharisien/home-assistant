@@ -7,8 +7,15 @@ fermées (ex: <DTPOSTED>20260630 sans </DTPOSTED>) - on ne peut donc
 pas utiliser un lecteur XML classique, on extrait les informations
 avec des motifs de texte (expressions régulières).
 
-Chaque opération dans le fichier est un bloc <STMTTRN>...</STMTTRN>
-qui contient notamment :
+Un même fichier peut contenir un seul compte, ou plusieurs à la fois
+(le Crédit Agricole permet d'exporter tous ses comptes en une fois).
+Chaque compte forme un bloc <STMTRS>...</STMTRS> distinct, avec son
+propre numéro de compte (ACCTID) et ses propres opérations. On traite
+donc chaque bloc <STMTRS> indépendamment - sans jamais décider ici si
+le compte doit être suivi ou non, ce n'est pas le rôle du lecteur.
+
+Dans chaque bloc de compte, chaque opération est elle-même un bloc
+<STMTTRN>...</STMTTRN> qui contient notamment :
   - DTPOSTED : la date (format AAAAMMJJ)
   - TRNAMT   : le montant, déjà signé (négatif = dépense)
   - FITID    : un identifiant unique fourni par la banque
@@ -19,25 +26,19 @@ qui contient notamment :
 import re
 from datetime import datetime
 
-from app.comptes.configuration_comptes import obtenir_nom_compte
 from app.operations.modele_operation import Operation
+from app.operations.resultat_lecture import ResultatLecture
 
 NOM_BANQUE = "Crédit Agricole"
 
 
-def lire_fichier_ofx(chemin_fichier: str) -> list[Operation]:
+def lire_fichier_ofx(chemin_fichier: str) -> ResultatLecture:
     """
-    Lit un export OFX du Crédit Agricole et renvoie la liste des
-    opérations qu'il contient, sous forme d'objets Operation.
-    Le compte concerné est détecté automatiquement à partir du fichier
-    (voir app/comptes/configuration_comptes.py).
+    Lit un export OFX du Crédit Agricole (un ou plusieurs comptes) et
+    renvoie toutes les opérations qu'il contient.
 
     :param chemin_fichier: chemin vers le fichier .ofx exporté
     """
-    # Piège rencontré en pratique : l'en-tête du fichier annonce
-    # "CHARSET:1252" (Windows-1252), mais le contenu réel est parfois
-    # en UTF-8 malgré tout. On essaie donc UTF-8 en premier, et on se
-    # rabat sur Windows-1252 uniquement si ça échoue.
     try:
         with open(chemin_fichier, encoding="utf-8") as fichier:
             contenu = fichier.read()
@@ -45,39 +46,32 @@ def lire_fichier_ofx(chemin_fichier: str) -> list[Operation]:
         with open(chemin_fichier, encoding="cp1252") as fichier:
             contenu = fichier.read()
 
-    operations = []
+    resultat = ResultatLecture()
 
-    # Le numéro de compte apparaît une seule fois dans le fichier (pas
-    # dans chaque opération), on le cherche dans le contenu entier.
-    identifiant_compte = re.search(r"<ACCTID>([^<\r\n]*)", contenu).group(1)
-    nom_compte = obtenir_nom_compte(identifiant_compte)
+    blocs_comptes = re.findall(r"<STMTRS>(.*?)</STMTRS>", contenu, re.S)
 
-    # On découpe le fichier en un bloc par opération
-    blocs_operations = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", contenu, re.S)
+    for bloc_compte in blocs_comptes:
+        identifiant_compte = re.search(r"<ACCTID>([^<\r\n]*)", bloc_compte).group(1)
 
-    for bloc in blocs_operations:
-        # On extrait chaque champ "<BALISE>valeur" du bloc
-        champs = dict(re.findall(r"<(\w+)>([^<\r\n]*)", bloc))
+        blocs_operations = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", bloc_compte, re.S)
 
-        date_operation = datetime.strptime(champs["DTPOSTED"], "%Y%m%d").date()
-        montant = float(champs["TRNAMT"])
+        for bloc in blocs_operations:
+            champs = dict(re.findall(r"<(\w+)>([^<\r\n]*)", bloc))
 
-        # NAME est un résumé, MEMO souvent plus complet : on garde le plus parlant
-        libelle = champs.get("MEMO", champs.get("NAME", "")).strip()
+            date_operation = datetime.strptime(champs["DTPOSTED"], "%Y%m%d").date()
+            montant = float(champs["TRNAMT"])
+            libelle = champs.get("MEMO", champs.get("NAME", "")).strip()
+            identifiant_unique = f"CA-{champs['FITID']}"
 
-        # On préfixe l'identifiant fourni par la banque pour qu'il ne
-        # rentre jamais en collision avec celui d'une autre banque.
-        identifiant_unique = f"CA-{champs['FITID']}"
-
-        operations.append(
-            Operation(
-                date_operation=date_operation,
-                montant=montant,
-                compte=nom_compte,
-                banque=NOM_BANQUE,
-                libelle=libelle,
-                identifiant_unique=identifiant_unique,
+            resultat.operations.append(
+                Operation(
+                    date_operation=date_operation,
+                    montant=montant,
+                    identifiant_compte_brut=identifiant_compte,
+                    banque=NOM_BANQUE,
+                    libelle=libelle,
+                    identifiant_unique=identifiant_unique,
+                )
             )
-        )
 
-    return operations
+    return resultat
