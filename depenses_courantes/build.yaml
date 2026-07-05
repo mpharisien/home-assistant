@@ -1,14 +1,2 @@
-name: "Dépenses Courantes"
-description: "Regroupe et analyse les dépenses de nos comptes bancaires"
-version: "0.1.2"
-slug: "depenses_courantes"
-init: false
-arch:
-  - amd64
-startup: application
-boot: auto
-ports:
-  8000/tcp: 8000
-ports_description:
-  8000/tcp: "Interface web Dépenses Courantes"
-webui: "http://[HOST]:[PORT:8000]/"
+build_from:
+  amd64: ghcr.io/home-assistant/amd64-base:3.19
