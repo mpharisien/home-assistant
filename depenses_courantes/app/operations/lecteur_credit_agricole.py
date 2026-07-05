@@ -19,19 +19,20 @@ qui contient notamment :
 import re
 from datetime import datetime
 
+from app.comptes.configuration_comptes import obtenir_nom_compte
 from app.operations.modele_operation import Operation
 
 NOM_BANQUE = "Crédit Agricole"
 
 
-def lire_fichier_ofx(chemin_fichier: str, nom_compte: str) -> list[Operation]:
+def lire_fichier_ofx(chemin_fichier: str) -> list[Operation]:
     """
     Lit un export OFX du Crédit Agricole et renvoie la liste des
     opérations qu'il contient, sous forme d'objets Operation.
+    Le compte concerné est détecté automatiquement à partir du fichier
+    (voir app/comptes/configuration_comptes.py).
 
     :param chemin_fichier: chemin vers le fichier .ofx exporté
-    :param nom_compte: nom donné au compte dans notre projet,
-                        ex: "Crédit Agricole - Compte courant perso"
     """
     # Piège rencontré en pratique : l'en-tête du fichier annonce
     # "CHARSET:1252" (Windows-1252), mais le contenu réel est parfois
@@ -45,6 +46,11 @@ def lire_fichier_ofx(chemin_fichier: str, nom_compte: str) -> list[Operation]:
             contenu = fichier.read()
 
     operations = []
+
+    # Le numéro de compte apparaît une seule fois dans le fichier (pas
+    # dans chaque opération), on le cherche dans le contenu entier.
+    identifiant_compte = re.search(r"<ACCTID>([^<\r\n]*)", contenu).group(1)
+    nom_compte = obtenir_nom_compte(identifiant_compte)
 
     # On découpe le fichier en un bloc par opération
     blocs_operations = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", contenu, re.S)
