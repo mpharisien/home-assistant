@@ -15,19 +15,20 @@ l'opération).
 import csv
 from datetime import datetime
 
+from app.comptes.configuration_comptes import obtenir_nom_compte
 from app.operations.modele_operation import Operation
 
 NOM_BANQUE = "Boursobank"
 
 
-def lire_fichier_csv(chemin_fichier: str, nom_compte: str) -> list[Operation]:
+def lire_fichier_csv(chemin_fichier: str) -> list[Operation]:
     """
     Lit un export CSV Boursobank et renvoie la liste des opérations
     qu'il contient, sous forme d'objets Operation.
+    Le compte concerné est détecté automatiquement à partir du fichier
+    (voir app/comptes/configuration_comptes.py).
 
     :param chemin_fichier: chemin vers le fichier .csv exporté
-    :param nom_compte: nom donné au compte dans notre projet,
-                        ex: "Boursobank - Perso courant"
     """
     operations = []
 
@@ -37,6 +38,8 @@ def lire_fichier_csv(chemin_fichier: str, nom_compte: str) -> list[Operation]:
         lignes = csv.DictReader(fichier, delimiter=";")
 
         for ligne in lignes:
+            nom_compte = obtenir_nom_compte(ligne["accountNum"])
+
             date_operation = datetime.strptime(ligne["dateOp"], "%Y-%m-%d").date()
 
             # Le montant est écrit à la française ("-9,00") : on remplace
