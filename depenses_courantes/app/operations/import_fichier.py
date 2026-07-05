@@ -13,7 +13,7 @@ EXTENSIONS_VERS_LECTEUR ci-dessous.
 import os
 import sqlite3
 
-from app.base_de_donnees.enregistrement_operations import ResultatImport, enregistrer_operations
+from app.base_de_donnees.enregistrement_operations import RapportImport, enregistrer_operations
 from app.operations.lecteur_boursobank import lire_fichier_csv
 from app.operations.lecteur_credit_agricole import lire_fichier_ofx
 
@@ -25,7 +25,7 @@ EXTENSIONS_VERS_LECTEUR = {
 
 def importer_fichier_operations(
     connexion: sqlite3.Connection, chemin_fichier: str, nom_fichier_original: str
-) -> ResultatImport:
+) -> RapportImport:
     """
     Lit un fichier d'export bancaire et enregistre ses opérations en
     base de données.
@@ -36,9 +36,7 @@ def importer_fichier_operations(
     :param nom_fichier_original: nom du fichier tel que déposé par
                                   l'utilisateur, utilisé uniquement pour
                                   déterminer son format via l'extension
-    :raises ValueError: si l'extension du fichier n'est pas reconnue,
-                         ou si le compte qu'il contient n'est pas
-                         encore configuré
+    :raises ValueError: si l'extension du fichier n'est pas reconnue
     """
     extension = os.path.splitext(nom_fichier_original)[1].lower()
     lire_le_fichier = EXTENSIONS_VERS_LECTEUR.get(extension)
@@ -49,5 +47,5 @@ def importer_fichier_operations(
             f"Formats acceptés : {', '.join(EXTENSIONS_VERS_LECTEUR)}"
         )
 
-    operations = lire_le_fichier(chemin_fichier)
-    return enregistrer_operations(connexion, operations)
+    resultat_lecture = lire_le_fichier(chemin_fichier)
+    return enregistrer_operations(connexion, resultat_lecture.operations)
