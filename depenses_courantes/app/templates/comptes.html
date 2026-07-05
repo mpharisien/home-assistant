@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block titre %}Comptes — Dépenses Courantes{% endblock %}
+
+{% block contenu %}
+  <h2>Comptes détectés ({{ comptes|length }})</h2>
+  <p class="description">
+    Un compte apparaît ici automatiquement dès qu'il est rencontré dans un
+    import. Tant qu'il n'est pas <strong>validé</strong>, ses opérations
+    ne sont pas importées - tu peux aussi choisir de l'<strong>ignorer</strong>
+    définitivement (ex: un compte d'épargne).
+  </p>
+
+  {% if comptes %}
+    <table>
+      <thead>
+        <tr>
+          <th>Numéro de compte</th>
+          <th>Banque</th>
+          <th>Nom</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for compte in comptes %}
+          <tr>
+            <td class="colonne-numero">{{ compte.identifiant_brut }}</td>
+            <td>{{ compte.banque }}</td>
+            <td>
+              <form class="formulaire-renommer" action="{{ url_for('renommer_compte_route', compte_id=compte.id) }}" method="post">
+                <input type="text" name="nouveau_nom" value="{{ compte.nom_affiche }}" required>
+                <button type="submit" class="bouton-secondaire">Renommer</button>
+              </form>
+            </td>
+            <td>
+              <span class="badge-statut statut-{{ compte.statut }}">
+                {% if compte.statut == "suivi" %}Suivi
+                {% elif compte.statut == "en_attente" %}En attente
+                {% else %}Ignoré
+                {% endif %}
+              </span>
+            </td>
+            <td>
+              <div class="actions-compte">
+                {% if compte.statut != "suivi" %}
+                  <form action="{{ url_for('changer_statut_compte_route', compte_id=compte.id) }}" method="post">
+                    <input type="hidden" name="nouveau_statut" value="suivi">
+                    <button type="submit">{{ "Valider" if compte.statut == "en_attente" else "Reprendre le suivi" }}</button>
+                  </form>
+                {% endif %}
+                {% if compte.statut != "ignore" %}
+                  <form action="{{ url_for('changer_statut_compte_route', compte_id=compte.id) }}" method="post">
+                    <input type="hidden" name="nouveau_statut" value="ignore">
+                    <button type="submit" class="bouton-discret">Ignorer</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="description">Aucun compte détecté pour l'instant : importe un premier fichier pour en voir apparaître ici.</p>
+  {% endif %}
+{% endblock %}
