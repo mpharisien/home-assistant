@@ -151,9 +151,11 @@ def poids():
     historique   = conn.execute("SELECT * FROM poids ORDER BY date DESC").fetchall()
     graphique    = conn.execute("SELECT date, poids FROM poids ORDER BY date ASC").fetchall()
     conn.close()
+    today = datetime.now().strftime("%Y-%m-%d")
     return render_template("poids.html",
                            historique=historique,
-                           graphique=graphique)
+                           graphique=graphique,
+                           today=today)
 
 @app.route("/poids/supprimer/<int:id>")
 def supprimer_poids(id):
