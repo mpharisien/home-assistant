@@ -43,28 +43,42 @@
             </td>
           </tr>
           <tr class="ligne-edition-compte" id="edition-{{ compte.id }}" style="display:none;">
-            <td colspan="5">
-              <form class="formulaire-compte" action="{{ url_for('modifier_compte_route', compte_id=compte.id) }}" method="post"
-                    onsubmit="return confirmerSiIgnore(this, {{ compte.nb_operations }});">
-                <select name="nouvelle_couleur" class="champ-couleur">
-                  {% for nom_couleur, code_couleur in palette_couleurs %}
-                    <option value="{{ code_couleur }}" {{ "selected" if code_couleur == compte.couleur }}>{{ nom_couleur }}</option>
-                  {% endfor %}
-                </select>
-                <input type="text" name="nouvelle_lettre" value="{{ compte.lettre }}" maxlength="1" class="champ-lettre" required>
-                <input type="text" name="nouveau_nom" value="{{ compte.nom_affiche }}" class="champ-nom" required>
-                <select name="nouveau_statut" class="champ-statut">
-                  <option value="suivi" {{ "selected" if compte.statut == "suivi" }}>Suivi</option>
-                  <option value="ignore" {{ "selected" if compte.statut == "ignore" }}>Ignoré</option>
-                </select>
-                <button type="submit">Enregistrer</button>
-                <button type="button" class="bouton-discret" onclick="basculerEdition({{ compte.id }})">Annuler</button>
-              </form>
+            <td></td>
+            <td></td>
+            <td class="cellule-edition-compte">
+              <select name="nouvelle_couleur" form="form-compte-{{ compte.id }}" class="champ-couleur">
+                {% for nom_couleur, code_couleur in palette_couleurs %}
+                  <option value="{{ code_couleur }}" {{ "selected" if code_couleur == compte.couleur }}>{{ nom_couleur }}</option>
+                {% endfor %}
+              </select>
+              <input type="text" name="nouvelle_lettre" form="form-compte-{{ compte.id }}" value="{{ compte.lettre }}" maxlength="1" class="champ-lettre" required>
+              <input type="text" name="nouveau_nom" form="form-compte-{{ compte.id }}" value="{{ compte.nom_affiche }}" class="champ-nom" required>
+            </td>
+            <td>
+              <select name="nouveau_statut" id="champ-statut-{{ compte.id }}" form="form-compte-{{ compte.id }}" class="champ-statut">
+                <option value="suivi" {{ "selected" if compte.statut == "suivi" }}>Suivi</option>
+                <option value="ignore" {{ "selected" if compte.statut == "ignore" }}>Ignoré</option>
+              </select>
+            </td>
+            <td class="colonne-actions">
+              <button type="submit" form="form-compte-{{ compte.id }}">Enregistrer</button>
+              <button type="button" class="bouton-discret" onclick="basculerEdition({{ compte.id }})">Annuler</button>
             </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    {# Un formulaire "invisible" par compte : les champs ci-dessus lui sont reliés
+       via l'attribut form="...", ce qui permet de les répartir dans plusieurs
+       cellules du tableau (alignées sous chaque colonne) tout en les envoyant
+       ensemble comme un seul formulaire. #}
+    {% for compte in comptes %}
+      <form id="form-compte-{{ compte.id }}"
+            action="{{ url_for('modifier_compte_route', compte_id=compte.id) }}"
+            method="post"
+            onsubmit="return confirmerSiIgnore({{ compte.id }}, {{ compte.nb_operations }});"></form>
+    {% endfor %}
   {% else %}
     <p class="description">Aucun compte détecté pour l'instant : importe un premier fichier pour en voir apparaître ici.</p>
   {% endif %}
@@ -80,9 +94,9 @@
     // Demande confirmation uniquement si l'utilisateur choisit "Ignoré"
     // dans le formulaire d'édition (action destructrice : supprime les
     // opérations du compte).
-    function confirmerSiIgnore(formulaire, nbOperations) {
-      const statutChoisi = formulaire.querySelector('[name="nouveau_statut"]').value;
-      if (statutChoisi === 'ignore') {
+    function confirmerSiIgnore(compteId, nbOperations) {
+      const champStatut = document.getElementById('champ-statut-' + compteId);
+      if (champStatut.value === 'ignore') {
         return confirm('Attention, cette action supprime le compte et ses ' + nbOperations + ' opération(s).');
       }
       return true;
