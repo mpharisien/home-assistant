@@ -6,10 +6,11 @@
   <h2>Comptes détectés ({{ comptes|length }})</h2>
   <p class="description">
     Un compte apparaît ici automatiquement dès qu'il est rencontré dans un
-    import, et ses opérations sont importées tout de suite. Si tu ne
-    veux pas le suivre (ex: une épargne), <strong>ignore</strong>-le :
-    ses opérations déjà importées seront supprimées, et il ne sera plus
-    jamais importé tant qu'il reste ignoré.
+    import, et ses opérations sont importées tout de suite. Clique sur
+    "Modifier" pour changer son nom, sa couleur, sa lettre, ou pour
+    l'ignorer (ex: une épargne) - ignorer un compte supprime ses
+    opérations déjà importées, et empêche toute nouvelle importation
+    tant qu'il reste ignoré.
   </p>
 
   {% if comptes %}
@@ -18,9 +19,9 @@
         <tr>
           <th>Numéro de compte</th>
           <th>Banque</th>
-          <th>Identité (couleur, lettre) et nom</th>
+          <th>Compte</th>
           <th>Statut</th>
-          <th>Actions</th>
+          <th class="colonne-actions">Modifier</th>
         </tr>
       </thead>
       <tbody>
@@ -28,35 +29,37 @@
           <tr>
             <td class="colonne-numero">{{ compte.identifiant_brut }}</td>
             <td>{{ compte.banque }}</td>
-            <td>
-              <form class="formulaire-compte" action="{{ url_for('modifier_compte_route', compte_id=compte.id) }}" method="post">
-                <span class="pastille-compte" style="background:{{ compte.couleur }}">{{ compte.lettre }}</span>
-                <input type="text" name="nouvelle_lettre" value="{{ compte.lettre }}" maxlength="1" class="champ-lettre" required>
-                <select name="nouvelle_couleur" class="champ-couleur">
-                  {% for nom_couleur, code_couleur in palette_couleurs %}
-                    <option value="{{ code_couleur }}" {{ "selected" if code_couleur == compte.couleur }}>{{ nom_couleur }}</option>
-                  {% endfor %}
-                </select>
-                <input type="text" name="nouveau_nom" value="{{ compte.nom_affiche }}" class="champ-nom" required>
-                <button type="submit" class="bouton-secondaire">Enregistrer</button>
-              </form>
+            <td class="colonne-compte-affiche">
+              <span class="pastille-compte" style="background:{{ compte.couleur }}">{{ compte.lettre }}</span>
+              {{ compte.nom_affiche }}
             </td>
             <td>
               <span class="badge-statut statut-{{ compte.statut }}">
                 {{ "Suivi" if compte.statut == "suivi" else "Ignoré" }}
               </span>
             </td>
-            <td>
-              {% if compte.statut == "suivi" %}
-                <form action="{{ url_for('ignorer_compte_route', compte_id=compte.id) }}" method="post"
-                      onsubmit="return confirm('Attention, cette action supprime le compte et ses {{ compte.nb_operations }} opération(s).');">
-                  <button type="submit" class="bouton-discret">Ignorer</button>
-                </form>
-              {% else %}
-                <form action="{{ url_for('reprendre_suivi_compte_route', compte_id=compte.id) }}" method="post">
-                  <button type="submit">Reprendre le suivi</button>
-                </form>
-              {% endif %}
+            <td class="colonne-actions">
+              <button type="button" class="bouton-secondaire" onclick="basculerEdition({{ compte.id }})">Modifier</button>
+            </td>
+          </tr>
+          <tr class="ligne-edition-compte" id="edition-{{ compte.id }}" style="display:none;">
+            <td colspan="5">
+              <form class="formulaire-compte" action="{{ url_for('modifier_compte_route', compte_id=compte.id) }}" method="post"
+                    onsubmit="return confirmerSiIgnore(this, {{ compte.nb_operations }});">
+                <select name="nouvelle_couleur" class="champ-couleur">
+                  {% for nom_couleur, code_couleur in palette_couleurs %}
+                    <option value="{{ code_couleur }}" {{ "selected" if code_couleur == compte.couleur }}>{{ nom_couleur }}</option>
+                  {% endfor %}
+                </select>
+                <input type="text" name="nouvelle_lettre" value="{{ compte.lettre }}" maxlength="1" class="champ-lettre" required>
+                <input type="text" name="nouveau_nom" value="{{ compte.nom_affiche }}" class="champ-nom" required>
+                <select name="nouveau_statut" class="champ-statut">
+                  <option value="suivi" {{ "selected" if compte.statut == "suivi" }}>Suivi</option>
+                  <option value="ignore" {{ "selected" if compte.statut == "ignore" }}>Ignoré</option>
+                </select>
+                <button type="submit">Enregistrer</button>
+                <button type="button" class="bouton-discret" onclick="basculerEdition({{ compte.id }})">Annuler</button>
+              </form>
             </td>
           </tr>
         {% endfor %}
@@ -65,4 +68,24 @@
   {% else %}
     <p class="description">Aucun compte détecté pour l'instant : importe un premier fichier pour en voir apparaître ici.</p>
   {% endif %}
+
+  <script>
+    // Affiche/masque la ligne d'édition d'un compte, sans recharger la page.
+    function basculerEdition(compteId) {
+      const ligneEdition = document.getElementById('edition-' + compteId);
+      const estVisible = ligneEdition.style.display !== 'none';
+      ligneEdition.style.display = estVisible ? 'none' : 'table-row';
+    }
+
+    // Demande confirmation uniquement si l'utilisateur choisit "Ignoré"
+    // dans le formulaire d'édition (action destructrice : supprime les
+    // opérations du compte).
+    function confirmerSiIgnore(formulaire, nbOperations) {
+      const statutChoisi = formulaire.querySelector('[name="nouveau_statut"]').value;
+      if (statutChoisi === 'ignore') {
+        return confirm('Attention, cette action supprime le compte et ses ' + nbOperations + ' opération(s).');
+      }
+      return true;
+    }
+  </script>
 {% endblock %}
