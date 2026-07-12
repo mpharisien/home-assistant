@@ -1,6 +1,6 @@
 name: "Dépenses Courantes"
 description: "Regroupe et analyse les dépenses de nos comptes bancaires"
-version: "0.3.2"
+version: "0.4.0"
 slug: "depenses_courantes"
 init: false
 arch:
