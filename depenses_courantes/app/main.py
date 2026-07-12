@@ -24,7 +24,7 @@ import os
 import tempfile
 from datetime import date
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, make_response, redirect, render_template, request, url_for
 
 from app.base_de_donnees.connexion import obtenir_connexion
 from app.base_de_donnees.consultation_dashboard import obtenir_donnees_dashboard
@@ -98,8 +98,27 @@ def page_dashboard():
 
 @application_web.route("/operations")
 def page_operations():
-    """Page des opérations, filtrable et triable, regroupée par mois."""
+    """
+    Page des opérations, filtrable et triable, regroupée par mois. Les
+    filtres choisis sont mémorisés dans un cookie du navigateur, pour
+    être proposés à nouveau la prochaine fois qu'on ouvre cette page
+    (ex: en cliquant sur "Opérations" dans le menu, un autre jour).
+    """
     connexion = obtenir_connexion()
+    NOM_COOKIE_FILTRES = "filtres_operations"
+
+    # Bouton "Réinitialiser" : on efface les filtres mémorisés et on repart à zéro
+    if request.args.get("reset") == "1":
+        reponse = redirect(url_for("page_operations"))
+        reponse.delete_cookie(NOM_COOKIE_FILTRES)
+        return reponse
+
+    # Aucun filtre dans l'URL (arrivée "fraîche" sur la page), mais des
+    # filtres avaient été mémorisés lors d'une visite précédente : on
+    # les réapplique en redirigeant vers la même URL, filtres inclus.
+    filtres_memorises = request.cookies.get(NOM_COOKIE_FILTRES)
+    if not request.args and filtres_memorises:
+        return redirect(f"{url_for('page_operations')}?{filtres_memorises}")
 
     aujourdhui = date.today()
     aucun_filtre_fourni = not request.args
@@ -139,19 +158,29 @@ def page_operations():
         tri_selectionne,
     )
 
-    return render_template(
-        "operations.html",
-        groupes_mensuels=groupes_mensuels,
-        annees_disponibles=annees_disponibles,
-        annee_selectionnee=annee_selectionnee,
-        mois_selectionne=mois_selectionne,
-        tri_selectionne=tri_selectionne,
-        comptes=comptes_suivis,
-        comptes_ids_selectionnes=comptes_ids_selectionnes,
-        categories=categories,
-        categories_valeurs_selectionnees=categories_valeurs_selectionnees,
-        noms_mois=NOMS_MOIS,
+    reponse = make_response(
+        render_template(
+            "operations.html",
+            groupes_mensuels=groupes_mensuels,
+            annees_disponibles=annees_disponibles,
+            annee_selectionnee=annee_selectionnee,
+            mois_selectionne=mois_selectionne,
+            tri_selectionne=tri_selectionne,
+            comptes=comptes_suivis,
+            comptes_ids_selectionnes=comptes_ids_selectionnes,
+            categories=categories,
+            categories_valeurs_selectionnees=categories_valeurs_selectionnees,
+            noms_mois=NOMS_MOIS,
+        )
     )
+
+    # On ne mémorise que les filtres explicitement choisis par l'utilisateur
+    # (pas les valeurs par défaut calculées automatiquement), pour que ces
+    # valeurs par défaut restent à jour si aucun filtre n'a jamais été choisi.
+    if not aucun_filtre_fourni:
+        reponse.set_cookie(NOM_COOKIE_FILTRES, request.query_string.decode(), max_age=60 * 60 * 24 * 365)
+
+    return reponse
 
 
 @application_web.route("/historique")
