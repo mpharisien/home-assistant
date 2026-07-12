@@ -3,44 +3,110 @@
 {% block titre %}Opérations — Dépenses Courantes{% endblock %}
 
 {% block contenu %}
-  <h2>Opérations importées ({{ operations|length }})</h2>
+  <h2>Opérations</h2>
 
-  {% if operations %}
-    <table>
-      <thead>
-        <tr>
-          <th class="colonne-date">Date</th>
-          <th class="colonne-compte">Compte</th>
-          <th>Libellé</th>
-          <th>Catégorie</th>
-          <th class="colonne-montant">Montant</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for operation in operations %}
-          <tr>
-            <td class="colonne-date">{{ operation.date_operation }}</td>
-            <td class="colonne-compte">
-              <span class="pastille-compte" style="background:{{ operation.compte_couleur }}" title="{{ operation.compte }}">
-                {{ operation.compte_lettre }}
-              </span>
-            </td>
-            <td>{{ operation.libelle }}</td>
-            <td>
-              {% if operation.categorie %}
-                <span class="etiquette-categorie" style="background:{{ operation.categorie_couleur }}22; color:{{ operation.categorie_couleur }};">{{ operation.categorie }}</span>
-              {% else %}
-                <span class="etiquette-sans-categorie">Sans catégorie</span>
-              {% endif %}
-            </td>
-            <td class="colonne-montant {{ 'montant-depense' if operation.montant < 0 else 'montant-recette' }}">
-              {{ "%.2f"|format(operation.montant) }} €
-            </td>
-          </tr>
+  <form class="formulaire-filtres" method="get">
+    <div class="groupe-filtre">
+      <label for="filtre-annee">Année</label>
+      <select name="annee" id="filtre-annee">
+        <option value="toutes" {{ "selected" if annee_selectionnee == "toutes" }}>Toutes</option>
+        {% for annee in annees_disponibles %}
+          <option value="{{ annee }}" {{ "selected" if annee_selectionnee == annee|string }}>{{ annee }}</option>
         {% endfor %}
-      </tbody>
-    </table>
+      </select>
+    </div>
+
+    <div class="groupe-filtre">
+      <label for="filtre-mois">Mois</label>
+      <select name="mois" id="filtre-mois">
+        <option value="tous" {{ "selected" if mois_selectionne == "tous" }}>Tous</option>
+        {% for numero, nom in noms_mois.items() %}
+          <option value="{{ numero }}" {{ "selected" if mois_selectionne == numero|string }}>{{ nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="groupe-filtre">
+      <label for="filtre-tri">Trier par</label>
+      <select name="tri" id="filtre-tri">
+        <option value="date" {{ "selected" if tri_selectionne == "date" }}>Date (récent d'abord)</option>
+        <option value="montant" {{ "selected" if tri_selectionne == "montant" }}>Montant (grosses dépenses d'abord)</option>
+      </select>
+    </div>
+
+    <div class="groupe-filtre groupe-filtre-cases">
+      <span class="etiquette-groupe-filtre">Comptes</span>
+      <div class="cases-filtre">
+        {% for compte in comptes %}
+          <label>
+            <input type="checkbox" name="compte" value="{{ compte.id }}" {{ "checked" if compte.id|string in comptes_ids_selectionnes }}>
+            {{ compte.nom_affiche }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="groupe-filtre groupe-filtre-cases">
+      <span class="etiquette-groupe-filtre">Catégories</span>
+      <div class="cases-filtre">
+        {% for categorie in categories %}
+          <label>
+            <input type="checkbox" name="categorie" value="{{ categorie.id }}" {{ "checked" if categorie.id|string in categories_valeurs_selectionnees }}>
+            {{ categorie.nom }}
+          </label>
+        {% endfor %}
+        <label>
+          <input type="checkbox" name="categorie" value="aucune" {{ "checked" if "aucune" in categories_valeurs_selectionnees }}>
+          Sans catégorie
+        </label>
+      </div>
+    </div>
+
+    <button type="submit">Filtrer</button>
+  </form>
+
+  {% if groupes_mensuels %}
+    {% for groupe in groupes_mensuels %}
+      <h3 class="titre-groupe-mois">
+        {{ groupe.libelle_mois }}
+        <span class="total-groupe-mois">Dépenses : {{ "%.2f"|format(groupe.total_depenses) }} €</span>
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th class="colonne-date">Date</th>
+            <th class="colonne-compte">Compte</th>
+            <th>Libellé</th>
+            <th>Catégorie</th>
+            <th class="colonne-montant">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for operation in groupe.operations %}
+            <tr>
+              <td class="colonne-date">{{ operation.date_operation }}</td>
+              <td class="colonne-compte">
+                <span class="pastille-compte" style="background:{{ operation.compte_couleur }}" title="{{ operation.compte }}">
+                  {{ operation.compte_lettre }}
+                </span>
+              </td>
+              <td>{{ operation.libelle }}</td>
+              <td>
+                {% if operation.categorie %}
+                  <span class="etiquette-categorie" style="background:{{ operation.categorie_couleur }}22; color:{{ operation.categorie_couleur }};">{{ operation.categorie }}</span>
+                {% else %}
+                  <span class="etiquette-sans-categorie">Sans catégorie</span>
+                {% endif %}
+              </td>
+              <td class="colonne-montant {{ 'montant-depense' if operation.montant < 0 else 'montant-recette' }}">
+                {{ "%.2f"|format(operation.montant) }} €
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
   {% else %}
-    <p class="description">Aucune opération importée pour l'instant.</p>
+    <p class="description">Aucune opération ne correspond à ces filtres.</p>
   {% endif %}
 {% endblock %}
