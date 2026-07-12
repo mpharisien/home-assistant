@@ -1,16 +1,23 @@
 """
 Structure (schéma) de la base de données du projet.
 
-La base de données est un simple fichier SQLite. Elle contient 4 tables :
+La base de données est un simple fichier SQLite. Elle contient 5 tables :
 
-- categories : la liste des catégories du projet, que l'utilisateur peut
-  gérer (ajouter/renommer/supprimer) depuis l'interface web.
+- categories : la liste des catégories du projet. "couleur" forme son
+  identité visuelle (étiquette colorée), modifiable depuis la page
+  "Catégories".
 
 - correspondances_categories_bancaires : fait le lien entre la catégorie
   brute fournie par une banque (ex: "Alimentation" chez Boursobank) et la
   catégorie du projet correspondante. Grâce à cette table intermédiaire,
   si l'utilisateur renomme une catégorie du projet, les prochains imports
   continueront à retrouver la bonne catégorie automatiquement.
+
+- regles_attribution_automatique : des règles "si le libellé contient ce
+  mot-clé, alors telle catégorie". Un mot-clé ne peut appartenir qu'à une
+  seule catégorie à la fois (contrainte d'unicité). Ces règles sont
+  volontairement prioritaires sur la catégorie fournie par la banque
+  (voir app/base_de_donnees/gestion_categories.py pour le détail).
 
 - comptes : la liste des comptes bancaires détectés. Aucun numéro de
   compte n'est jamais écrit dans le code : un compte apparaît ici tout
@@ -31,7 +38,8 @@ La base de données est un simple fichier SQLite. Elle contient 4 tables :
 DEFINITION_TABLES = """
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nom TEXT NOT NULL UNIQUE
+    nom TEXT NOT NULL UNIQUE,
+    couleur TEXT NOT NULL DEFAULT '#6a2c91'
 );
 
 CREATE TABLE IF NOT EXISTS correspondances_categories_bancaires (
@@ -40,6 +48,12 @@ CREATE TABLE IF NOT EXISTS correspondances_categories_bancaires (
     categorie_source TEXT NOT NULL,
     categorie_id INTEGER NOT NULL REFERENCES categories(id),
     UNIQUE(banque, categorie_source)
+);
+
+CREATE TABLE IF NOT EXISTS regles_attribution_automatique (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mot_cle TEXT NOT NULL UNIQUE,
+    categorie_id INTEGER NOT NULL REFERENCES categories(id)
 );
 
 CREATE TABLE IF NOT EXISTS comptes (
@@ -75,6 +89,7 @@ def initialiser_base_de_donnees(connexion):
     connexion.executescript(DEFINITION_TABLES)
     _migrer_identite_visuelle_comptes(connexion)
     _migrer_suppression_statut_en_attente(connexion)
+    _migrer_couleur_categories(connexion)
     connexion.commit()
 
 
@@ -111,3 +126,27 @@ def _migrer_suppression_statut_en_attente(connexion):
     antérieure) basculent simplement en "suivi".
     """
     connexion.execute("UPDATE comptes SET statut = 'suivi' WHERE statut = 'en_attente'")
+
+
+def _migrer_couleur_categories(connexion):
+    """
+    Ajoute la colonne "couleur" à la table "categories" si elle
+    n'existe pas encore. Les catégories déjà existantes reçoivent
+    chacune une couleur différente (en tournant dans la palette, dans
+    l'ordre de création) plutôt que la valeur générique utilisée le
+    temps de la migration.
+    """
+    # Import local pour éviter une dépendance circulaire au chargement du module
+    from app.base_de_donnees.palette_couleurs import obtenir_couleur_par_rang
+
+    colonnes = {ligne["name"] for ligne in connexion.execute("PRAGMA table_info(categories)")}
+
+    if "couleur" not in colonnes:
+        connexion.execute("ALTER TABLE categories ADD COLUMN couleur TEXT NOT NULL DEFAULT '#6a2c91'")
+
+        lignes = connexion.execute("SELECT id FROM categories ORDER BY id").fetchall()
+        for rang, ligne in enumerate(lignes):
+            connexion.execute(
+                "UPDATE categories SET couleur = ? WHERE id = ?",
+                (obtenir_couleur_par_rang(rang), ligne["id"]),
+            )
