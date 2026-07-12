@@ -140,6 +140,49 @@
       width: 100%;
     }
     .actions-compte { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .pastille-compte {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 50%;
+      color: white;
+      font-size: 0.78rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    form.formulaire-compte {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    form.formulaire-compte .champ-lettre {
+      width: 2.4rem;
+      text-align: center;
+      padding: 0.35rem 0;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+    }
+    form.formulaire-compte .champ-couleur {
+      padding: 0.35rem 0.4rem;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    form.formulaire-compte .champ-nom {
+      flex: 1;
+      min-width: 160px;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    th.colonne-date, td.colonne-date { white-space: nowrap; width: 6.5rem; }
+    th.colonne-compte, td.colonne-compte { width: 3rem; text-align: center; }
 
     button, .bouton {
       background: var(--couleur-violet);
