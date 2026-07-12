@@ -285,6 +285,27 @@
     }
     .cases-filtre label { text-transform: none; letter-spacing: normal; font-weight: 400; color: var(--couleur-texte); display: flex; align-items: center; gap: 0.3rem; }
 
+    /* La liste des catégories peut être longue : grille à colonnes fixes
+       et hauteur limitée avec défilement, plutôt qu'un mur de cases qui
+       s'enchaînent de façon désordonnée. */
+    .groupe-filtre-categories { max-width: none; width: 100%; }
+    .cases-filtre-categories {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.5rem 1rem;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 0.8rem;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 8px;
+      background: var(--couleur-fond);
+    }
+    .cases-filtre-categories label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     /* Regroupement mensuel (page Opérations) */
     h3.titre-groupe-mois {
       display: flex;
