@@ -23,6 +23,16 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 
 from app.base_de_donnees.connexion import obtenir_connexion
 from app.base_de_donnees.consultation_operations import lister_operations
+from app.base_de_donnees.gestion_categories import (
+    ajouter_mot_cle,
+    fusionner_categories,
+    lister_categories,
+    modifier_categorie,
+    obtenir_correspondances,
+    obtenir_mots_cles,
+    supprimer_categorie,
+    supprimer_mot_cle,
+)
 from app.base_de_donnees.gestion_comptes import (
     PALETTE_COULEURS_COMPTES,
     ignorer_compte,
@@ -155,27 +165,94 @@ def modifier_compte_route(compte_id):
     return redirect(url_for("page_comptes"))
 
 
-@application_web.route("/comptes/<int:compte_id>/ignorer", methods=["POST"])
-def ignorer_compte_route(compte_id):
-    """
-    Met un compte de côté : supprime ses opérations déjà importées et
-    empêche toute nouvelle importation tant qu'il reste ignoré. La
-    confirmation (avec le nombre d'opérations concernées) est faite
-    côté navigateur avant l'envoi de cette requête.
-    """
+@application_web.route("/categories")
+def page_categories():
+    """Page listant toutes les catégories, avec leurs correspondances et mots-clés."""
     connexion = obtenir_connexion()
-    nb_supprimees = ignorer_compte(connexion, compte_id)
-    flash(f"Compte ignoré : {nb_supprimees} opération(s) supprimée(s).", "succes")
-    return redirect(url_for("page_comptes"))
+    categories = lister_categories(connexion)
+
+    correspondances_par_categorie = {
+        categorie["id"]: obtenir_correspondances(connexion, categorie["id"]) for categorie in categories
+    }
+    mots_cles_par_categorie = {
+        categorie["id"]: obtenir_mots_cles(connexion, categorie["id"]) for categorie in categories
+    }
+
+    return render_template(
+        "categories.html",
+        categories=categories,
+        correspondances_par_categorie=correspondances_par_categorie,
+        mots_cles_par_categorie=mots_cles_par_categorie,
+        palette_couleurs=PALETTE_COULEURS_COMPTES,
+    )
 
 
-@application_web.route("/comptes/<int:compte_id>/reprendre-le-suivi", methods=["POST"])
-def reprendre_suivi_compte_route(compte_id):
-    """Remet un compte ignoré en suivi (ne restaure pas ses anciennes opérations)."""
+@application_web.route("/categories/<int:categorie_id>/modifier", methods=["POST"])
+def modifier_categorie_route(categorie_id):
+    """Met à jour le nom et la couleur d'une catégorie."""
+    nouveau_nom = request.form.get("nouveau_nom", "").strip()
+    nouvelle_couleur = request.form.get("nouvelle_couleur", "").strip()
+
+    if not nouveau_nom:
+        flash("Le nom ne peut pas être vide.", "erreur")
+        return redirect(url_for("page_categories"))
+
     connexion = obtenir_connexion()
-    reprendre_suivi_compte(connexion, compte_id)
-    flash("Compte de nouveau suivi. Réimporte un fichier pour récupérer ses opérations.", "succes")
-    return redirect(url_for("page_comptes"))
+    modifier_categorie(connexion, categorie_id, nouveau_nom, nouvelle_couleur)
+    flash("Catégorie mise à jour.", "succes")
+    return redirect(url_for("page_categories"))
+
+
+@application_web.route("/categories/<int:categorie_id>/mots-cles/ajouter", methods=["POST"])
+def ajouter_mot_cle_route(categorie_id):
+    """Ajoute un mot-clé d'attribution automatique à une catégorie."""
+    mot_cle = request.form.get("mot_cle", "").strip()
+
+    if not mot_cle:
+        flash("Le mot-clé ne peut pas être vide.", "erreur")
+        return redirect(url_for("page_categories"))
+
+    connexion = obtenir_connexion()
+    try:
+        ajouter_mot_cle(connexion, categorie_id, mot_cle)
+        flash(f'Mot-clé "{mot_cle}" ajouté. Il s\'appliquera aux prochains imports.', "succes")
+    except ValueError as erreur:
+        flash(str(erreur), "erreur")
+
+    return redirect(url_for("page_categories"))
+
+
+@application_web.route("/categories/<int:categorie_id>/mots-cles/<int:mot_cle_id>/supprimer", methods=["POST"])
+def supprimer_mot_cle_route(categorie_id, mot_cle_id):
+    """Supprime un mot-clé d'attribution automatique."""
+    connexion = obtenir_connexion()
+    supprimer_mot_cle(connexion, mot_cle_id)
+    flash("Mot-clé supprimé.", "succes")
+    return redirect(url_for("page_categories"))
+
+
+@application_web.route("/categories/<int:categorie_id>/fusionner", methods=["POST"])
+def fusionner_categories_route(categorie_id):
+    """Fusionne une catégorie (la source) dans une autre (la cible choisie)."""
+    categorie_cible_id = request.form.get("categorie_cible_id", "").strip()
+
+    if not categorie_cible_id:
+        flash("Choisis une catégorie cible pour la fusion.", "erreur")
+        return redirect(url_for("page_categories"))
+
+    connexion = obtenir_connexion()
+    nb_operations = fusionner_categories(connexion, categorie_id, int(categorie_cible_id))
+    flash(f"Catégories fusionnées : {nb_operations} opération(s) déplacée(s).", "succes")
+    return redirect(url_for("page_categories"))
+
+
+@application_web.route("/categories/<int:categorie_id>/supprimer", methods=["POST"])
+def supprimer_categorie_route(categorie_id):
+    """Supprime une catégorie ; ses opérations repassent 'Sans catégorie'."""
+    connexion = obtenir_connexion()
+    nb_operations = supprimer_categorie(connexion, categorie_id)
+    flash(f"Catégorie supprimée : {nb_operations} opération(s) repassée(s) \"Sans catégorie\".", "succes")
+    return redirect(url_for("page_categories"))
 
 
 if __name__ == "__main__":
