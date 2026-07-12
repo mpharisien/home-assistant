@@ -46,11 +46,11 @@
       </div>
     </div>
 
-    <div class="groupe-filtre groupe-filtre-cases">
+    <div class="groupe-filtre groupe-filtre-cases groupe-filtre-categories">
       <span class="etiquette-groupe-filtre">Catégories</span>
-      <div class="cases-filtre">
+      <div class="cases-filtre cases-filtre-categories">
         {% for categorie in categories %}
-          <label>
+          <label title="{{ categorie.nom }}">
             <input type="checkbox" name="categorie" value="{{ categorie.id }}" {{ "checked" if categorie.id|string in categories_valeurs_selectionnees }}>
             {{ categorie.nom }}
           </label>
