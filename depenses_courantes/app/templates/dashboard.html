@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block titre %}Dashboard — Dépenses Courantes{% endblock %}
+
+{% block contenu %}
+  <h2>Dashboard</h2>
+
+  <form class="formulaire-filtres" method="get">
+    <div class="groupe-filtre">
+      <label for="filtre-annee">Année de référence</label>
+      <select name="annee" id="filtre-annee">
+        {% for annee in annees_disponibles %}
+          <option value="{{ annee }}" {{ "selected" if annee == annee_selectionnee }}>{{ annee }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="groupe-filtre groupe-filtre-cases">
+      <span class="etiquette-groupe-filtre">Comptes</span>
+      <div class="cases-filtre">
+        {% for compte in comptes %}
+          <label>
+            <input type="checkbox" name="compte" value="{{ compte.id }}" {{ "checked" if compte.id|string in comptes_ids_selectionnes }}>
+            {{ compte.nom_affiche }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button type="submit">Actualiser</button>
+  </form>
+
+  <p class="description">
+    Les graphiques "sur une année" utilisent l'année de référence choisie ci-dessus.
+    Ceux qui comparent plusieurs années (comparatifs) montrent toutes les années disponibles,
+    quelle que soit l'année de référence sélectionnée.
+  </p>
+
+  <div class="grille-graphiques">
+    <div class="carte-graphique">
+      <h3>Dépenses par catégorie — {{ donnees.mois_courant_libelle }} (en cours)</h3>
+      <canvas id="graphique-1"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>Dépenses par catégorie — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-2"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>Évolution des dépenses par mois — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-3"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>{{ donnees.mois_courant_libelle }} comparé entre les années</h3>
+      <canvas id="graphique-4"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>Dépenses par compte — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-5"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>Dépenses vs recettes par mois — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-6"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>Classement des catégories — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-7"></canvas>
+    </div>
+    <div class="carte-graphique">
+      <h3>Évolution du solde net par mois — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-8"></canvas>
+    </div>
+    <div class="carte-graphique carte-graphique-large">
+      <h3>Répartition des catégories dans le temps — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-9"></canvas>
+    </div>
+    <div class="carte-graphique carte-graphique-large">
+      <h3>Dépenses par compte au fil des mois — {{ donnees.annee_reference }}</h3>
+      <canvas id="graphique-10"></canvas>
+    </div>
+    <div class="carte-graphique carte-graphique-large">
+      <h3>Comparatif mensuel des dépenses, toutes années confondues</h3>
+      <canvas id="graphique-11"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+  <script>
+    // Toutes les données calculées côté serveur (voir
+    // app/base_de_donnees/consultation_dashboard.py), injectées ici telles quelles.
+    const donnees = {{ donnees_json|safe }};
+
+    const optionsCommunes = {
+      responsive: true,
+      plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } },
+    };
+
+    function optionsMontant() {
+      return {
+        ...optionsCommunes,
+        scales: { y: { ticks: { callback: (valeur) => valeur + ' €' } } },
+      };
+    }
+
+    // 1. Dépenses par catégorie - mois en cours (camembert)
+    new Chart(document.getElementById('graphique-1'), {
+      type: 'pie',
+      data: {
+        labels: donnees.depenses_categorie_mois_courant.labels,
+        datasets: [{ data: donnees.depenses_categorie_mois_courant.valeurs, backgroundColor: donnees.depenses_categorie_mois_courant.couleurs }],
+      },
+      options: optionsCommunes,
+    });
+
+    // 2. Dépenses par catégorie - année de référence (camembert)
+    new Chart(document.getElementById('graphique-2'), {
+      type: 'pie',
+      data: {
+        labels: donnees.depenses_categorie_annee.labels,
+        datasets: [{ data: donnees.depenses_categorie_annee.valeurs, backgroundColor: donnees.depenses_categorie_annee.couleurs }],
+      },
+      options: optionsCommunes,
+    });
+
+    // 3. Évolution des dépenses par mois (barres)
+    new Chart(document.getElementById('graphique-3'), {
+      type: 'bar',
+      data: {
+        labels: donnees.evolution_depenses_mois.labels,
+        datasets: [{ label: 'Dépenses', data: donnees.evolution_depenses_mois.valeurs, backgroundColor: '#6a2c91' }],
+      },
+      options: { ...optionsMontant(), plugins: { legend: { display: false } } },
+    });
+
+    // 4. Comparatif du mois en cours entre les années (barres)
+    new Chart(document.getElementById('graphique-4'), {
+      type: 'bar',
+      data: {
+        labels: donnees.comparatif_mois_courant_entre_annees.labels,
+        datasets: [{ label: 'Dépenses', data: donnees.comparatif_mois_courant_entre_annees.valeurs, backgroundColor: '#2f9bd6' }],
+      },
+      options: { ...optionsMontant(), plugins: { legend: { display: false } } },
+    });
+
+    // 5. Dépenses par compte (barres)
+    new Chart(document.getElementById('graphique-5'), {
+      type: 'bar',
+      data: {
+        labels: donnees.depenses_par_compte.labels,
+        datasets: [{ label: 'Dépenses', data: donnees.depenses_par_compte.valeurs, backgroundColor: donnees.depenses_par_compte.couleurs }],
+      },
+      options: { ...optionsMontant(), plugins: { legend: { display: false } } },
+    });
+
+    // 6. Dépenses vs recettes par mois (barres empilées)
+    new Chart(document.getElementById('graphique-6'), {
+      type: 'bar',
+      data: {
+        labels: donnees.depenses_vs_recettes_par_mois.labels,
+        datasets: [
+          { label: 'Dépenses', data: donnees.depenses_vs_recettes_par_mois.depenses, backgroundColor: '#b3452f' },
+          { label: 'Recettes', data: donnees.depenses_vs_recettes_par_mois.recettes, backgroundColor: '#1a8a4c' },
+        ],
+      },
+      options: { ...optionsMontant(), scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: (v) => v + ' €' } } } },
+    });
+
+    // 7. Classement des catégories (barres horizontales)
+    new Chart(document.getElementById('graphique-7'), {
+      type: 'bar',
+      data: {
+        labels: donnees.classement_categories.labels,
+        datasets: [{ label: 'Dépenses', data: donnees.classement_categories.valeurs, backgroundColor: donnees.classement_categories.couleurs }],
+      },
+      options: { ...optionsMontant(), indexAxis: 'y', plugins: { legend: { display: false } } },
+    });
+
+    // 8. Évolution du solde net par mois (courbe)
+    new Chart(document.getElementById('graphique-8'), {
+      type: 'line',
+      data: {
+        labels: donnees.solde_net_par_mois.labels,
+        datasets: [{ label: 'Solde net', data: donnees.solde_net_par_mois.valeurs, borderColor: '#6a2c91', backgroundColor: '#6a2c9122', fill: true, tension: 0.25 }],
+      },
+      options: { ...optionsMontant(), plugins: { legend: { display: false } } },
+    });
+
+    // 9. Répartition des catégories dans le temps (barres empilées)
+    new Chart(document.getElementById('graphique-9'), {
+      type: 'bar',
+      data: {
+        labels: donnees.repartition_categories_temps.labels,
+        datasets: donnees.repartition_categories_temps.series.map((serie) => ({
+          label: serie.nom, data: serie.valeurs, backgroundColor: serie.couleur,
+        })),
+      },
+      options: { ...optionsMontant(), scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: (v) => v + ' €' } } } },
+    });
+
+    // 10. Dépenses par compte au fil des mois (courbes multiples)
+    new Chart(document.getElementById('graphique-10'), {
+      type: 'line',
+      data: {
+        labels: donnees.depenses_compte_mois.labels,
+        datasets: donnees.depenses_compte_mois.series.map((serie) => ({
+          label: serie.nom, data: serie.valeurs, borderColor: serie.couleur, backgroundColor: serie.couleur, tension: 0.25,
+        })),
+      },
+      options: optionsMontant(),
+    });
+
+    // 11. Comparatif mensuel des dépenses, toutes années confondues (barres groupées)
+    const paletteAnnees = ['#6a2c91', '#2f9bd6', '#1a8a4c', '#c9781c', '#b3452f'];
+    new Chart(document.getElementById('graphique-11'), {
+      type: 'bar',
+      data: {
+        labels: donnees.comparatif_mensuel_toutes_annees.labels,
+        datasets: donnees.comparatif_mensuel_toutes_annees.series.map((serie, index) => ({
+          label: serie.nom, data: serie.valeurs, backgroundColor: paletteAnnees[index % paletteAnnees.length],
+        })),
+      },
+      options: optionsMontant(),
+    });
+  </script>
+{% endblock %}
