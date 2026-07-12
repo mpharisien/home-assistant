@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block titre %}Historique — Dépenses Courantes{% endblock %}
+
+{% block contenu %}
+  <h2>Historique complet ({{ operations|length }})</h2>
+
+  {% if operations %}
+    <table>
+      <thead>
+        <tr>
+          <th class="colonne-date">Date</th>
+          <th class="colonne-compte">Compte</th>
+          <th>Libellé</th>
+          <th>Catégorie</th>
+          <th class="colonne-montant">Montant</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for operation in operations %}
+          <tr>
+            <td class="colonne-date">{{ operation.date_operation }}</td>
+            <td class="colonne-compte">
+              <span class="pastille-compte" style="background:{{ operation.compte_couleur }}" title="{{ operation.compte }}">
+                {{ operation.compte_lettre }}
+              </span>
+            </td>
+            <td>{{ operation.libelle }}</td>
+            <td>
+              {% if operation.categorie %}
+                <span class="etiquette-categorie" style="background:{{ operation.categorie_couleur }}22; color:{{ operation.categorie_couleur }};">{{ operation.categorie }}</span>
+              {% else %}
+                <span class="etiquette-sans-categorie">Sans catégorie</span>
+              {% endif %}
+            </td>
+            <td class="colonne-montant {{ 'montant-depense' if operation.montant < 0 else 'montant-recette' }}">
+              {{ "%.2f"|format(operation.montant) }} €
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="description">Aucune opération importée pour l'instant.</p>
+  {% endif %}
+{% endblock %}
