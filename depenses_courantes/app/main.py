@@ -117,10 +117,17 @@ def page_comptes():
 
 @application_web.route("/comptes/<int:compte_id>/modifier", methods=["POST"])
 def modifier_compte_route(compte_id):
-    """Met à jour en une fois le nom, la couleur et la lettre d'un compte."""
+    """
+    Met à jour le nom, la couleur et la lettre d'un compte, et applique
+    un éventuel changement de statut (suivi <-> ignoré). Passer à
+    "ignoré" supprime les opérations déjà importées de ce compte - la
+    confirmation (avec le nombre d'opérations concernées) est faite
+    côté navigateur avant l'envoi de cette requête.
+    """
     nouveau_nom = request.form.get("nouveau_nom", "").strip()
     nouvelle_couleur = request.form.get("nouvelle_couleur", "").strip()
     nouvelle_lettre = request.form.get("nouvelle_lettre", "").strip()
+    nouveau_statut = request.form.get("nouveau_statut", "").strip()
 
     if not nouveau_nom or not nouvelle_lettre:
         flash("Le nom et la lettre ne peuvent pas être vides.", "erreur")
@@ -128,7 +135,23 @@ def modifier_compte_route(compte_id):
 
     connexion = obtenir_connexion()
     modifier_compte(connexion, compte_id, nouveau_nom, nouvelle_couleur, nouvelle_lettre)
-    flash("Compte mis à jour.", "succes")
+
+    statut_actuel = connexion.execute(
+        "SELECT statut FROM comptes WHERE id = ?", (compte_id,)
+    ).fetchone()["statut"]
+
+    if nouveau_statut == "ignore" and statut_actuel != "ignore":
+        nb_supprimees = ignorer_compte(connexion, compte_id)
+        flash(f"Compte mis à jour et ignoré : {nb_supprimees} opération(s) supprimée(s).", "succes")
+    elif nouveau_statut == "suivi" and statut_actuel != "suivi":
+        reprendre_suivi_compte(connexion, compte_id)
+        flash(
+            "Compte mis à jour et de nouveau suivi. Réimporte un fichier pour récupérer ses opérations.",
+            "succes",
+        )
+    else:
+        flash("Compte mis à jour.", "succes")
+
     return redirect(url_for("page_comptes"))
 
 
