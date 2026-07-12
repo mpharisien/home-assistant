@@ -9,14 +9,17 @@ import sqlite3
 def lister_operations(connexion: sqlite3.Connection) -> list[sqlite3.Row]:
     """
     Renvoie toutes les opérations enregistrées, les plus récentes en
-    premier, avec le nom actuel de leur compte (toujours à jour même si
-    l'utilisateur l'a renommé depuis) et de leur catégorie.
+    premier, avec le nom, la couleur et la lettre actuels de leur compte
+    (toujours à jour même si l'utilisateur les a changés depuis), et le
+    nom de leur catégorie.
     """
     return connexion.execute(
         """
         SELECT
             operations.date_operation,
             comptes.nom_affiche AS compte,
+            comptes.couleur AS compte_couleur,
+            comptes.lettre AS compte_lettre,
             operations.libelle,
             operations.montant,
             categories.nom AS categorie
