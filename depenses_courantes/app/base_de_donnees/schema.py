@@ -14,11 +14,12 @@ La base de données est un simple fichier SQLite. Elle contient 4 tables :
 
 - comptes : la liste des comptes bancaires détectés. Aucun numéro de
   compte n'est jamais écrit dans le code : un compte apparaît ici tout
-  seul dès qu'il est rencontré dans un import, avec le statut
-  "en_attente". Tant qu'il n'est pas validé par l'utilisateur (statut
-  "suivi") sur la page "Comptes", ses opérations ne sont pas importées -
-  ça évite d'importer par erreur un compte non désiré (ex: une épargne).
-  Un compte peut aussi être mis de côté volontairement (statut "ignore").
+  seul, immédiatement suivi ("statut" = "suivi"), dès qu'il est
+  rencontré dans un import. L'utilisateur peut ensuite le mettre de
+  côté ("statut" = "ignore", ce qui supprime aussi ses opérations déjà
+  importées) s'il ne souhaite pas le suivre (ex: un compte d'épargne).
+  "couleur" et "lettre" forment l'identité visuelle du compte, affichée
+  en plus court partout où le nom complet prendrait trop de place.
 
 - operations : chaque dépense ou recette importée, rattachée à son
   compte. "categorie_modifiee_manuellement" permet de savoir qu'une
@@ -46,7 +47,9 @@ CREATE TABLE IF NOT EXISTS comptes (
     identifiant_brut TEXT NOT NULL,
     banque TEXT NOT NULL,
     nom_affiche TEXT NOT NULL,
-    statut TEXT NOT NULL DEFAULT 'en_attente',
+    statut TEXT NOT NULL DEFAULT 'suivi',
+    couleur TEXT NOT NULL DEFAULT '#6a2c91',
+    lettre TEXT NOT NULL DEFAULT '?',
     UNIQUE(banque, identifiant_brut)
 );
 
@@ -65,26 +68,46 @@ CREATE TABLE IF NOT EXISTS operations (
 
 def initialiser_base_de_donnees(connexion):
     """
-    Crée les tables si elles n'existent pas encore.
-    Ne fait rien si la base de données est déjà à jour (sans danger
-    d'être appelée à chaque démarrage de l'application).
+    Crée les tables si elles n'existent pas encore, et applique les
+    petites migrations nécessaires sur une base de données existante
+    (ajout de colonnes, sans jamais toucher aux données déjà présentes).
     """
-    _migrer_si_ancien_schema(connexion)
     connexion.executescript(DEFINITION_TABLES)
+    _migrer_identite_visuelle_comptes(connexion)
+    _migrer_suppression_statut_en_attente(connexion)
     connexion.commit()
 
 
-def _migrer_si_ancien_schema(connexion):
+def _migrer_identite_visuelle_comptes(connexion):
     """
-    Filet de sécurité pour la toute première mise à jour du projet : une
-    version antérieure du schéma (avant l'introduction de la table
-    "comptes") a pu créer une table "operations" incompatible avec la
-    structure actuelle. Comme le projet n'a encore jamais servi à
-    importer de vraies données à ce stade, on peut sans risque repartir
-    de zéro si on détecte cette ancienne structure. Ce filet de sécurité
-    pourra être retiré une fois cette transition passée.
+    Ajoute les colonnes "couleur" et "lettre" à la table "comptes" si
+    elles n'existent pas encore (base de données créée avant leur
+    introduction). Les comptes déjà existants reçoivent une valeur par
+    défaut cohérente (couleur selon la banque, lettre = initiale du nom)
+    plutôt que la valeur générique utilisée le temps de la migration.
     """
-    colonnes = {ligne["name"] for ligne in connexion.execute("PRAGMA table_info(operations)")}
-    if colonnes and "compte_id" not in colonnes:
-        connexion.executescript("DROP TABLE IF EXISTS operations; DROP TABLE IF EXISTS comptes;")
-        connexion.commit()
+    colonnes = {ligne["name"] for ligne in connexion.execute("PRAGMA table_info(comptes)")}
+
+    if "couleur" not in colonnes:
+        connexion.execute("ALTER TABLE comptes ADD COLUMN couleur TEXT NOT NULL DEFAULT '#6a2c91'")
+    if "lettre" not in colonnes:
+        connexion.execute("ALTER TABLE comptes ADD COLUMN lettre TEXT NOT NULL DEFAULT '?'")
+
+    if colonnes and ("couleur" not in colonnes or "lettre" not in colonnes):
+        connexion.execute(
+            "UPDATE comptes SET couleur = '#1a8a4c' WHERE banque = 'Crédit Agricole' AND couleur = '#6a2c91'"
+        )
+        connexion.execute(
+            "UPDATE comptes SET couleur = '#0d3b73' WHERE banque = 'Boursobank' AND couleur = '#6a2c91'"
+        )
+        connexion.execute("UPDATE comptes SET lettre = UPPER(SUBSTR(nom_affiche, 1, 1)) WHERE lettre = '?'")
+
+
+def _migrer_suppression_statut_en_attente(connexion):
+    """
+    Le statut "en_attente" a été retiré du projet : un compte est
+    maintenant immédiatement suivi dès sa détection. Les comptes qui
+    étaient restés sur cet ancien statut (créé par une version
+    antérieure) basculent simplement en "suivi".
+    """
+    connexion.execute("UPDATE comptes SET statut = 'suivi' WHERE statut = 'en_attente'")
