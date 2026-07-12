@@ -9,9 +9,9 @@ import sqlite3
 def lister_operations(connexion: sqlite3.Connection) -> list[sqlite3.Row]:
     """
     Renvoie toutes les opérations enregistrées, les plus récentes en
-    premier, avec le nom, la couleur et la lettre actuels de leur compte
-    (toujours à jour même si l'utilisateur les a changés depuis), et le
-    nom de leur catégorie.
+    premier, avec le nom/couleur/lettre actuels de leur compte et le
+    nom/couleur actuels de leur catégorie (toujours à jour même si
+    l'utilisateur les a changés depuis).
     """
     return connexion.execute(
         """
@@ -22,7 +22,8 @@ def lister_operations(connexion: sqlite3.Connection) -> list[sqlite3.Row]:
             comptes.lettre AS compte_lettre,
             operations.libelle,
             operations.montant,
-            categories.nom AS categorie
+            categories.nom AS categorie,
+            categories.couleur AS categorie_couleur
         FROM operations
         JOIN comptes ON operations.compte_id = comptes.id
         LEFT JOIN categories ON operations.categorie_id = categories.id
