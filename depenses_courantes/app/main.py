@@ -32,6 +32,7 @@ from app.base_de_donnees.consultation_operations import (
     lister_operations,
     lister_operations_groupees_par_mois,
     obtenir_annees_disponibles,
+    obtenir_derniere_date_operation,
 )
 from app.base_de_donnees.gestion_categories import (
     ajouter_mot_cle,
