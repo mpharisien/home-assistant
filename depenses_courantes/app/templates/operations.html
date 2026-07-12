@@ -5,10 +5,10 @@
 {% block contenu %}
   <h2>Opérations</h2>
 
-  <form class="formulaire-filtres" method="get">
+  <form class="formulaire-filtres" method="get" id="formulaire-filtres-operations">
     <div class="groupe-filtre">
       <label for="filtre-annee">Année</label>
-      <select name="annee" id="filtre-annee">
+      <select name="annee" id="filtre-annee" onchange="document.getElementById('formulaire-filtres-operations').submit()">
         <option value="toutes" {{ "selected" if annee_selectionnee == "toutes" }}>Toutes</option>
         {% for annee in annees_disponibles %}
           <option value="{{ annee }}" {{ "selected" if annee_selectionnee == annee|string }}>{{ annee }}</option>
@@ -18,7 +18,7 @@
 
     <div class="groupe-filtre">
       <label for="filtre-mois">Mois</label>
-      <select name="mois" id="filtre-mois">
+      <select name="mois" id="filtre-mois" onchange="document.getElementById('formulaire-filtres-operations').submit()">
         <option value="tous" {{ "selected" if mois_selectionne == "tous" }}>Tous</option>
         {% for numero, nom in noms_mois.items() %}
           <option value="{{ numero }}" {{ "selected" if mois_selectionne == numero|string }}>{{ nom }}</option>
@@ -28,7 +28,7 @@
 
     <div class="groupe-filtre">
       <label for="filtre-tri">Trier par</label>
-      <select name="tri" id="filtre-tri">
+      <select name="tri" id="filtre-tri" onchange="document.getElementById('formulaire-filtres-operations').submit()">
         <option value="date" {{ "selected" if tri_selectionne == "date" }}>Date (récent d'abord)</option>
         <option value="montant" {{ "selected" if tri_selectionne == "montant" }}>Montant (grosses dépenses d'abord)</option>
       </select>
@@ -39,7 +39,9 @@
       <div class="cases-filtre">
         {% for compte in comptes %}
           <label>
-            <input type="checkbox" name="compte" value="{{ compte.id }}" {{ "checked" if compte.id|string in comptes_ids_selectionnes }}>
+            <input type="checkbox" name="compte" value="{{ compte.id }}"
+                   {{ "checked" if compte.id|string in comptes_ids_selectionnes }}
+                   onchange="document.getElementById('formulaire-filtres-operations').submit()">
             {{ compte.nom_affiche }}
           </label>
         {% endfor %}
@@ -51,18 +53,25 @@
       <div class="cases-filtre cases-filtre-categories">
         {% for categorie in categories %}
           <label title="{{ categorie.nom }}">
-            <input type="checkbox" name="categorie" value="{{ categorie.id }}" {{ "checked" if categorie.id|string in categories_valeurs_selectionnees }}>
+            <input type="checkbox" name="categorie" value="{{ categorie.id }}"
+                   {{ "checked" if categorie.id|string in categories_valeurs_selectionnees }}
+                   onchange="document.getElementById('formulaire-filtres-operations').submit()">
             {{ categorie.nom }}
           </label>
         {% endfor %}
         <label>
-          <input type="checkbox" name="categorie" value="aucune" {{ "checked" if "aucune" in categories_valeurs_selectionnees }}>
+          <input type="checkbox" name="categorie" value="aucune"
+                 {{ "checked" if "aucune" in categories_valeurs_selectionnees }}
+                 onchange="document.getElementById('formulaire-filtres-operations').submit()">
           Sans catégorie
         </label>
       </div>
     </div>
 
-    <button type="submit">Filtrer</button>
+    <div class="actions-filtres">
+      <button type="submit">Filtrer</button>
+      <a href="{{ url_for('page_operations') }}?reset=1" class="bouton-discret">Réinitialiser</a>
+    </div>
   </form>
 
   {% if groupes_mensuels %}
