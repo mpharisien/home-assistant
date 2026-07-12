@@ -4,10 +4,9 @@ Enregistrement des opérations importées dans la base de données.
 Trois règles importantes sont appliquées ici :
 
 1. Résolution du compte : chaque opération est rattachée à un compte
-   (créé automatiquement s'il est nouveau, voir gestion_comptes.py).
-   Seules les opérations d'un compte au statut "suivi" sont réellement
-   enregistrées. Celles d'un compte "en_attente" ou "ignore" sont
-   simplement comptabilisées à part, pour en informer l'utilisateur.
+   (créé automatiquement, immédiatement suivi, s'il est nouveau - voir
+   gestion_comptes.py). Seules les opérations d'un compte "ignore" sont
+   écartées (comptabilisées à part, pour en informer l'utilisateur).
 
 2. Anti-doublon : chaque opération a un "identifiant_unique" (voir
    app/operations/modele_operation.py). Si cet identifiant existe déjà
@@ -37,8 +36,10 @@ class RapportImport:
     nb_operations_ajoutees: int = 0
     nb_operations_deja_connues: int = 0
 
-    # Noms des comptes détectés mais pas encore validés par l'utilisateur
-    comptes_en_attente: set[str] = field(default_factory=set)
+    # Noms des comptes tout juste découverts pendant cet import (informatif :
+    # ils sont déjà suivis, l'utilisateur peut simplement vouloir les
+    # renommer ou personnaliser leur couleur sur la page "Comptes")
+    comptes_nouveaux: set[str] = field(default_factory=set)
 
     # Noms des comptes que l'utilisateur a choisi d'ignorer
     comptes_ignores: set[str] = field(default_factory=set)
@@ -90,13 +91,12 @@ def enregistrer_operations(connexion: sqlite3.Connection, operations: list[Opera
     rapport = RapportImport()
 
     for operation in operations:
-        compte = obtenir_ou_creer_compte(
+        compte, vient_detre_cree = obtenir_ou_creer_compte(
             connexion, operation.banque, operation.identifiant_compte_brut, operation.nom_compte_suggere
         )
 
-        if compte["statut"] == "en_attente":
-            rapport.comptes_en_attente.add(compte["nom_affiche"])
-            continue
+        if vient_detre_cree:
+            rapport.comptes_nouveaux.add(compte["nom_affiche"])
 
         if compte["statut"] == "ignore":
             rapport.comptes_ignores.add(compte["nom_affiche"])
