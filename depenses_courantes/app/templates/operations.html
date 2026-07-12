@@ -28,7 +28,7 @@
             <td>{{ operation.libelle }}</td>
             <td>
               {% if operation.categorie %}
-                <span class="etiquette-categorie">{{ operation.categorie }}</span>
+                <span class="etiquette-categorie" style="background:{{ operation.categorie_couleur }}22; color:{{ operation.categorie_couleur }};">{{ operation.categorie }}</span>
               {% else %}
                 <span class="etiquette-sans-categorie">Sans catégorie</span>
               {% endif %}
