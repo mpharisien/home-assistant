@@ -6,9 +6,10 @@
   <h2>Comptes détectés ({{ comptes|length }})</h2>
   <p class="description">
     Un compte apparaît ici automatiquement dès qu'il est rencontré dans un
-    import. Tant qu'il n'est pas <strong>validé</strong>, ses opérations
-    ne sont pas importées - tu peux aussi choisir de l'<strong>ignorer</strong>
-    définitivement (ex: un compte d'épargne).
+    import, et ses opérations sont importées tout de suite. Si tu ne
+    veux pas le suivre (ex: une épargne), <strong>ignore</strong>-le :
+    ses opérations déjà importées seront supprimées, et il ne sera plus
+    jamais importé tant qu'il reste ignoré.
   </p>
 
   {% if comptes %}
@@ -17,7 +18,7 @@
         <tr>
           <th>Numéro de compte</th>
           <th>Banque</th>
-          <th>Nom</th>
+          <th>Identité (couleur, lettre) et nom</th>
           <th>Statut</th>
           <th>Actions</th>
         </tr>
@@ -28,34 +29,34 @@
             <td class="colonne-numero">{{ compte.identifiant_brut }}</td>
             <td>{{ compte.banque }}</td>
             <td>
-              <form class="formulaire-renommer" action="{{ url_for('renommer_compte_route', compte_id=compte.id) }}" method="post">
-                <input type="text" name="nouveau_nom" value="{{ compte.nom_affiche }}" required>
-                <button type="submit" class="bouton-secondaire">Renommer</button>
+              <form class="formulaire-compte" action="{{ url_for('modifier_compte_route', compte_id=compte.id) }}" method="post">
+                <span class="pastille-compte" style="background:{{ compte.couleur }}">{{ compte.lettre }}</span>
+                <input type="text" name="nouvelle_lettre" value="{{ compte.lettre }}" maxlength="1" class="champ-lettre" required>
+                <select name="nouvelle_couleur" class="champ-couleur">
+                  {% for nom_couleur, code_couleur in palette_couleurs %}
+                    <option value="{{ code_couleur }}" {{ "selected" if code_couleur == compte.couleur }}>{{ nom_couleur }}</option>
+                  {% endfor %}
+                </select>
+                <input type="text" name="nouveau_nom" value="{{ compte.nom_affiche }}" class="champ-nom" required>
+                <button type="submit" class="bouton-secondaire">Enregistrer</button>
               </form>
             </td>
             <td>
               <span class="badge-statut statut-{{ compte.statut }}">
-                {% if compte.statut == "suivi" %}Suivi
-                {% elif compte.statut == "en_attente" %}En attente
-                {% else %}Ignoré
-                {% endif %}
+                {{ "Suivi" if compte.statut == "suivi" else "Ignoré" }}
               </span>
             </td>
             <td>
-              <div class="actions-compte">
-                {% if compte.statut != "suivi" %}
-                  <form action="{{ url_for('changer_statut_compte_route', compte_id=compte.id) }}" method="post">
-                    <input type="hidden" name="nouveau_statut" value="suivi">
-                    <button type="submit">{{ "Valider" if compte.statut == "en_attente" else "Reprendre le suivi" }}</button>
-                  </form>
-                {% endif %}
-                {% if compte.statut != "ignore" %}
-                  <form action="{{ url_for('changer_statut_compte_route', compte_id=compte.id) }}" method="post">
-                    <input type="hidden" name="nouveau_statut" value="ignore">
-                    <button type="submit" class="bouton-discret">Ignorer</button>
-                  </form>
-                {% endif %}
-              </div>
+              {% if compte.statut == "suivi" %}
+                <form action="{{ url_for('ignorer_compte_route', compte_id=compte.id) }}" method="post"
+                      onsubmit="return confirm('Attention, cette action supprime le compte et ses {{ compte.nb_operations }} opération(s).');">
+                  <button type="submit" class="bouton-discret">Ignorer</button>
+                </form>
+              {% else %}
+                <form action="{{ url_for('reprendre_suivi_compte_route', compte_id=compte.id) }}" method="post">
+                  <button type="submit">Reprendre le suivi</button>
+                </form>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}
