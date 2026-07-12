@@ -184,6 +184,26 @@
     th.colonne-date, td.colonne-date { white-space: nowrap; width: 6.5rem; }
     th.colonne-compte, td.colonne-compte { width: 3rem; text-align: center; }
 
+    td.colonne-compte-affiche { display: flex; align-items: center; gap: 0.6rem; }
+    th.colonne-actions, td.colonne-actions { text-align: right; }
+
+    tr.ligne-edition-compte td {
+      background: var(--couleur-violet-clair);
+      padding: 0.9rem 0.7rem;
+    }
+    tr.ligne-edition-compte .formulaire-compte {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    tr.ligne-edition-compte .champ-statut {
+      padding: 0.35rem 0.4rem;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
     button, .bouton {
       background: var(--couleur-violet);
       color: white;
