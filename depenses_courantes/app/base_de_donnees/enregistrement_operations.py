@@ -1,31 +1,39 @@
 """
 Enregistrement des opérations importées dans la base de données.
 
-Trois règles importantes sont appliquées ici :
+Quatre règles importantes sont appliquées ici :
 
 1. Résolution du compte : chaque opération est rattachée à un compte
    (créé automatiquement, immédiatement suivi, s'il est nouveau - voir
    gestion_comptes.py). Seules les opérations d'un compte "ignore" sont
    écartées (comptabilisées à part, pour en informer l'utilisateur).
 
-2. Anti-doublon : chaque opération a un "identifiant_unique" (voir
+2. Résolution de la catégorie, par ordre de priorité :
+   a. Une règle par mot-clé (voir gestion_categories.py) : volontairement
+      prioritaire, ces règles servent à corriger une catégorisation
+      bancaire jugée incorrecte.
+   b. À défaut, la catégorie fournie par la banque, traduite vers une
+      catégorie du projet via la table de correspondance. Si c'est la
+      première fois qu'on voit cette catégorie brute pour cette banque,
+      une nouvelle catégorie du projet est créée automatiquement.
+   c. À défaut, aucune catégorie ("Sans catégorie").
+
+3. Anti-doublon : chaque opération a un "identifiant_unique" (voir
    app/operations/modele_operation.py). Si cet identifiant existe déjà
    en base, l'opération est ignorée - elle n'écrase jamais une opération
    déjà enregistrée (donc ne touche pas non plus à sa catégorie, même si
    elle a été modifiée à la main entre-temps).
 
-3. Correspondance des catégories : la catégorie brute fournie par la
-   banque (ex: "Alimentation") est traduite vers une catégorie du projet
-   via la table "correspondances_categories_bancaires". Si c'est la
-   première fois qu'on voit cette catégorie pour cette banque, une
-   nouvelle catégorie du projet est créée automatiquement avec le même
-   nom, et la correspondance est mémorisée pour la suite.
+4. Une modification des règles ou des catégories ne s'applique jamais
+   rétroactivement : seuls les prochains imports en tiennent compte.
 """
 
 import sqlite3
 from dataclasses import dataclass, field
 
+from app.base_de_donnees.gestion_categories import trouver_categorie_id_par_regle
 from app.base_de_donnees.gestion_comptes import obtenir_ou_creer_compte
+from app.base_de_donnees.palette_couleurs import obtenir_couleur_par_rang
 from app.operations.modele_operation import Operation
 
 
@@ -48,8 +56,9 @@ class RapportImport:
 def obtenir_ou_creer_categorie(connexion: sqlite3.Connection, banque: str, categorie_source: str) -> int:
     """
     Renvoie l'identifiant de la catégorie du projet correspondant à une
-    catégorie brute donnée par une banque. La crée si besoin, ainsi que
-    la correspondance associée.
+    catégorie brute donnée par une banque. La crée si besoin (avec une
+    couleur automatique différente de celles déjà attribuées), ainsi
+    que la correspondance associée.
     """
     curseur = connexion.cursor()
 
@@ -69,7 +78,9 @@ def obtenir_ou_creer_categorie(connexion: sqlite3.Connection, banque: str, categ
     if ligne_trouvee is not None:
         categorie_id = ligne_trouvee["id"]
     else:
-        curseur.execute("INSERT INTO categories (nom) VALUES (?)", (categorie_source,))
+        rang = curseur.execute("SELECT COUNT(*) AS n FROM categories").fetchone()["n"]
+        couleur = obtenir_couleur_par_rang(rang)
+        curseur.execute("INSERT INTO categories (nom, couleur) VALUES (?, ?)", (categorie_source, couleur))
         categorie_id = curseur.lastrowid
 
     curseur.execute(
@@ -103,8 +114,11 @@ def enregistrer_operations(connexion: sqlite3.Connection, operations: list[Opera
             continue
 
         # statut == "suivi" : on enregistre réellement cette opération
-        categorie_id = None
-        if operation.categorie_banque:
+
+        # Résolution de la catégorie : une règle par mot-clé est toujours
+        # prioritaire sur la catégorie fournie par la banque.
+        categorie_id = trouver_categorie_id_par_regle(connexion, operation.libelle)
+        if categorie_id is None and operation.categorie_banque:
             categorie_id = obtenir_ou_creer_categorie(
                 connexion, operation.banque, operation.categorie_banque
             )
