@@ -41,6 +41,16 @@ def lister_operations(connexion: sqlite3.Connection) -> list[sqlite3.Row]:
         """
     ).fetchall()
 
+def obtenir_derniere_date_operation(connexion: sqlite3.Connection) -> str | None:
+    """
+    Renvoie la date (au format AAAA-MM-JJ) de l'opération la plus
+    récente en base, ou None si aucune opération n'existe encore.
+    Utilisé pour proposer par défaut le mois le plus pertinent sur la
+    page Opérations, plutôt que le mois calendaire actuel (qui peut être
+    vide si aucun relevé récent n'a encore été importé).
+    """
+    ligne = connexion.execute("SELECT MAX(date_operation) AS derniere_date FROM operations").fetchone()
+    return ligne["derniere_date"] if ligne else None
 
 def obtenir_annees_disponibles(connexion: sqlite3.Connection) -> list[int]:
     """Renvoie la liste des années pour lesquelles il existe au moins une opération, la plus récente en premier."""
