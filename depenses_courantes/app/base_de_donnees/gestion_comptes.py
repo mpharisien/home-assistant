@@ -20,6 +20,8 @@ sans jamais avoir à modifier le code.
 
 import sqlite3
 
+from app.base_de_donnees.palette_couleurs import PALETTE_COULEURS as PALETTE_COULEURS_COMPTES
+
 STATUTS_VALIDES = ("suivi", "ignore")
 
 # Couleur par défaut attribuée à un compte selon sa banque, la première
@@ -30,28 +32,6 @@ COULEURS_PAR_DEFAUT_SELON_BANQUE = {
     "Boursobank": "#0d3b73",
 }
 COULEUR_PAR_DEFAUT_GENERIQUE = "#6a2c91"
-
-# Palette de couleurs proposées pour l'identité visuelle d'un compte.
-# Volontairement limitée à un jeu de couleurs franches et bien
-# distinctes entre elles, plutôt qu'un sélecteur de couleur libre.
-PALETTE_COULEURS_COMPTES = [
-    ("Vert", "#1a8a4c"),
-    ("Bleu", "#0d3b73"),
-    ("Violet", "#6a2c91"),
-    ("Rouge", "#b3452f"),
-    ("Orange", "#c9781c"),
-    ("Jaune", "#b8960c"),
-    ("Turquoise", "#0f8a8a"),
-    ("Rose", "#c23a72"),
-    ("Bleu clair", "#2f9bd6"),
-    ("Vert clair", "#5cab5c"),
-    ("Marron", "#8a5a3c"),
-    ("Gris bleu", "#5b6b8c"),
-    ("Indigo", "#4a3f9e"),
-    ("Corail", "#d1615d"),
-    ("Olive", "#8a8a3c"),
-    ("Gris", "#6b6272"),
-]
 
 
 def obtenir_ou_creer_compte(
