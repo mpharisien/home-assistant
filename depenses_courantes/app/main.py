@@ -105,8 +105,13 @@ def page_operations():
 
     annees_disponibles = obtenir_annees_disponibles(connexion)
     if aucun_filtre_fourni:
-        annee_selectionnee = str(aujourdhui.year) if aujourdhui.year in annees_disponibles else "toutes"
-        mois_selectionne = str(aujourdhui.month) if annee_selectionnee == str(aujourdhui.year) else "tous"
+        derniere_date = obtenir_derniere_date_operation(connexion)
+        if derniere_date:
+            annee_selectionnee, mois_selectionne = derniere_date.split("-")[:2]
+            mois_selectionne = str(int(mois_selectionne))  # retire le zéro initial ("07" -> "7")
+        else:
+            annee_selectionnee = str(aujourdhui.year) if aujourdhui.year in annees_disponibles else "toutes"
+            mois_selectionne = str(aujourdhui.month) if annee_selectionnee == str(aujourdhui.year) else "tous"
     else:
         annee_selectionnee = request.args.get("annee", "toutes")
         mois_selectionne = request.args.get("mois", "tous")
