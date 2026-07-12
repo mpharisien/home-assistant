@@ -250,6 +250,70 @@
       min-width: 220px;
     }
 
+    /* Filtres (pages Opérations et Dashboard) */
+    form.formulaire-filtres {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 1.2rem;
+      background: white;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 10px;
+      padding: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    .groupe-filtre { display: flex; flex-direction: column; gap: 0.3rem; }
+    .groupe-filtre label, .etiquette-groupe-filtre {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b6272;
+      font-weight: 600;
+    }
+    .groupe-filtre select {
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .groupe-filtre-cases { max-width: 320px; }
+    .cases-filtre {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem 0.9rem;
+      font-size: 0.85rem;
+    }
+    .cases-filtre label { text-transform: none; letter-spacing: normal; font-weight: 400; color: var(--couleur-texte); display: flex; align-items: center; gap: 0.3rem; }
+
+    /* Regroupement mensuel (page Opérations) */
+    h3.titre-groupe-mois {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 1.6rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--couleur-violet);
+    }
+    .total-groupe-mois { font-size: 0.85rem; font-weight: 500; color: var(--couleur-depense); }
+
+    /* Grille de graphiques (page Dashboard) */
+    .grille-graphiques {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.2rem;
+    }
+    @media (max-width: 800px) {
+      .grille-graphiques { grid-template-columns: 1fr; }
+    }
+    .carte-graphique {
+      background: white;
+      border: 1px solid var(--couleur-bordure);
+      border-radius: 10px;
+      padding: 1.1rem;
+    }
+    .carte-graphique h3 { margin: 0 0 0.7rem; font-size: 0.95rem; }
+    .carte-graphique-large { grid-column: 1 / -1; }
+
     button, .bouton {
       background: var(--couleur-violet);
       color: white;
@@ -280,10 +344,12 @@
   <header>
     <h1>Dépenses Courantes</h1>
     <nav>
+      <a href="{{ url_for('page_dashboard') }}">Dashboard</a>
       <a href="{{ url_for('page_operations') }}">Opérations</a>
+      <a href="{{ url_for('page_historique') }}">Historique</a>
       <a href="{{ url_for('page_categories') }}">Catégories</a>
       <a href="{{ url_for('page_comptes') }}">Comptes</a>
-      <a href="{{ url_for('page_accueil') }}">Importer</a>
+      <a href="{{ url_for('page_import') }}">Importer</a>
     </nav>
   </header>
   <main>
