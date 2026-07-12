@@ -9,8 +9,8 @@
     <table>
       <thead>
         <tr>
-          <th>Date</th>
-          <th>Compte</th>
+          <th class="colonne-date">Date</th>
+          <th class="colonne-compte">Compte</th>
           <th>Libellé</th>
           <th>Catégorie</th>
           <th class="colonne-montant">Montant</th>
@@ -19,8 +19,12 @@
       <tbody>
         {% for operation in operations %}
           <tr>
-            <td>{{ operation.date_operation }}</td>
-            <td>{{ operation.compte }}</td>
+            <td class="colonne-date">{{ operation.date_operation }}</td>
+            <td class="colonne-compte">
+              <span class="pastille-compte" style="background:{{ operation.compte_couleur }}" title="{{ operation.compte }}">
+                {{ operation.compte_lettre }}
+              </span>
+            </td>
             <td>{{ operation.libelle }}</td>
             <td>
               {% if operation.categorie %}
