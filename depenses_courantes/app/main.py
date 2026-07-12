@@ -2,10 +2,13 @@
 Application "Dépenses Courantes" - Point d'entrée principal.
 
 Cette application web (Flask) permet de :
-  1. Déposer un fichier d'export bancaire pour l'importer (page d'accueil)
-  2. Consulter la liste des opérations déjà importées (page /operations)
-  3. Gérer les comptes détectés : les ignorer, reprendre leur suivi,
-     changer leur nom/couleur/lettre (page /comptes)
+  1. Consulter un tableau de bord de graphiques (page d'accueil, /)
+  2. Consulter les opérations avec filtres et regroupement mensuel (/operations)
+  3. Consulter l'historique complet, sans filtre (/historique)
+  4. Gérer les catégories : identité visuelle, correspondances bancaires,
+     mots-clés d'attribution automatique, fusion, suppression (/categories)
+  5. Gérer les comptes détectés (/comptes)
+  6. Importer un fichier d'export bancaire (/importer)
 
 CE FICHIER PEUT AUSSI ÊTRE LANCÉ EN LOCAL SUR TON PC, SANS HOME ASSISTANT :
   1. Ouvrir un terminal dans le dossier depenses_courantes
@@ -16,13 +19,20 @@ Dans ce cas, la base de données est créée sous forme d'un simple fichier
 "depenses.db" dans le dossier courant (voir app/base_de_donnees/connexion.py).
 """
 
+import json
 import os
 import tempfile
+from datetime import date
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 
 from app.base_de_donnees.connexion import obtenir_connexion
-from app.base_de_donnees.consultation_operations import lister_operations
+from app.base_de_donnees.consultation_dashboard import obtenir_donnees_dashboard
+from app.base_de_donnees.consultation_operations import (
+    lister_operations,
+    lister_operations_groupees_par_mois,
+    obtenir_annees_disponibles,
+)
 from app.base_de_donnees.gestion_categories import (
     ajouter_mot_cle,
     fusionner_categories,
@@ -41,6 +51,7 @@ from app.base_de_donnees.gestion_comptes import (
     reprendre_suivi_compte,
 )
 from app.operations.import_fichier import importer_fichier_operations
+from app.utilitaires.dates_francaises import NOMS_MOIS
 
 application_web = Flask(__name__)
 
@@ -52,25 +63,119 @@ application_web.secret_key = "depenses-courantes-cle-locale"
 
 
 @application_web.route("/")
-def page_accueil():
-    """Page d'accueil : formulaires de dépôt d'un fichier à importer."""
+def page_dashboard():
+    """Page d'accueil : tableau de bord de graphiques."""
+    connexion = obtenir_connexion()
+
+    annees_disponibles = obtenir_annees_disponibles(connexion) or [date.today().year]
+    annee_selectionnee = request.args.get("annee", type=int)
+    if annee_selectionnee not in annees_disponibles:
+        annee_selectionnee = annees_disponibles[0]
+
+    comptes = lister_comptes(connexion)
+    comptes_suivis = [compte for compte in comptes if compte["statut"] == "suivi"]
+
+    if "compte" in request.args:
+        comptes_ids_selectionnes = request.args.getlist("compte")
+    else:
+        comptes_ids_selectionnes = [str(compte["id"]) for compte in comptes_suivis]
+
+    donnees = obtenir_donnees_dashboard(
+        connexion, annee_selectionnee, [int(identifiant) for identifiant in comptes_ids_selectionnes]
+    )
+
+    return render_template(
+        "dashboard.html",
+        donnees=donnees,
+        donnees_json=json.dumps(donnees, ensure_ascii=False),
+        annees_disponibles=annees_disponibles,
+        annee_selectionnee=annee_selectionnee,
+        comptes=comptes_suivis,
+        comptes_ids_selectionnes=comptes_ids_selectionnes,
+    )
+
+
+@application_web.route("/operations")
+def page_operations():
+    """Page des opérations, filtrable et triable, regroupée par mois."""
+    connexion = obtenir_connexion()
+
+    aujourdhui = date.today()
+    aucun_filtre_fourni = not request.args
+
+    annees_disponibles = obtenir_annees_disponibles(connexion)
+    if aucun_filtre_fourni:
+        annee_selectionnee = str(aujourdhui.year) if aujourdhui.year in annees_disponibles else "toutes"
+        mois_selectionne = str(aujourdhui.month) if annee_selectionnee == str(aujourdhui.year) else "tous"
+    else:
+        annee_selectionnee = request.args.get("annee", "toutes")
+        mois_selectionne = request.args.get("mois", "tous")
+
+    tri_selectionne = request.args.get("tri", "date")
+
+    comptes = lister_comptes(connexion)
+    comptes_suivis = [compte for compte in comptes if compte["statut"] == "suivi"]
+    categories = lister_categories(connexion)
+
+    if aucun_filtre_fourni:
+        comptes_ids_selectionnes = [str(compte["id"]) for compte in comptes_suivis]
+        categories_valeurs_selectionnees = [str(categorie["id"]) for categorie in categories] + ["aucune"]
+    else:
+        comptes_ids_selectionnes = request.args.getlist("compte")
+        categories_valeurs_selectionnees = request.args.getlist("categorie")
+
+    groupes_mensuels = lister_operations_groupees_par_mois(
+        connexion,
+        annee_selectionnee,
+        mois_selectionne,
+        [int(identifiant) for identifiant in comptes_ids_selectionnes],
+        categories_valeurs_selectionnees,
+        tri_selectionne,
+    )
+
+    return render_template(
+        "operations.html",
+        groupes_mensuels=groupes_mensuels,
+        annees_disponibles=annees_disponibles,
+        annee_selectionnee=annee_selectionnee,
+        mois_selectionne=mois_selectionne,
+        tri_selectionne=tri_selectionne,
+        comptes=comptes_suivis,
+        comptes_ids_selectionnes=comptes_ids_selectionnes,
+        categories=categories,
+        categories_valeurs_selectionnees=categories_valeurs_selectionnees,
+        noms_mois=NOMS_MOIS,
+    )
+
+
+@application_web.route("/historique")
+def page_historique():
+    """Page listant l'historique complet des opérations, sans filtre."""
+    connexion = obtenir_connexion()
+    operations = lister_operations(connexion)
+    return render_template("historique.html", operations=operations)
+
+
+@application_web.route("/importer")
+def page_import():
+    """Page d'import : formulaires de dépôt d'un fichier bancaire."""
     return render_template("accueil.html")
 
 
 @application_web.route("/importer", methods=["POST"])
 def importer():
     """
-    Reçoit le fichier déposé sur la page d'accueil (quelle que soit la
+    Reçoit le fichier déposé sur la page d'import (quelle que soit la
     zone de dépôt utilisée, Crédit Agricole ou Boursobank - le
     traitement est identique, seule l'extension du fichier détermine
     comment il est lu), l'importe en base de données, puis revient à
-    l'accueil avec un ou plusieurs messages de résultat.
+    la page d'import avec un ou plusieurs messages de résultat.
     """
     fichier_depose = request.files.get("fichier_operations")
 
     if fichier_depose is None or fichier_depose.filename == "":
         flash("Aucun fichier n'a été sélectionné.", "erreur")
-        return redirect(url_for("page_accueil"))
+        return redirect(url_for("page_import"))
 
     extension = os.path.splitext(fichier_depose.filename)[1]
     fichier_temporaire = tempfile.NamedTemporaryFile(delete=False, suffix=extension)
@@ -106,15 +211,7 @@ def importer():
     finally:
         os.remove(fichier_temporaire.name)
 
-    return redirect(url_for("page_accueil"))
-
-
-@application_web.route("/operations")
-def page_operations():
-    """Page listant toutes les opérations déjà importées."""
-    connexion = obtenir_connexion()
-    operations = lister_operations(connexion)
-    return render_template("operations.html", operations=operations)
+    return redirect(url_for("page_import"))
 
 
 @application_web.route("/comptes")
