@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block titre %}Catégories — Dépenses Courantes{% endblock %}
+
+{% block contenu %}
+  <h2>Catégories ({{ categories|length }})</h2>
+  <p class="description">
+    Clique sur "Modifier" pour changer le nom ou la couleur d'une
+    catégorie, gérer ses mots-clés d'attribution automatique, la
+    fusionner avec une autre, ou la supprimer.
+  </p>
+
+  {% if categories %}
+    <table>
+      <thead>
+        <tr>
+          <th>Catégorie</th>
+          <th>Opérations</th>
+          <th class="colonne-actions">Modifier</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for categorie in categories %}
+          <tr>
+            <td>
+              <span class="etiquette-categorie" style="background:{{ categorie.couleur }}22; color:{{ categorie.couleur }};">{{ categorie.nom }}</span>
+            </td>
+            <td>{{ categorie.nb_operations }}</td>
+            <td class="colonne-actions">
+              <button type="button" class="bouton-secondaire" onclick="basculerEdition({{ categorie.id }})">Modifier</button>
+            </td>
+          </tr>
+          <tr class="ligne-edition-categorie" id="edition-{{ categorie.id }}" style="display:none;">
+            <td colspan="3">
+              <div class="panneau-edition-categorie">
+
+                <div class="section-edition">
+                  <h3>Nom et couleur</h3>
+                  <form class="formulaire-compte" action="{{ url_for('modifier_categorie_route', categorie_id=categorie.id) }}" method="post">
+                    <select name="nouvelle_couleur" class="champ-couleur">
+                      {% for nom_couleur, code_couleur in palette_couleurs %}
+                        <option value="{{ code_couleur }}" {{ "selected" if code_couleur == categorie.couleur }}>{{ nom_couleur }}</option>
+                      {% endfor %}
+                    </select>
+                    <input type="text" name="nouveau_nom" value="{{ categorie.nom }}" class="champ-nom" required>
+                    <button type="submit">Enregistrer</button>
+                  </form>
+                </div>
+
+                <div class="section-edition">
+                  <h3>Catégories bancaires liées</h3>
+                  {% set correspondances = correspondances_par_categorie.get(categorie.id, []) %}
+                  {% if correspondances %}
+                    <ul class="liste-correspondances">
+                      {% for correspondance in correspondances %}
+                        <li>{{ correspondance.banque }} : "{{ correspondance.categorie_source }}"</li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <p class="description">Aucune - cette catégorie n'a jamais été fournie par une banque (créée par une règle ou manuellement).</p>
+                  {% endif %}
+                </div>
+
+                <div class="section-edition">
+                  <h3>Mots-clés d'attribution automatique</h3>
+                  <p class="description">
+                    À la prochaine importation, toute opération dont le libellé contient un
+                    de ces mots-clés sera classée ici - même si la banque propose une autre catégorie.
+                  </p>
+                  {% set mots_cles = mots_cles_par_categorie.get(categorie.id, []) %}
+                  {% if mots_cles %}
+                    <ul class="liste-mots-cles">
+                      {% for mot_cle in mots_cles %}
+                        <li>
+                          {{ mot_cle.mot_cle }}
+                          <form action="{{ url_for('supprimer_mot_cle_route', categorie_id=categorie.id, mot_cle_id=mot_cle.id) }}" method="post" class="formulaire-inline">
+                            <button type="submit" class="bouton-discret bouton-mini">Supprimer</button>
+                          </form>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <p class="description">Aucun mot-clé pour l'instant.</p>
+                  {% endif %}
+                  <form action="{{ url_for('ajouter_mot_cle_route', categorie_id=categorie.id) }}" method="post" class="formulaire-ajout-mot-cle">
+                    <input type="text" name="mot_cle" placeholder="Nouveau mot-clé (ex: carrefour)" required>
+                    <button type="submit" class="bouton-secondaire">Ajouter</button>
+                  </form>
+                </div>
+
+                <div class="section-edition">
+                  <h3>Fusionner avec une autre catégorie</h3>
+                  <form action="{{ url_for('fusionner_categories_route', categorie_id=categorie.id) }}" method="post"
+                        onsubmit="return confirm('Attention, cette action déplace les {{ categorie.nb_operations }} opération(s) de \'{{ categorie.nom }}\' vers la catégorie choisie, puis supprime \'{{ categorie.nom }}\'.');">
+                    <select name="categorie_cible_id" required>
+                      <option value="" disabled selected>Choisir une catégorie...</option>
+                      {% for autre_categorie in categories if autre_categorie.id != categorie.id %}
+                        <option value="{{ autre_categorie.id }}">{{ autre_categorie.nom }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="bouton-secondaire">Fusionner</button>
+                  </form>
+                </div>
+
+                <div class="section-edition">
+                  <h3>Supprimer</h3>
+                  <form action="{{ url_for('supprimer_categorie_route', categorie_id=categorie.id) }}" method="post"
+                        onsubmit="return confirm('Attention, cette action supprime la catégorie \'{{ categorie.nom }}\'. Ses {{ categorie.nb_operations }} opération(s) repasseront \'Sans catégorie\'.');">
+                    <button type="submit" class="bouton-discret">Supprimer cette catégorie</button>
+                  </form>
+                </div>
+
+                <div class="section-edition section-edition-fermer">
+                  <button type="button" class="bouton-discret" onclick="basculerEdition({{ categorie.id }})">Fermer</button>
+                </div>
+
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="description">Aucune catégorie pour l'instant : importe un premier fichier contenant des catégories bancaires pour en voir apparaître ici.</p>
+  {% endif %}
+
+  <script>
+    function basculerEdition(categorieId) {
+      const ligne = document.getElementById('edition-' + categorieId);
+      const estVisible = ligne.style.display !== 'none';
+      ligne.style.display = estVisible ? 'none' : 'table-row';
+    }
+  </script>
+{% endblock %}
