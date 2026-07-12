@@ -4,8 +4,8 @@ Application "Dépenses Courantes" - Point d'entrée principal.
 Cette application web (Flask) permet de :
   1. Déposer un fichier d'export bancaire pour l'importer (page d'accueil)
   2. Consulter la liste des opérations déjà importées (page /operations)
-  3. Gérer les comptes détectés : les valider, les ignorer, les renommer
-     (page /comptes)
+  3. Gérer les comptes détectés : les ignorer, reprendre leur suivi,
+     changer leur nom/couleur/lettre (page /comptes)
 
 CE FICHIER PEUT AUSSI ÊTRE LANCÉ EN LOCAL SUR TON PC, SANS HOME ASSISTANT :
   1. Ouvrir un terminal dans le dossier depenses_courantes
@@ -24,9 +24,11 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 from app.base_de_donnees.connexion import obtenir_connexion
 from app.base_de_donnees.consultation_operations import lister_operations
 from app.base_de_donnees.gestion_comptes import (
-    definir_statut_compte,
+    PALETTE_COULEURS_COMPTES,
+    ignorer_compte,
     lister_comptes,
-    renommer_compte,
+    modifier_compte,
+    reprendre_suivi_compte,
 )
 from app.operations.import_fichier import importer_fichier_operations
 
@@ -76,12 +78,11 @@ def importer():
             "succes",
         )
 
-        if rapport.comptes_en_attente:
+        if rapport.comptes_nouveaux:
             flash(
-                "Nouveau(x) compte(s) détecté(s), en attente de validation : "
-                + ", ".join(sorted(rapport.comptes_en_attente))
-                + ". Rends-toi sur la page \"Comptes\" pour les valider (ou les ignorer) "
-                "avant que leurs opérations soient importées.",
+                "Nouveau(x) compte(s) détecté(s) et suivi(s) automatiquement : "
+                + ", ".join(sorted(rapport.comptes_nouveaux))
+                + ". Tu peux les renommer ou choisir leur couleur depuis la page \"Comptes\".",
                 "avertissement",
             )
 
@@ -111,32 +112,46 @@ def page_comptes():
     """Page listant tous les comptes détectés, avec leur statut."""
     connexion = obtenir_connexion()
     comptes = lister_comptes(connexion)
-    return render_template("comptes.html", comptes=comptes)
+    return render_template("comptes.html", comptes=comptes, palette_couleurs=PALETTE_COULEURS_COMPTES)
 
 
-@application_web.route("/comptes/<int:compte_id>/renommer", methods=["POST"])
-def renommer_compte_route(compte_id):
-    """Change le nom affiché d'un compte."""
+@application_web.route("/comptes/<int:compte_id>/modifier", methods=["POST"])
+def modifier_compte_route(compte_id):
+    """Met à jour en une fois le nom, la couleur et la lettre d'un compte."""
     nouveau_nom = request.form.get("nouveau_nom", "").strip()
-    if nouveau_nom:
-        connexion = obtenir_connexion()
-        renommer_compte(connexion, compte_id, nouveau_nom)
-        flash("Compte renommé.", "succes")
-    else:
-        flash("Le nom ne peut pas être vide.", "erreur")
+    nouvelle_couleur = request.form.get("nouvelle_couleur", "").strip()
+    nouvelle_lettre = request.form.get("nouvelle_lettre", "").strip()
+
+    if not nouveau_nom or not nouvelle_lettre:
+        flash("Le nom et la lettre ne peuvent pas être vides.", "erreur")
+        return redirect(url_for("page_comptes"))
+
+    connexion = obtenir_connexion()
+    modifier_compte(connexion, compte_id, nouveau_nom, nouvelle_couleur, nouvelle_lettre)
+    flash("Compte mis à jour.", "succes")
     return redirect(url_for("page_comptes"))
 
 
-@application_web.route("/comptes/<int:compte_id>/statut", methods=["POST"])
-def changer_statut_compte_route(compte_id):
-    """Change le statut d'un compte (valider, ignorer, ou reprendre le suivi)."""
-    nouveau_statut = request.form.get("nouveau_statut", "")
+@application_web.route("/comptes/<int:compte_id>/ignorer", methods=["POST"])
+def ignorer_compte_route(compte_id):
+    """
+    Met un compte de côté : supprime ses opérations déjà importées et
+    empêche toute nouvelle importation tant qu'il reste ignoré. La
+    confirmation (avec le nombre d'opérations concernées) est faite
+    côté navigateur avant l'envoi de cette requête.
+    """
     connexion = obtenir_connexion()
-    try:
-        definir_statut_compte(connexion, compte_id, nouveau_statut)
-        flash("Statut du compte mis à jour.", "succes")
-    except ValueError as erreur:
-        flash(str(erreur), "erreur")
+    nb_supprimees = ignorer_compte(connexion, compte_id)
+    flash(f"Compte ignoré : {nb_supprimees} opération(s) supprimée(s).", "succes")
+    return redirect(url_for("page_comptes"))
+
+
+@application_web.route("/comptes/<int:compte_id>/reprendre-le-suivi", methods=["POST"])
+def reprendre_suivi_compte_route(compte_id):
+    """Remet un compte ignoré en suivi (ne restaure pas ses anciennes opérations)."""
+    connexion = obtenir_connexion()
+    reprendre_suivi_compte(connexion, compte_id)
+    flash("Compte de nouveau suivi. Réimporte un fichier pour récupérer ses opérations.", "succes")
     return redirect(url_for("page_comptes"))
 
 
