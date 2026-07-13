@@ -10,6 +10,16 @@
     fusionner avec une autre, ou la supprimer.
   </p>
 
+  <form class="formulaire-nouvelle-categorie" action="{{ url_for('creer_categorie_route') }}" method="post">
+    <select name="nouvelle_couleur" class="champ-couleur">
+      {% for nom_couleur, code_couleur in palette_couleurs %}
+        <option value="{{ code_couleur }}">{{ nom_couleur }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="nouveau_nom" placeholder="Nom de la nouvelle catégorie" class="champ-nom" required>
+    <button type="submit" class="bouton-secondaire">Ajouter une catégorie</button>
+  </form>
+
   {% if categories %}
     <table>
       <thead>
