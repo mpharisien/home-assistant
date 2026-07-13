@@ -36,6 +36,8 @@ from app.base_de_donnees.consultation_operations import (
 )
 from app.base_de_donnees.gestion_categories import (
     ajouter_mot_cle,
+    creer_categorie,
+    definir_categorie_operation,
     fusionner_categories,
     lister_categories,
     modifier_categorie,
@@ -171,6 +173,7 @@ def page_operations():
             categories=categories,
             categories_valeurs_selectionnees=categories_valeurs_selectionnees,
             noms_mois=NOMS_MOIS,
+            chaine_requete_actuelle=request.query_string.decode(),
         )
     )
 
@@ -181,6 +184,24 @@ def page_operations():
         reponse.set_cookie(NOM_COOKIE_FILTRES, request.query_string.decode(), max_age=60 * 60 * 24 * 365)
 
     return reponse
+
+
+@application_web.route("/operations/<int:operation_id>/categorie", methods=["POST"])
+def modifier_categorie_operation_route(operation_id):
+    """
+    Change la catégorie d'une opération précise, choisie manuellement
+    depuis la page Opérations. Revient ensuite sur la même page, avec
+    les mêmes filtres qu'avant ce changement.
+    """
+    valeur_choisie = request.form.get("nouvelle_categorie_id", "")
+    nouvelle_categorie_id = int(valeur_choisie) if valeur_choisie else None
+
+    connexion = obtenir_connexion()
+    definir_categorie_operation(connexion, operation_id, nouvelle_categorie_id)
+    flash("Catégorie de l'opération mise à jour.", "succes")
+
+    chaine_retour = request.form.get("retour", "")
+    return redirect(f"{url_for('page_operations')}?{chaine_retour}" if chaine_retour else url_for("page_operations"))
 
 
 @application_web.route("/historique")
@@ -317,6 +338,26 @@ def page_categories():
         mots_cles_par_categorie=mots_cles_par_categorie,
         palette_couleurs=PALETTE_COULEURS_COMPTES,
     )
+
+
+@application_web.route("/categories/creer", methods=["POST"])
+def creer_categorie_route():
+    """Crée une nouvelle catégorie manuellement (pas via un import)."""
+    nouveau_nom = request.form.get("nouveau_nom", "").strip()
+    nouvelle_couleur = request.form.get("nouvelle_couleur", "").strip()
+
+    if not nouveau_nom:
+        flash("Le nom ne peut pas être vide.", "erreur")
+        return redirect(url_for("page_categories"))
+
+    connexion = obtenir_connexion()
+    try:
+        creer_categorie(connexion, nouveau_nom, nouvelle_couleur)
+        flash(f'Catégorie "{nouveau_nom}" créée.', "succes")
+    except ValueError as erreur:
+        flash(str(erreur), "erreur")
+
+    return redirect(url_for("page_categories"))
 
 
 @application_web.route("/categories/<int:categorie_id>/modifier", methods=["POST"])
