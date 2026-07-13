@@ -39,7 +39,8 @@ DEFINITION_TABLES = """
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nom TEXT NOT NULL UNIQUE,
-    couleur TEXT NOT NULL DEFAULT '#6a2c91'
+    couleur TEXT NOT NULL DEFAULT '#6a2c91',
+    exclu_des_statistiques INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS correspondances_categories_bancaires (
@@ -91,6 +92,7 @@ def initialiser_base_de_donnees(connexion):
     _migrer_suppression_statut_en_attente(connexion)
     _migrer_couleur_categories(connexion)
     _creer_categorie_virements_internes_si_absente(connexion)
+    _migrer_exclusion_statistiques_categories(connexion)
     connexion.commit()
 
 
@@ -108,6 +110,31 @@ def _creer_categorie_virements_internes_si_absente(connexion):
         connexion.execute(
             "INSERT INTO categories (nom, couleur) VALUES ('Virements internes', '#4a3f9e')"
         )
+
+
+def _migrer_exclusion_statistiques_categories(connexion):
+    """
+    Ajoute la colonne "exclu_des_statistiques" à la table "categories"
+    si elle n'existe pas encore. Une catégorie marquée ainsi continue
+    d'apparaître normalement dans les listes d'opérations, mais ses
+    montants sont ignorés dans tous les calculs du Dashboard (dépenses,
+    recettes, soldes...) - utile pour les mouvements qui ne représentent
+    pas une vraie dépense/recette personnelle (virements entre tes
+    propres comptes, remboursements de proches...).
+
+    "Virements internes" est systématiquement marquée ainsi : c'est sa
+    raison d'être, que la colonne vienne d'être ajoutée ou non.
+    """
+    colonnes = {ligne["name"] for ligne in connexion.execute("PRAGMA table_info(categories)")}
+
+    if "exclu_des_statistiques" not in colonnes:
+        connexion.execute(
+            "ALTER TABLE categories ADD COLUMN exclu_des_statistiques INTEGER NOT NULL DEFAULT 0"
+        )
+
+    connexion.execute(
+        "UPDATE categories SET exclu_des_statistiques = 1 WHERE nom = 'Virements internes'"
+    )
 
 
 def _migrer_identite_visuelle_comptes(connexion):
