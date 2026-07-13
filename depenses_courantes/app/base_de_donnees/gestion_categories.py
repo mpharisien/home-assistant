@@ -26,6 +26,37 @@ elle ne concerne que les prochains imports.
 import sqlite3
 
 
+def creer_categorie(connexion: sqlite3.Connection, nom: str, couleur: str) -> int:
+    """
+    Crée une nouvelle catégorie manuellement (indépendamment de tout import).
+
+    :raises ValueError: si une catégorie porte déjà ce nom
+    """
+    existe_deja = connexion.execute("SELECT id FROM categories WHERE nom = ?", (nom,)).fetchone()
+    if existe_deja is not None:
+        raise ValueError(f'Une catégorie nommée "{nom}" existe déjà.')
+
+    curseur = connexion.execute("INSERT INTO categories (nom, couleur) VALUES (?, ?)", (nom, couleur))
+    connexion.commit()
+    return curseur.lastrowid
+
+
+def definir_categorie_operation(
+    connexion: sqlite3.Connection, operation_id: int, nouvelle_categorie_id: int | None
+) -> None:
+    """
+    Change manuellement la catégorie d'une opération précise (depuis la
+    page Opérations). L'opération est marquée "modifiée manuellement" :
+    une future règle automatique, même modifiée après coup, ne
+    l'écrasera jamais (voir app/base_de_donnees/enregistrement_operations.py).
+    """
+    connexion.execute(
+        "UPDATE operations SET categorie_id = ?, categorie_modifiee_manuellement = 1 WHERE id = ?",
+        (nouvelle_categorie_id, operation_id),
+    )
+    connexion.commit()
+
+
 def lister_categories(connexion: sqlite3.Connection) -> list[sqlite3.Row]:
     """Renvoie toutes les catégories avec leur nombre actuel d'opérations."""
     return connexion.execute(
