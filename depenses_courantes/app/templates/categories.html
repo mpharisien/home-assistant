@@ -34,6 +34,9 @@
           <tr>
             <td>
               <span class="etiquette-categorie" style="background:{{ categorie.couleur }}22; color:{{ categorie.couleur }};">{{ categorie.nom }}</span>
+              {% if categorie.exclu_des_statistiques %}
+                <span class="badge-exclusion-stats" title="Exclue des statistiques du Dashboard">hors stats</span>
+              {% endif %}
             </td>
             <td>{{ categorie.nb_operations }}</td>
             <td class="colonne-actions">
@@ -53,8 +56,18 @@
                       {% endfor %}
                     </select>
                     <input type="text" name="nouveau_nom" value="{{ categorie.nom }}" class="champ-nom" required>
+                    <label class="case-exclusion-stats">
+                      <input type="checkbox" name="exclu_des_statistiques" {{ "checked" if categorie.exclu_des_statistiques }}>
+                      Exclure des statistiques du Dashboard
+                    </label>
                     <button type="submit">Enregistrer</button>
                   </form>
+                  <p class="description">
+                    Une catégorie exclue continue d'apparaître normalement dans les opérations,
+                    mais ses montants ne comptent dans aucun graphique ni total du Dashboard -
+                    utile pour les virements internes ou les remboursements qui ne représentent
+                    pas une vraie dépense ou recette.
+                  </p>
                 </div>
 
                 <div class="section-edition">
