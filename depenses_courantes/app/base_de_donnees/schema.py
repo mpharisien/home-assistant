@@ -90,7 +90,24 @@ def initialiser_base_de_donnees(connexion):
     _migrer_identite_visuelle_comptes(connexion)
     _migrer_suppression_statut_en_attente(connexion)
     _migrer_couleur_categories(connexion)
+    _creer_categorie_virements_internes_si_absente(connexion)
     connexion.commit()
+
+
+def _creer_categorie_virements_internes_si_absente(connexion):
+    """
+    Pré-crée une catégorie "Virements internes", destinée à classer les
+    mouvements d'argent entre tes propres comptes (ex: Crédit Agricole
+    vers Boursobank) - à utiliser dès maintenant manuellement, en
+    attendant une future détection automatique de ces virements.
+    """
+    existe_deja = connexion.execute(
+        "SELECT id FROM categories WHERE nom = 'Virements internes'"
+    ).fetchone()
+    if existe_deja is None:
+        connexion.execute(
+            "INSERT INTO categories (nom, couleur) VALUES ('Virements internes', '#4a3f9e')"
+        )
 
 
 def _migrer_identite_visuelle_comptes(connexion):
