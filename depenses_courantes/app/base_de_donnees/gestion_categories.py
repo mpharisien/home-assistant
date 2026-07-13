@@ -92,12 +92,16 @@ def obtenir_mots_cles(connexion: sqlite3.Connection, categorie_id: int) -> list[
 
 
 def modifier_categorie(
-    connexion: sqlite3.Connection, categorie_id: int, nouveau_nom: str, nouvelle_couleur: str
+    connexion: sqlite3.Connection,
+    categorie_id: int,
+    nouveau_nom: str,
+    nouvelle_couleur: str,
+    exclu_des_statistiques: bool,
 ) -> None:
-    """Met à jour le nom et la couleur d'une catégorie."""
+    """Met à jour le nom, la couleur, et le réglage "exclu des statistiques" d'une catégorie."""
     connexion.execute(
-        "UPDATE categories SET nom = ?, couleur = ? WHERE id = ?",
-        (nouveau_nom, nouvelle_couleur, categorie_id),
+        "UPDATE categories SET nom = ?, couleur = ?, exclu_des_statistiques = ? WHERE id = ?",
+        (nouveau_nom, nouvelle_couleur, 1 if exclu_des_statistiques else 0, categorie_id),
     )
     connexion.commit()
 
