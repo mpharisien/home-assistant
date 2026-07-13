@@ -362,16 +362,17 @@ def creer_categorie_route():
 
 @application_web.route("/categories/<int:categorie_id>/modifier", methods=["POST"])
 def modifier_categorie_route(categorie_id):
-    """Met à jour le nom et la couleur d'une catégorie."""
+    """Met à jour le nom, la couleur, et le réglage "exclu des statistiques" d'une catégorie."""
     nouveau_nom = request.form.get("nouveau_nom", "").strip()
     nouvelle_couleur = request.form.get("nouvelle_couleur", "").strip()
+    exclu_des_statistiques = request.form.get("exclu_des_statistiques") is not None
 
     if not nouveau_nom:
         flash("Le nom ne peut pas être vide.", "erreur")
         return redirect(url_for("page_categories"))
 
     connexion = obtenir_connexion()
-    modifier_categorie(connexion, categorie_id, nouveau_nom, nouvelle_couleur)
+    modifier_categorie(connexion, categorie_id, nouveau_nom, nouvelle_couleur, exclu_des_statistiques)
     flash("Catégorie mise à jour.", "succes")
     return redirect(url_for("page_categories"))
 
