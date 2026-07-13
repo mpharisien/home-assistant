@@ -13,17 +13,25 @@ Deux filtres globaux s'appliquent à (presque) tous les graphiques :
   - "comptes_ids" : les comptes à inclure. S'applique à tous les
     graphiques, y compris ceux qui comparent plusieurs années.
 
-Remarque pour plus tard : si la détection des virements internes entre
-comptes personnels est ajoutée un jour, il suffira d'ajouter une
-condition (ex: "AND est_virement_interne = 0") dans la clause WHERE de
-chaque requête ci-dessous - la structure actuelle centralise déjà tout
-dans ce seul fichier, ce qui rendra cette évolution simple.
+De plus, toute opération dont la catégorie est marquée "exclue des
+statistiques" (ex: "Virements internes", ou une catégorie de
+remboursements entre proches) est systématiquement ignorée dans TOUS
+les calculs ci-dessous - pas seulement les graphiques par catégorie.
+C'est pour ça que chaque requête joint la table "categories" et filtre
+sur "COALESCE(categories.exclu_des_statistiques, 0) = 0", même quand le
+nom de la catégorie elle-même n'est pas utilisé dans le résultat.
 """
 
 import sqlite3
 from datetime import date
 
 from app.utilitaires.dates_francaises import NOMS_MOIS
+
+# Jointure et condition réutilisées par toutes les requêtes : une opération
+# sans catégorie (categorie_id NULL) n'est jamais exclue, seule une
+# catégorie explicitement marquée l'est (COALESCE gère cette valeur NULL).
+JOINTURE_CATEGORIES = "LEFT JOIN categories ON operations.categorie_id = categories.id"
+CONDITION_NON_EXCLUE = "COALESCE(categories.exclu_des_statistiques, 0) = 0"
 
 
 def _condition_comptes(comptes_ids: list[int]) -> tuple[str, list]:
@@ -43,8 +51,8 @@ def _depenses_par_categorie(connexion: sqlite3.Connection, condition_periode: st
             COALESCE(categories.couleur, '#a99fb0') AS couleur,
             SUM(-operations.montant) AS total
         FROM operations
-        LEFT JOIN categories ON operations.categorie_id = categories.id
-        WHERE operations.montant < 0 AND {condition_periode}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE} AND {condition_periode}
         GROUP BY COALESCE(categories.nom, 'Sans catégorie'), COALESCE(categories.couleur, '#a99fb0')
         ORDER BY total DESC
         """,
@@ -73,9 +81,7 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
     # 1. Dépenses par catégorie - mois en cours (toujours le vrai mois
     #    actuel, indépendamment de l'année de référence choisie)
     # ------------------------------------------------------------------
-    condition = (
-        f"strftime('%Y-%m', operations.date_operation) = ? AND {condition_comptes}"
-    )
+    condition = f"strftime('%Y-%m', operations.date_operation) = ? AND {condition_comptes}"
     parametres = [aujourdhui.strftime("%Y-%m")] + parametres_comptes
     resultat["depenses_categorie_mois_courant"] = _depenses_par_categorie(connexion, condition, parametres)
 
@@ -95,9 +101,11 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
     # ------------------------------------------------------------------
     lignes = connexion.execute(
         f"""
-        SELECT strftime('%m', date_operation) AS mois, SUM(-montant) AS total
+        SELECT strftime('%m', operations.date_operation) AS mois, SUM(-operations.montant) AS total
         FROM operations
-        WHERE montant < 0 AND strftime('%Y', date_operation) = ? AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE}
+          AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
         GROUP BY mois
         ORDER BY mois
         """,
@@ -114,9 +122,11 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
     # ------------------------------------------------------------------
     lignes = connexion.execute(
         f"""
-        SELECT strftime('%Y', date_operation) AS annee, SUM(-montant) AS total
+        SELECT strftime('%Y', operations.date_operation) AS annee, SUM(-operations.montant) AS total
         FROM operations
-        WHERE montant < 0 AND strftime('%m', date_operation) = ? AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE}
+          AND strftime('%m', operations.date_operation) = ? AND {condition_comptes}
         GROUP BY annee
         ORDER BY annee
         """,
@@ -135,7 +145,9 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
         SELECT comptes.nom_affiche AS nom, comptes.couleur AS couleur, SUM(-operations.montant) AS total
         FROM operations
         JOIN comptes ON operations.compte_id = comptes.id
-        WHERE operations.montant < 0 AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE}
+          AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
         GROUP BY comptes.id
         ORDER BY total DESC
         """,
@@ -153,11 +165,13 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
     lignes = connexion.execute(
         f"""
         SELECT
-            strftime('%m', date_operation) AS mois,
-            SUM(CASE WHEN montant < 0 THEN -montant ELSE 0 END) AS depenses,
-            SUM(CASE WHEN montant > 0 THEN montant ELSE 0 END) AS recettes
+            strftime('%m', operations.date_operation) AS mois,
+            SUM(CASE WHEN operations.montant < 0 THEN -operations.montant ELSE 0 END) AS depenses,
+            SUM(CASE WHEN operations.montant > 0 THEN operations.montant ELSE 0 END) AS recettes
         FROM operations
-        WHERE strftime('%Y', date_operation) = ? AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE {CONDITION_NON_EXCLUE}
+          AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
         GROUP BY mois
         ORDER BY mois
         """,
@@ -192,8 +206,9 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
             COALESCE(categories.couleur, '#a99fb0') AS couleur,
             SUM(-operations.montant) AS total
         FROM operations
-        LEFT JOIN categories ON operations.categorie_id = categories.id
-        WHERE operations.montant < 0 AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE}
+          AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
         GROUP BY mois, categorie, couleur
         """,
         [str(annee_reference)] + parametres_comptes,
@@ -231,7 +246,9 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
             SUM(-operations.montant) AS total
         FROM operations
         JOIN comptes ON operations.compte_id = comptes.id
-        WHERE operations.montant < 0 AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE}
+          AND strftime('%Y', operations.date_operation) = ? AND {condition_comptes}
         GROUP BY mois, comptes.id
         """,
         [str(annee_reference)] + parametres_comptes,
@@ -261,11 +278,12 @@ def obtenir_donnees_dashboard(connexion: sqlite3.Connection, annee_reference: in
     lignes = connexion.execute(
         f"""
         SELECT
-            strftime('%Y', date_operation) AS annee,
-            strftime('%m', date_operation) AS mois,
-            SUM(-montant) AS total
+            strftime('%Y', operations.date_operation) AS annee,
+            strftime('%m', operations.date_operation) AS mois,
+            SUM(-operations.montant) AS total
         FROM operations
-        WHERE montant < 0 AND {condition_comptes}
+        {JOINTURE_CATEGORIES}
+        WHERE operations.montant < 0 AND {CONDITION_NON_EXCLUE} AND {condition_comptes}
         GROUP BY annee, mois
         """,
         parametres_comptes,
