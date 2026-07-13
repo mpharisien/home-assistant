@@ -41,6 +41,7 @@ def lister_operations(connexion: sqlite3.Connection) -> list[sqlite3.Row]:
         """
     ).fetchall()
 
+
 def obtenir_derniere_date_operation(connexion: sqlite3.Connection) -> str | None:
     """
     Renvoie la date (au format AAAA-MM-JJ) de l'opération la plus
@@ -51,6 +52,7 @@ def obtenir_derniere_date_operation(connexion: sqlite3.Connection) -> str | None
     """
     ligne = connexion.execute("SELECT MAX(date_operation) AS derniere_date FROM operations").fetchone()
     return ligne["derniere_date"] if ligne else None
+
 
 def obtenir_annees_disponibles(connexion: sqlite3.Connection) -> list[int]:
     """Renvoie la liste des années pour lesquelles il existe au moins une opération, la plus récente en premier."""
@@ -133,9 +135,11 @@ def lister_operations_groupees_par_mois(
     lignes = connexion.execute(
         f"""
         SELECT
+            operations.id,
             operations.date_operation,
             operations.libelle,
             operations.montant,
+            operations.categorie_id,
             comptes.nom_affiche AS compte,
             comptes.couleur AS compte_couleur,
             comptes.lettre AS compte_lettre,
