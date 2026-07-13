@@ -101,11 +101,16 @@
               </td>
               <td>{{ operation.libelle }}</td>
               <td>
-                {% if operation.categorie %}
-                  <span class="etiquette-categorie" style="background:{{ operation.categorie_couleur }}22; color:{{ operation.categorie_couleur }};">{{ operation.categorie }}</span>
-                {% else %}
-                  <span class="etiquette-sans-categorie">Sans catégorie</span>
-                {% endif %}
+                <form class="formulaire-categorie-operation" action="{{ url_for('modifier_categorie_operation_route', operation_id=operation.id) }}" method="post">
+                  <input type="hidden" name="retour" value="{{ chaine_requete_actuelle }}">
+                  <select name="nouvelle_categorie_id" onchange="this.form.submit()"
+                          style="background:{{ (operation.categorie_couleur ~ '22') if operation.categorie_couleur else '#f1eef2' }}; color:{{ operation.categorie_couleur or '#857f89' }};">
+                    <option value="" {{ "selected" if not operation.categorie_id }}>Sans catégorie</option>
+                    {% for categorie in categories %}
+                      <option value="{{ categorie.id }}" {{ "selected" if operation.categorie_id == categorie.id }}>{{ categorie.nom }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
               </td>
               <td class="colonne-montant {{ 'montant-depense' if operation.montant < 0 else 'montant-recette' }}">
                 {{ "%.2f"|format(operation.montant) }} €
