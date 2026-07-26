@@ -631,6 +631,7 @@ def ocea_dashboard():
             'numero_appartement': l['numero_appartement'],
             'surface_m2': l['surface_m2'],
             'nb_pieces': l['nb_pieces'],
+            'tantieme': l['tantieme'],
             'eau_froide_index': eau['index_m3'] if eau else None,
             'thermique_index5': thermique['valeur'] if thermique else None,
         })
