@@ -6,7 +6,7 @@ arch:
   - amd64
 init: false
 ingress: true
-ingress_port: 8099
+ingress_port: 6000
 panel_icon: mdi:file-document-edit-outline
 panel_title: "Devis Filler"
 startup: application
