@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if site %}Modifier{% else %}Ajouter{% endif %} un site</h1>
+
+<form method="post" class="stacked-form">
+  <label>Nom du site
+    <input type="text" name="nom" required value="{{ site.nom if site else '' }}">
+  </label>
+  <label>URL du formulaire
+    <input type="url" name="url" required value="{{ site.url if site else '' }}">
+  </label>
+  <label>Mode
+    <select name="mode">
+      <option value="auto" {% if site and site.mode == 'auto' %}selected{% endif %}>Automatique (détection des champs)</option>
+      <option value="manuel" {% if site and site.mode == 'manuel' %}selected{% endif %}>Manuel (je précise les champs)</option>
+    </select>
+  </label>
+
+  <fieldset>
+    <legend>Champs (utilisés en mode manuel — sélecteur CSS ou name= du champ)</legend>
+    {% for field in fields %}
+      {% if field != 'submit' %}
+        <label>{{ field.replace('_', ' ')|capitalize }}
+          <input type="text" name="sel_{{ field }}" placeholder="ex: #firstName ou input[name=prenom]"
+                 value="{{ site['sel_' + field] if site else '' }}">
+        </label>
+      {% endif %}
+    {% endfor %}
+    <label>Bouton d'envoi (optionnel — sinon détection automatique)
+      <input type="text" name="sel_submit" placeholder="ex: button.envoyer-devis"
+             value="{{ site.sel_submit if site else '' }}">
+    </label>
+  </fieldset>
+
+  <label>Notes
+    <textarea name="notes">{{ site.notes if site else '' }}</textarea>
+  </label>
+
+  <button type="submit" class="primary">Enregistrer</button>
+</form>
+<p><a href="{{ url_for('sites_list') }}">← Retour</a></p>
+{% endblock %}

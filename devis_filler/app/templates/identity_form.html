@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if identity %}Modifier{% else %}Ajouter{% endif %} une identité</h1>
+
+<form method="post" class="stacked-form">
+  <label>Label (identifiant court, ex: moi, ma_femme)
+    <input type="text" name="label" required value="{{ identity.label if identity else '' }}" {% if identity %}readonly{% endif %}>
+  </label>
+  <label>Civilité
+    <input type="text" name="civilite" value="{{ identity.civilite if identity else '' }}" placeholder="M. / Mme">
+  </label>
+  <label>Prénom
+    <input type="text" name="prenom" required value="{{ identity.prenom if identity else '' }}">
+  </label>
+  <label>Nom
+    <input type="text" name="nom" required value="{{ identity.nom if identity else '' }}">
+  </label>
+  <label>Email
+    <input type="email" name="email" required value="{{ identity.email if identity else '' }}">
+  </label>
+  <label>Téléphone
+    <input type="text" name="telephone" required value="{{ identity.telephone if identity else '' }}">
+  </label>
+  <label>Adresse
+    <input type="text" name="adresse" value="{{ identity.adresse if identity else '' }}">
+  </label>
+  <label>Code postal
+    <input type="text" name="code_postal" value="{{ identity.code_postal if identity else '' }}">
+  </label>
+  <label>Ville
+    <input type="text" name="ville" value="{{ identity.ville if identity else '' }}">
+  </label>
+  <label>Message par défaut (description du projet)
+    <textarea name="message_defaut">{{ identity.message_defaut if identity else '' }}</textarea>
+  </label>
+  <button type="submit" class="primary">Enregistrer</button>
+</form>
+<p><a href="{{ url_for('identities_list') }}">← Retour</a></p>
+{% endblock %}

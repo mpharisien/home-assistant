@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Lancer le remplissage des formulaires</h1>
+
+{% if not identities %}
+  <p class="empty">Aucune identité enregistrée. <a href="{{ url_for('identity_new') }}">Ajoutez-en une</a> pour commencer.</p>
+{% else %}
+  <form method="post" action="{{ url_for('start_run') }}">
+    <fieldset>
+      <legend>Choisissez une identité</legend>
+      {% for identity in identities %}
+        <label class="radio-row">
+          <input type="radio" name="identity_label" value="{{ identity.label }}" {% if loop.first %}checked{% endif %}>
+          {{ identity.prenom }} {{ identity.nom }} <span class="muted">({{ identity.label }})</span>
+          <a class="edit-link" href="{{ url_for('identity_edit', identity_id=identity.id) }}">modifier</a>
+        </label>
+      {% endfor %}
+    </fieldset>
+    <button type="submit" class="primary" {% if run_state.running %}disabled{% endif %}>
+      {% if run_state.running %}Traitement en cours...{% else %}Soumettre{% endif %}
+    </button>
+  </form>
+{% endif %}
+
+{% if run_state.running or run_state.log %}
+  <p><a href="{{ url_for('run_status') }}">Voir la progression du dernier lancement →</a></p>
+{% endif %}
+{% endblock %}
