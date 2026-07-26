@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Identités</h1>
+<p><a class="primary-link" href="{{ url_for('identity_new') }}">+ Ajouter une identité</a></p>
+
+<table>
+  <thead><tr><th>Label</th><th>Nom</th><th>Email</th><th>Téléphone</th><th></th></tr></thead>
+  <tbody>
+    {% for identity in identities %}
+    <tr>
+      <td>{{ identity.label }}</td>
+      <td>{{ identity.civilite }} {{ identity.prenom }} {{ identity.nom }}</td>
+      <td>{{ identity.email }}</td>
+      <td>{{ identity.telephone }}</td>
+      <td class="actions">
+        <a href="{{ url_for('identity_edit', identity_id=identity.id) }}">modifier</a>
+        <form method="post" action="{{ url_for('identity_delete', identity_id=identity.id) }}" onsubmit="return confirm('Supprimer cette identité ?');">
+          <button type="submit" class="link-danger">supprimer</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

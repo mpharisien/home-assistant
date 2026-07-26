@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+{% if run_state.running %}
+  <meta http-equiv="refresh" content="2">
+{% endif %}
+
+<h1>Progression{% if run_state.identity_label %} — {{ run_state.identity_label }}{% endif %}</h1>
+
+{% if run_state.running %}
+  <p class="status-running">⏳ Traitement en cours... ({{ run_state.log|length }} site(s) traité(s))</p>
+{% else %}
+  <p class="status-done">✅ Terminé — {{ run_state.log|length }} site(s) traité(s)</p>
+{% endif %}
+
+{% if run_state.error %}
+  <pre class="error-box">{{ run_state.error }}</pre>
+{% endif %}
+
+<table>
+  <thead><tr><th>Site</th><th>Statut</th><th>Détail</th></tr></thead>
+  <tbody>
+    {% for entry in run_state.log|reverse %}
+    <tr class="row-{{ entry.status }}">
+      <td>{{ entry.site }}</td>
+      <td>
+        {% if entry.status == 'success' %}✅ Confirmé
+        {% elif entry.status == 'needs_review' %}⚠️ À vérifier
+        {% else %}❌ Erreur{% endif %}
+      </td>
+      <td>{{ entry.detail }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p><a href="{{ url_for('index') }}">← Retour à l'accueil</a></p>
+{% endblock %}

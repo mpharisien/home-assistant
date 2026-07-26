@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sites / Formulaires</h1>
+<p><a class="primary-link" href="{{ url_for('site_new') }}">+ Ajouter un site</a></p>
+
+<table>
+  <thead>
+    <tr><th>Nom</th><th>URL</th><th>Mode</th><th>Actif</th><th>Dernier passage</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for site in sites %}
+    <tr class="{% if not site.actif %}row-disabled{% endif %}">
+      <td>{{ site.nom }}</td>
+      <td><a href="{{ site.url }}" target="_blank" rel="noopener">{{ site.url }}</a></td>
+      <td>{{ site.mode }}</td>
+      <td>{{ "Oui" if site.actif else "Non" }}</td>
+      <td>
+        {% if site.last_status %}
+          {% if site.last_status.status == 'success' %}
+            <span class="badge badge-success">✅ Confirmé</span>
+          {% elif site.last_status.status == 'needs_review' %}
+            <span class="badge badge-warning">⚠️ À vérifier</span>
+          {% else %}
+            <span class="badge badge-error">❌ Erreur</span>
+          {% endif %}
+          <div class="muted small">{{ site.last_status.run_at }}</div>
+          <div class="muted small">{{ site.last_status.detail or site.last_status.confirmation_text }}</div>
+        {% else %}
+          <span class="badge badge-none">— Jamais lancé</span>
+        {% endif %}
+      </td>
+      <td class="actions">
+        <a href="{{ url_for('site_edit', site_id=site.id) }}">modifier</a>
+        <form method="post" action="{{ url_for('site_toggle', site_id=site.id) }}">
+          <button type="submit" class="link">{{ "désactiver" if site.actif else "activer" }}</button>
+        </form>
+        <form method="post" action="{{ url_for('site_delete', site_id=site.id) }}" onsubmit="return confirm('Supprimer ce site ?');">
+          <button type="submit" class="link-danger">supprimer</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
