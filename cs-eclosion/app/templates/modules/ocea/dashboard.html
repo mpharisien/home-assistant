@@ -63,8 +63,8 @@
 </div>
 
 <div class="card">
-  <h2>Surface vs eau froide — nuage de points</h2>
-  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">Chaque point est un logement. Permet de voir si les grands logements ont un index proportionnellement plus ou moins élevé.</p>
+  <h2>Tantième vs eau froide — nuage de points</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">Chaque point est un logement, positionné selon son tantième (dix-millièmes) et son index eau froide cumulé. Permet de repérer un logement qui consomme "trop" par rapport à sa taille. Un logement vide peut normalement afficher un point proche de zéro ou qui n'évolue pas.</p>
   <div class="chart-box" style="height:400px;"><canvas id="chartScatterSurfaceEau"></canvas></div>
 </div>
 
@@ -190,8 +190,8 @@ if (ctxEvolThermique && thermiqueHistorique.length) {
   });
 }
 
-// Graphique 4 : nuage de points surface (x) vs eau froide (y)
-const dataScatter = data.filter(d => d.surface_m2 && d.eau_froide_index !== null);
+// Graphique 4 : nuage de points tantième (x) vs eau froide (y)
+const dataScatter = data.filter(d => d.tantieme && d.eau_froide_index !== null);
 const ctx3 = document.getElementById('chartScatterSurfaceEau');
 if (ctx3 && dataScatter.length) {
   new Chart(ctx3, {
@@ -199,7 +199,7 @@ if (ctx3 && dataScatter.length) {
     data: {
       datasets: [{
         label: 'Logements',
-        data: dataScatter.map(d => ({ x: d.surface_m2, y: d.eau_froide_index })),
+        data: dataScatter.map(d => ({ x: d.tantieme, y: d.eau_froide_index })),
         backgroundColor: '#2d7dd2',
         pointRadius: 6,
       }]
@@ -210,11 +210,11 @@ if (ctx3 && dataScatter.length) {
         legend: { display: false },
         tooltip: { callbacks: { label: (ctx) => {
           const d = dataScatter[ctx.dataIndex];
-          return `Appt ${d.numero_appartement} : ${Math.round(d.surface_m2)} m² — ${d.eau_froide_index.toFixed(3)} m³`;
+          return `Appt ${d.numero_appartement} : ${d.tantieme}/10000èmes — ${d.eau_froide_index.toFixed(3)} m³`;
         } } }
       },
       scales: {
-        x: { title: { display: true, text: 'Surface (m²)' } },
+        x: { title: { display: true, text: 'Tantième (dix-millièmes)' } },
         y: { title: { display: true, text: 'Index eau froide (m³)' }, beginAtZero: true }
       }
     }
