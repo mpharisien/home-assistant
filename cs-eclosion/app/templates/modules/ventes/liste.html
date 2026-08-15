@@ -6,10 +6,10 @@
 
 <!-- ── Vérification officielle ── -->
 <div class="card">
-  <h2>Vérification officielle des prix</h2>
+  <h2>Vérification officielle des valeurs foncières</h2>
   <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
-    Les prix officiels de vente se vérifient sur data.gouv (mutations immobilières de la résidence).
-    Le montant affiché sur une annonce n'est jamais le prix réellement payé.
+    Les valeurs foncières se vérifient sur data.gouv (mutations immobilières de la résidence).
+    Le montant affiché sur une annonce n'est jamais la valeur foncière réellement déclarée.
   </p>
   <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:end; justify-content:space-between;">
     <form method="post" style="display:flex; gap:0.6rem; align-items:end; flex-wrap:wrap;">
@@ -48,12 +48,28 @@
         <input type="number" name="prix_annonce" step="0.01" placeholder="ex: 195000">
       </div>
       <div class="form-group">
-        <label>Prix officiel (€)</label>
-        <input type="number" name="prix_officiel" step="0.01" placeholder="ex: 184150">
+        <label>Valeur foncière (€)</label>
+        <input type="number" name="valeur_fonciere" step="0.01" placeholder="ex: 184150">
       </div>
       <div class="form-group">
         <label>Charges prévisionnelles (€)</label>
         <input type="number" name="charges_previsionnelles" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Surface réelle bâti (m²)</label>
+        <input type="number" name="surface_reelle_bati" step="0.01" placeholder="ex: 58">
+      </div>
+      <div class="form-group">
+        <label>Surface Carrez (m²)</label>
+        <input type="number" name="surface_carrez" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>N° de lot (DVF)</label>
+        <input type="text" name="numero_lot" placeholder="à comparer au lot de la fiche logement">
+      </div>
+      <div class="form-group">
+        <label>Référence de mutation</label>
+        <input type="text" name="reference_mutation" placeholder="ex: 2025-1011000">
       </div>
       <div class="form-group" style="grid-column:span 2;">
         <label>Agence</label>
@@ -76,9 +92,12 @@
       <thead>
         <tr>
           <th>Appartement</th>
+          <th>Lot (DVF)</th>
           <th style="text-align:right;">Prix annonce</th>
-          <th style="text-align:right;">Prix officiel</th>
+          <th style="text-align:right;">Valeur foncière</th>
           <th style="text-align:right;">Charges prév.</th>
+          <th style="text-align:right;">Surf. réelle</th>
+          <th style="text-align:right;">Surf. Carrez</th>
           <th>Date annonce</th>
           <th>Agence</th>
           <th></th>
@@ -90,9 +109,12 @@
           <td>
             {% if v.numero_appartement %}<strong>{{ v.numero_appartement }}</strong>{% else %}<span style="color:#b0b5bd;">?</span>{% endif %}
           </td>
+          <td style="color:#6b7280;">{{ v.numero_lot or '—' }}</td>
           <td style="text-align:right;">{{ '{:,.0f}'.format(v.prix_annonce).replace(',', '\u202f') ~ ' €' if v.prix_annonce is not none else '—' }}</td>
-          <td style="text-align:right;">{{ '{:,.0f}'.format(v.prix_officiel).replace(',', '\u202f') ~ ' €' if v.prix_officiel is not none else '—' }}</td>
+          <td style="text-align:right;">{{ '{:,.0f}'.format(v.valeur_fonciere).replace(',', '\u202f') ~ ' €' if v.valeur_fonciere is not none else '—' }}</td>
           <td style="text-align:right;">{{ '{:,.0f}'.format(v.charges_previsionnelles).replace(',', '\u202f') ~ ' €' if v.charges_previsionnelles is not none else '—' }}</td>
+          <td style="text-align:right;">{{ '%.1f'|format(v.surface_reelle_bati) ~ ' m²' if v.surface_reelle_bati is not none else '—' }}</td>
+          <td style="text-align:right;">{{ '%.1f'|format(v.surface_carrez) ~ ' m²' if v.surface_carrez is not none else '—' }}</td>
           <td>{{ v.date_annonce or '—' }}</td>
           <td>
             {{ v.agence or '—' }}
@@ -108,7 +130,7 @@
           </td>
         </tr>
         <tr id="edit-{{ v.id }}" style="display:none;">
-          <td colspan="7" style="background:#f8faff; padding:1rem 1.5rem;">
+          <td colspan="10" style="background:#f8faff; padding:1rem 1.5rem;">
             <form method="post">
               <input type="hidden" name="action" value="modifier_vente">
               <input type="hidden" name="vente_id" value="{{ v.id }}">
@@ -131,12 +153,28 @@
                   <input type="number" name="prix_annonce" step="0.01" value="{{ v.prix_annonce if v.prix_annonce is not none else '' }}">
                 </div>
                 <div class="form-group">
-                  <label>Prix officiel (€)</label>
-                  <input type="number" name="prix_officiel" step="0.01" value="{{ v.prix_officiel if v.prix_officiel is not none else '' }}">
+                  <label>Valeur foncière (€)</label>
+                  <input type="number" name="valeur_fonciere" step="0.01" value="{{ v.valeur_fonciere if v.valeur_fonciere is not none else '' }}">
                 </div>
                 <div class="form-group">
                   <label>Charges prévisionnelles (€)</label>
                   <input type="number" name="charges_previsionnelles" step="0.01" value="{{ v.charges_previsionnelles if v.charges_previsionnelles is not none else '' }}">
+                </div>
+                <div class="form-group">
+                  <label>Surface réelle bâti (m²)</label>
+                  <input type="number" name="surface_reelle_bati" step="0.01" value="{{ v.surface_reelle_bati if v.surface_reelle_bati is not none else '' }}">
+                </div>
+                <div class="form-group">
+                  <label>Surface Carrez (m²)</label>
+                  <input type="number" name="surface_carrez" step="0.01" value="{{ v.surface_carrez if v.surface_carrez is not none else '' }}">
+                </div>
+                <div class="form-group">
+                  <label>N° de lot (DVF)</label>
+                  <input type="text" name="numero_lot" value="{{ v.numero_lot or '' }}">
+                </div>
+                <div class="form-group">
+                  <label>Référence de mutation</label>
+                  <input type="text" name="reference_mutation" value="{{ v.reference_mutation or '' }}">
                 </div>
                 <div class="form-group" style="grid-column:span 2;">
                   <label>Agence</label>
@@ -153,7 +191,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" style="color:#6b7280; text-align:center; padding:1.5rem;">Aucune vente enregistrée pour l'instant.</td></tr>
+        <tr><td colspan="10" style="color:#6b7280; text-align:center; padding:1.5rem;">Aucune vente enregistrée pour l'instant.</td></tr>
         {% endfor %}
       </tbody>
     </table>
