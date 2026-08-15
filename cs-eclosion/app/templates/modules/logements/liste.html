@@ -112,15 +112,25 @@
                 <tbody>
                   {% for h in hist %}
                   <tr>
-                    <td style="white-space:nowrap;">{{ h.date }}</td>
-                    <td>{{ categories.get(h.categorie, h.categorie) }}</td>
-                    <td>{{ h.valeur }}</td>
+                    <td style="white-space:nowrap;">{{ h.date or '—' }}</td>
+                    <td>{{ 'Vente' if h.is_vente else categories.get(h.categorie, h.categorie) }}</td>
+                    <td>
+                      {% if h.is_vente %}
+                        {{ '{:,.0f}'.format(h.valeur).replace(',', '\u202f') ~ ' €' if h.valeur is not none else '—' }}
+                      {% else %}
+                        {{ h.valeur }}
+                      {% endif %}
+                    </td>
                     <td style="text-align:right;">
+                      {% if h.is_vente %}
+                        <span style="color:#9ca3af; font-size:0.72rem;" title="Géré depuis le module Ventes">module Ventes</span>
+                      {% else %}
                       <form method="post" onsubmit="return confirm('Supprimer cette information ?');" style="display:inline;">
                         <input type="hidden" name="action" value="supprimer_info">
                         <input type="hidden" name="entry_id" value="{{ h.id }}">
                         <button type="submit" class="btn btn-danger" style="padding:0.2rem 0.5rem; font-size:0.72rem;">Suppr.</button>
                       </form>
+                      {% endif %}
                     </td>
                   </tr>
                   {% endfor %}

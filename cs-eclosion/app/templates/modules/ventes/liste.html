@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}— Ventes{% endblock %}
+
+{% block content %}
+<div class="page-title">Ventes <span>— suivi des ventes d'appartements, résidence Eclosion</span></div>
+
+<!-- ── Vérification officielle ── -->
+<div class="card">
+  <h2>Vérification officielle des prix</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Les prix officiels de vente se vérifient sur data.gouv (mutations immobilières de la résidence).
+    Le montant affiché sur une annonce n'est jamais le prix réellement payé.
+  </p>
+  <div style="display:flex; gap:1.5rem; flex-wrap:wrap; align-items:end; justify-content:space-between;">
+    <form method="post" style="display:flex; gap:0.6rem; align-items:end; flex-wrap:wrap;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Dernière vérification manuelle</label>
+        <input type="date" name="date_verification" value="{{ date_verification or '' }}" style="width:170px;">
+      </div>
+      <button type="submit" name="action" value="modifier_date_verification" class="btn btn-secondary">Enregistrer</button>
+      <button type="submit" name="action" value="marquer_verifie" class="btn btn-primary">Marquer vérifié aujourd'hui</button>
+    </form>
+    <a href="{{ data_gouv_url }}" target="_blank" rel="noopener" class="btn btn-secondary">↗ Vérifier sur explore.data.gouv.fr</a>
+  </div>
+</div>
+
+<!-- ── Formulaire d'ajout ── -->
+<div class="card">
+  <h2>Ajouter une vente</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="ajouter_vente">
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:1rem;">
+      <div class="form-group">
+        <label>Appartement</label>
+        <select name="logement_id">
+          <option value="">— Je ne sais pas —</option>
+          {% for l in logements %}
+          <option value="{{ l.id }}">{{ l.numero_appartement }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date de l'annonce</label>
+        <input type="date" name="date_annonce">
+      </div>
+      <div class="form-group">
+        <label>Prix annonce (€)</label>
+        <input type="number" name="prix_annonce" step="0.01" placeholder="ex: 195000">
+      </div>
+      <div class="form-group">
+        <label>Prix officiel (€)</label>
+        <input type="number" name="prix_officiel" step="0.01" placeholder="ex: 184150">
+      </div>
+      <div class="form-group">
+        <label>Charges prévisionnelles (€)</label>
+        <input type="number" name="charges_previsionnelles" step="0.01">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>Agence</label>
+        <input type="text" name="agence" placeholder="ex: IAD France">
+      </div>
+      <div class="form-group" style="grid-column:span 2;">
+        <label>Lien de l'annonce</label>
+        <input type="url" name="lien_annonce" placeholder="https://...">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success">Ajouter</button>
+  </form>
+</div>
+
+<!-- ── Tableau des ventes ── -->
+<div class="card">
+  <h2>{{ ventes | length }} vente(s) enregistrée(s)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Appartement</th>
+          <th style="text-align:right;">Prix annonce</th>
+          <th style="text-align:right;">Prix officiel</th>
+          <th style="text-align:right;">Charges prév.</th>
+          <th>Date annonce</th>
+          <th>Agence</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in ventes %}
+        <tr>
+          <td>
+            {% if v.numero_appartement %}<strong>{{ v.numero_appartement }}</strong>{% else %}<span style="color:#b0b5bd;">?</span>{% endif %}
+          </td>
+          <td style="text-align:right;">{{ '{:,.0f}'.format(v.prix_annonce).replace(',', '\u202f') ~ ' €' if v.prix_annonce is not none else '—' }}</td>
+          <td style="text-align:right;">{{ '{:,.0f}'.format(v.prix_officiel).replace(',', '\u202f') ~ ' €' if v.prix_officiel is not none else '—' }}</td>
+          <td style="text-align:right;">{{ '{:,.0f}'.format(v.charges_previsionnelles).replace(',', '\u202f') ~ ' €' if v.charges_previsionnelles is not none else '—' }}</td>
+          <td>{{ v.date_annonce or '—' }}</td>
+          <td>
+            {{ v.agence or '—' }}
+            {% if v.lien_annonce %}<a href="{{ v.lien_annonce }}" target="_blank" rel="noopener" title="Voir l'annonce">↗</a>{% endif %}
+          </td>
+          <td style="text-align:right; white-space:nowrap;">
+            <button type="button" class="btn btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="toggleEdit({{ v.id }})">Modifier</button>
+            <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer cette vente ?');">
+              <input type="hidden" name="action" value="supprimer_vente">
+              <input type="hidden" name="vente_id" value="{{ v.id }}">
+              <button type="submit" class="btn btn-danger" style="padding:0.25rem 0.6rem; font-size:0.75rem;">Suppr.</button>
+            </form>
+          </td>
+        </tr>
+        <tr id="edit-{{ v.id }}" style="display:none;">
+          <td colspan="7" style="background:#f8faff; padding:1rem 1.5rem;">
+            <form method="post">
+              <input type="hidden" name="action" value="modifier_vente">
+              <input type="hidden" name="vente_id" value="{{ v.id }}">
+              <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:1rem;">
+                <div class="form-group">
+                  <label>Appartement</label>
+                  <select name="logement_id">
+                    <option value="" {{ 'selected' if not v.logement_id }}>— Je ne sais pas —</option>
+                    {% for l in logements %}
+                    <option value="{{ l.id }}" {{ 'selected' if v.logement_id == l.id }}>{{ l.numero_appartement }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Date de l'annonce</label>
+                  <input type="date" name="date_annonce" value="{{ v.date_annonce or '' }}">
+                </div>
+                <div class="form-group">
+                  <label>Prix annonce (€)</label>
+                  <input type="number" name="prix_annonce" step="0.01" value="{{ v.prix_annonce if v.prix_annonce is not none else '' }}">
+                </div>
+                <div class="form-group">
+                  <label>Prix officiel (€)</label>
+                  <input type="number" name="prix_officiel" step="0.01" value="{{ v.prix_officiel if v.prix_officiel is not none else '' }}">
+                </div>
+                <div class="form-group">
+                  <label>Charges prévisionnelles (€)</label>
+                  <input type="number" name="charges_previsionnelles" step="0.01" value="{{ v.charges_previsionnelles if v.charges_previsionnelles is not none else '' }}">
+                </div>
+                <div class="form-group" style="grid-column:span 2;">
+                  <label>Agence</label>
+                  <input type="text" name="agence" value="{{ v.agence or '' }}">
+                </div>
+                <div class="form-group" style="grid-column:span 2;">
+                  <label>Lien de l'annonce</label>
+                  <input type="url" name="lien_annonce" value="{{ v.lien_annonce or '' }}">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+              <button type="button" class="btn btn-secondary" onclick="toggleEdit({{ v.id }})">Annuler</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="color:#6b7280; text-align:center; padding:1.5rem;">Aucune vente enregistrée pour l'instant.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleEdit(id) {
+  const row = document.getElementById('edit-' + id);
+  row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+</script>
+{% endblock %}
