@@ -163,15 +163,42 @@ def init_db():
         c.execute("ALTER TABLE logements ADD COLUMN numero_compteur_thermique TEXT")
     conn.commit()
 
-    # Table de l'historique daté par logement (propriétaire, habitant, prix de vente...)
+    # Table de l'historique daté par logement (propriétaire, habitant...)
     c.execute('''
         CREATE TABLE IF NOT EXISTS logement_historique (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             logement_id INTEGER NOT NULL,
             date TEXT NOT NULL,
-            categorie TEXT NOT NULL,  -- 'proprietaire', 'habitant', 'prix_vente'
+            categorie TEXT NOT NULL,  -- 'proprietaire', 'habitant'
             valeur TEXT NOT NULL,
             FOREIGN KEY (logement_id) REFERENCES logements(id)
+        )
+    ''')
+
+    # Table des ventes d'appartements — module "Ventes"
+    # logement_id est NULLABLE : NULL signifie "logement non identifié" (case
+    # "Je ne sais pas" du formulaire), pour ne pas bloquer la saisie d'une vente
+    # dont on n'a pas encore retrouvé l'appartement exact.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS ventes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            logement_id INTEGER,
+            date_annonce TEXT,
+            prix_annonce REAL,
+            prix_officiel REAL,
+            charges_previsionnelles REAL,
+            agence TEXT,
+            lien_annonce TEXT,
+            FOREIGN KEY (logement_id) REFERENCES logements(id)
+        )
+    ''')
+
+    # Table de paramètres simples clé/valeur (ex: date de dernière vérification
+    # manuelle des prix officiels sur data.gouv, module Ventes).
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS parametres (
+            cle TEXT PRIMARY KEY,
+            valeur TEXT
         )
     ''')
 
@@ -568,6 +595,33 @@ def get_historique_logement(logement_id):
     return [dict(r) for r in rows]
 
 
+def get_historique_logement_avec_ventes(logement_id):
+    """
+    Historique d'un logement (propriétaire/habitant) fusionné avec ses ventes,
+    affichées comme des lignes "Vente" en lecture seule (gérées depuis le module
+    Ventes, pas depuis ce formulaire). Pour la colonne "Valeur" d'une vente, on
+    affiche le prix officiel s'il est connu, sinon le prix d'annonce, sinon rien.
+    Trié du plus récent au plus ancien.
+    """
+    hist = get_historique_logement(logement_id)
+    for h in hist:
+        h['is_vente'] = False
+
+    ventes = get_ventes_par_logement(logement_id)
+    for v in ventes:
+        montant = v['prix_officiel'] if v['prix_officiel'] is not None else v['prix_annonce']
+        hist.append({
+            'id': v['id'],
+            'date': v['date_annonce'] or '',
+            'categorie': 'vente',
+            'valeur': montant,
+            'is_vente': True,
+        })
+
+    hist.sort(key=lambda h: (h['date'] or ''), reverse=True)
+    return hist
+
+
 def rechercher_logements(recherche_nom=None, surface_min=None, surface_max=None):
     """
     Retourne les logements correspondant aux filtres, avec état actuel.
@@ -647,6 +701,95 @@ def update_numeros_compteurs(logement_id, numero_compteur_eau_froide, numero_com
     conn.execute('''
         UPDATE logements SET numero_compteur_eau_froide = ?, numero_compteur_thermique = ? WHERE id = ?
     ''', (numero_compteur_eau_froide or None, numero_compteur_thermique or None, logement_id))
+    conn.commit()
+    conn.close()
+
+
+# ─── Module Ventes ──────────────────────────────────────────────────────────────
+
+def get_all_ventes():
+    """
+    Toutes les ventes enregistrées, les plus récemment ajoutées en premier.
+    Inclut le numéro d'appartement (None si logement_id est NULL, càd "non identifié").
+    """
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT v.*, l.numero_appartement
+        FROM ventes v
+        LEFT JOIN logements l ON l.id = v.logement_id
+        ORDER BY v.id DESC
+    ''').fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_vente_by_id(vente_id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM ventes WHERE id = ?', (vente_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_ventes_par_logement(logement_id):
+    """Ventes enregistrées pour un logement donné, les plus récentes en premier."""
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT * FROM ventes WHERE logement_id = ? ORDER BY date_annonce DESC, id DESC
+    ''', (logement_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def insert_vente(logement_id, date_annonce, prix_annonce, prix_officiel,
+                  charges_previsionnelles, agence, lien_annonce):
+    conn = get_db()
+    cur = conn.execute('''
+        INSERT INTO ventes
+        (logement_id, date_annonce, prix_annonce, prix_officiel, charges_previsionnelles, agence, lien_annonce)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (logement_id, date_annonce, prix_annonce, prix_officiel, charges_previsionnelles, agence, lien_annonce))
+    conn.commit()
+    vente_id = cur.lastrowid
+    conn.close()
+    return vente_id
+
+
+def update_vente(vente_id, logement_id, date_annonce, prix_annonce, prix_officiel,
+                  charges_previsionnelles, agence, lien_annonce):
+    conn = get_db()
+    conn.execute('''
+        UPDATE ventes
+        SET logement_id = ?, date_annonce = ?, prix_annonce = ?, prix_officiel = ?,
+            charges_previsionnelles = ?, agence = ?, lien_annonce = ?
+        WHERE id = ?
+    ''', (logement_id, date_annonce, prix_annonce, prix_officiel,
+          charges_previsionnelles, agence, lien_annonce, vente_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_vente(vente_id):
+    conn = get_db()
+    conn.execute('DELETE FROM ventes WHERE id = ?', (vente_id,))
+    conn.commit()
+    conn.close()
+
+
+# ─── Paramètres (clé/valeur) ────────────────────────────────────────────────────
+
+def get_parametre(cle):
+    conn = get_db()
+    row = conn.execute('SELECT valeur FROM parametres WHERE cle = ?', (cle,)).fetchone()
+    conn.close()
+    return row['valeur'] if row else None
+
+
+def set_parametre(cle, valeur):
+    conn = get_db()
+    conn.execute('''
+        INSERT INTO parametres (cle, valeur) VALUES (?, ?)
+        ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur
+    ''', (cle, valeur))
     conn.commit()
     conn.close()
 
