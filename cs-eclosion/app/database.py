@@ -179,22 +179,45 @@ def init_db():
     # logement_id est NULLABLE : NULL signifie "logement non identifié" (case
     # "Je ne sais pas" du formulaire), pour ne pas bloquer la saisie d'une vente
     # dont on n'a pas encore retrouvé l'appartement exact.
+    # valeur_fonciere = terme officiel data.gouv/DVF (≠ prix affiché sur l'annonce,
+    # et ≠ "prix réel" au sens strict : c'est la valeur déclarée dans l'acte).
     c.execute('''
         CREATE TABLE IF NOT EXISTS ventes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             logement_id INTEGER,
             date_annonce TEXT,
             prix_annonce REAL,
-            prix_officiel REAL,
+            valeur_fonciere REAL,
             charges_previsionnelles REAL,
+            surface_reelle_bati REAL,
+            surface_carrez REAL,
+            numero_lot TEXT,
+            reference_mutation TEXT,
             agence TEXT,
             lien_annonce TEXT,
             FOREIGN KEY (logement_id) REFERENCES logements(id)
         )
     ''')
 
+    # Migrations sur une table 'ventes' déjà existante (versions précédentes du module) :
+    # - renommage prix_officiel -> valeur_fonciere (terme officiel data.gouv/DVF)
+    # - ajout des champs issus de la fiche officielle DVF (surfaces, lot, référence)
+    cols_ventes = [col[1] for col in c.execute("PRAGMA table_info(ventes)").fetchall()]
+    if 'prix_officiel' in cols_ventes and 'valeur_fonciere' not in cols_ventes:
+        c.execute("ALTER TABLE ventes RENAME COLUMN prix_officiel TO valeur_fonciere")
+    cols_ventes = [col[1] for col in c.execute("PRAGMA table_info(ventes)").fetchall()]
+    if 'surface_reelle_bati' not in cols_ventes:
+        c.execute("ALTER TABLE ventes ADD COLUMN surface_reelle_bati REAL")
+    if 'surface_carrez' not in cols_ventes:
+        c.execute("ALTER TABLE ventes ADD COLUMN surface_carrez REAL")
+    if 'numero_lot' not in cols_ventes:
+        c.execute("ALTER TABLE ventes ADD COLUMN numero_lot TEXT")
+    if 'reference_mutation' not in cols_ventes:
+        c.execute("ALTER TABLE ventes ADD COLUMN reference_mutation TEXT")
+    conn.commit()
+
     # Table de paramètres simples clé/valeur (ex: date de dernière vérification
-    # manuelle des prix officiels sur data.gouv, module Ventes).
+    # manuelle des valeurs foncières sur data.gouv, module Ventes).
     c.execute('''
         CREATE TABLE IF NOT EXISTS parametres (
             cle TEXT PRIMARY KEY,
@@ -609,7 +632,7 @@ def get_historique_logement_avec_ventes(logement_id):
 
     ventes = get_ventes_par_logement(logement_id)
     for v in ventes:
-        montant = v['prix_officiel'] if v['prix_officiel'] is not None else v['prix_annonce']
+        montant = v['valeur_fonciere'] if v['valeur_fonciere'] is not None else v['prix_annonce']
         hist.append({
             'id': v['id'],
             'date': v['date_annonce'] or '',
@@ -740,30 +763,36 @@ def get_ventes_par_logement(logement_id):
     return [dict(r) for r in rows]
 
 
-def insert_vente(logement_id, date_annonce, prix_annonce, prix_officiel,
-                  charges_previsionnelles, agence, lien_annonce):
+def insert_vente(logement_id, date_annonce, prix_annonce, valeur_fonciere,
+                  charges_previsionnelles, surface_reelle_bati, surface_carrez,
+                  numero_lot, reference_mutation, agence, lien_annonce):
     conn = get_db()
     cur = conn.execute('''
         INSERT INTO ventes
-        (logement_id, date_annonce, prix_annonce, prix_officiel, charges_previsionnelles, agence, lien_annonce)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (logement_id, date_annonce, prix_annonce, prix_officiel, charges_previsionnelles, agence, lien_annonce))
+        (logement_id, date_annonce, prix_annonce, valeur_fonciere, charges_previsionnelles,
+         surface_reelle_bati, surface_carrez, numero_lot, reference_mutation, agence, lien_annonce)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (logement_id, date_annonce, prix_annonce, valeur_fonciere, charges_previsionnelles,
+          surface_reelle_bati, surface_carrez, numero_lot, reference_mutation, agence, lien_annonce))
     conn.commit()
     vente_id = cur.lastrowid
     conn.close()
     return vente_id
 
 
-def update_vente(vente_id, logement_id, date_annonce, prix_annonce, prix_officiel,
-                  charges_previsionnelles, agence, lien_annonce):
+def update_vente(vente_id, logement_id, date_annonce, prix_annonce, valeur_fonciere,
+                  charges_previsionnelles, surface_reelle_bati, surface_carrez,
+                  numero_lot, reference_mutation, agence, lien_annonce):
     conn = get_db()
     conn.execute('''
         UPDATE ventes
-        SET logement_id = ?, date_annonce = ?, prix_annonce = ?, prix_officiel = ?,
-            charges_previsionnelles = ?, agence = ?, lien_annonce = ?
+        SET logement_id = ?, date_annonce = ?, prix_annonce = ?, valeur_fonciere = ?,
+            charges_previsionnelles = ?, surface_reelle_bati = ?, surface_carrez = ?,
+            numero_lot = ?, reference_mutation = ?, agence = ?, lien_annonce = ?
         WHERE id = ?
-    ''', (logement_id, date_annonce, prix_annonce, prix_officiel,
-          charges_previsionnelles, agence, lien_annonce, vente_id))
+    ''', (logement_id, date_annonce, prix_annonce, valeur_fonciere,
+          charges_previsionnelles, surface_reelle_bati, surface_carrez,
+          numero_lot, reference_mutation, agence, lien_annonce, vente_id))
     conn.commit()
     conn.close()
 
