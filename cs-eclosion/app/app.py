@@ -506,13 +506,18 @@ def ventes():
             logement_id = request.form.get('logement_id', type=int)
             date_annonce = request.form.get('date_annonce', '').strip() or None
             prix_annonce = request.form.get('prix_annonce', type=float)
-            prix_officiel = request.form.get('prix_officiel', type=float)
+            valeur_fonciere = request.form.get('valeur_fonciere', type=float)
             charges_previsionnelles = request.form.get('charges_previsionnelles', type=float)
+            surface_reelle_bati = request.form.get('surface_reelle_bati', type=float)
+            surface_carrez = request.form.get('surface_carrez', type=float)
+            numero_lot = request.form.get('numero_lot', '').strip() or None
+            reference_mutation = request.form.get('reference_mutation', '').strip() or None
             agence = request.form.get('agence', '').strip() or None
             lien_annonce = request.form.get('lien_annonce', '').strip() or None
 
-            db.insert_vente(logement_id, date_annonce, prix_annonce, prix_officiel,
-                             charges_previsionnelles, agence, lien_annonce)
+            db.insert_vente(logement_id, date_annonce, prix_annonce, valeur_fonciere,
+                             charges_previsionnelles, surface_reelle_bati, surface_carrez,
+                             numero_lot, reference_mutation, agence, lien_annonce)
             flash('Vente ajoutée.', 'success')
             return redirect(url_for('ventes'))
 
@@ -521,13 +526,18 @@ def ventes():
             logement_id = request.form.get('logement_id', type=int)
             date_annonce = request.form.get('date_annonce', '').strip() or None
             prix_annonce = request.form.get('prix_annonce', type=float)
-            prix_officiel = request.form.get('prix_officiel', type=float)
+            valeur_fonciere = request.form.get('valeur_fonciere', type=float)
             charges_previsionnelles = request.form.get('charges_previsionnelles', type=float)
+            surface_reelle_bati = request.form.get('surface_reelle_bati', type=float)
+            surface_carrez = request.form.get('surface_carrez', type=float)
+            numero_lot = request.form.get('numero_lot', '').strip() or None
+            reference_mutation = request.form.get('reference_mutation', '').strip() or None
             agence = request.form.get('agence', '').strip() or None
             lien_annonce = request.form.get('lien_annonce', '').strip() or None
 
-            db.update_vente(vente_id, logement_id, date_annonce, prix_annonce, prix_officiel,
-                             charges_previsionnelles, agence, lien_annonce)
+            db.update_vente(vente_id, logement_id, date_annonce, prix_annonce, valeur_fonciere,
+                             charges_previsionnelles, surface_reelle_bati, surface_carrez,
+                             numero_lot, reference_mutation, agence, lien_annonce)
             flash('Vente modifiée.', 'success')
             return redirect(url_for('ventes'))
 
