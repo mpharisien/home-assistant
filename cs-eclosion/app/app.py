@@ -24,6 +24,7 @@ MODULES_PAR_ENDPOINT = {
     'fournisseurs': 'depenses',
     'import_csv': 'depenses',
     'logements': 'logements',
+    'ventes': 'ventes',
     'sujets_ag': 'sujets_ag',
     'ocea_dashboard': 'ocea',
     'ocea_mon_logement': 'ocea',
@@ -442,7 +443,6 @@ def import_csv():
 CATEGORIES_HISTORIQUE = {
     'proprietaire': 'Propriétaire',
     'habitant': 'Habitant',
-    'prix_vente': 'Prix de vente',
 }
 
 
@@ -481,7 +481,8 @@ def logements():
     liste = db.rechercher_logements(recherche_nom=recherche, surface_min=surface_min, surface_max=surface_max)
 
     # Historique complet pour chaque logement affiché (pour l'accordéon, évite un aller-retour JS)
-    historiques = {l['id']: db.get_historique_logement(l['id']) for l in liste}
+    # Fusionné avec les ventes enregistrées (module Ventes), affichées en lecture seule.
+    historiques = {l['id']: db.get_historique_logement_avec_ventes(l['id']) for l in liste}
 
     return render_template('modules/logements/liste.html',
                            logements=liste,
@@ -490,6 +491,74 @@ def logements():
                            recherche=recherche or '',
                            surface_min=surface_min,
                            surface_max=surface_max)
+
+
+DATA_GOUV_URL = 'https://explore.data.gouv.fr/fr/immobilier?onglet=carte&filtre=tous&code=78005000BC0326&level=parcelle&lat=48.96337&lng=2.06949&zoom=17.66'
+CLE_DATE_VERIFICATION_VENTES = 'ventes_derniere_verification'
+
+
+@app.route('/ventes', methods=['GET', 'POST'])
+def ventes():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'ajouter_vente':
+            logement_id = request.form.get('logement_id', type=int)
+            date_annonce = request.form.get('date_annonce', '').strip() or None
+            prix_annonce = request.form.get('prix_annonce', type=float)
+            prix_officiel = request.form.get('prix_officiel', type=float)
+            charges_previsionnelles = request.form.get('charges_previsionnelles', type=float)
+            agence = request.form.get('agence', '').strip() or None
+            lien_annonce = request.form.get('lien_annonce', '').strip() or None
+
+            db.insert_vente(logement_id, date_annonce, prix_annonce, prix_officiel,
+                             charges_previsionnelles, agence, lien_annonce)
+            flash('Vente ajoutée.', 'success')
+            return redirect(url_for('ventes'))
+
+        elif action == 'modifier_vente':
+            vente_id = request.form.get('vente_id', type=int)
+            logement_id = request.form.get('logement_id', type=int)
+            date_annonce = request.form.get('date_annonce', '').strip() or None
+            prix_annonce = request.form.get('prix_annonce', type=float)
+            prix_officiel = request.form.get('prix_officiel', type=float)
+            charges_previsionnelles = request.form.get('charges_previsionnelles', type=float)
+            agence = request.form.get('agence', '').strip() or None
+            lien_annonce = request.form.get('lien_annonce', '').strip() or None
+
+            db.update_vente(vente_id, logement_id, date_annonce, prix_annonce, prix_officiel,
+                             charges_previsionnelles, agence, lien_annonce)
+            flash('Vente modifiée.', 'success')
+            return redirect(url_for('ventes'))
+
+        elif action == 'supprimer_vente':
+            vente_id = request.form.get('vente_id', type=int)
+            if vente_id:
+                db.delete_vente(vente_id)
+                flash('Vente supprimée.', 'success')
+            return redirect(url_for('ventes'))
+
+        elif action == 'marquer_verifie':
+            db.set_parametre(CLE_DATE_VERIFICATION_VENTES, datetime.now().strftime('%Y-%m-%d'))
+            flash('Date de vérification mise à jour.', 'success')
+            return redirect(url_for('ventes'))
+
+        elif action == 'modifier_date_verification':
+            nouvelle_date = request.form.get('date_verification', '').strip()
+            if nouvelle_date:
+                db.set_parametre(CLE_DATE_VERIFICATION_VENTES, nouvelle_date)
+                flash('Date de vérification mise à jour.', 'success')
+            return redirect(url_for('ventes'))
+
+    liste = db.get_all_ventes()
+    logements_liste = db.get_all_logements_avec_etat_actuel()
+    date_verification = db.get_parametre(CLE_DATE_VERIFICATION_VENTES)
+
+    return render_template('modules/ventes/liste.html',
+                           ventes=liste,
+                           logements=logements_liste,
+                           date_verification=date_verification,
+                           data_gouv_url=DATA_GOUV_URL)
 
 
 @app.route('/logements/seed-initial')
