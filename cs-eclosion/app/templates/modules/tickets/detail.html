@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}— Ticket : {{ ticket.titre }}{% endblock %}
+
+{% block content %}
+<style>
+  .maj-row { border-bottom: 1px solid #f3f4f6; padding: 0.8rem 0; }
+  .maj-row:last-child { border-bottom: none; }
+  .maj-row-lecture { display: flex; gap: 1rem; align-items: flex-start; }
+  .maj-row-date { font-size: 0.8rem; color: var(--text-muted); width: 90px; flex-shrink: 0; padding-top: 0.15rem; }
+  .maj-row-texte { flex: 1; font-size: 0.9rem; white-space: pre-wrap; }
+  .maj-row-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+  .maj-row-actions button { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+  .maj-row-edition { display: none; gap: 0.8rem; align-items: flex-start; margin-top: 0.5rem; }
+</style>
+
+<div class="page-title">
+  Tickets du CS <span>— Détail du ticket</span>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <h2 style="border:none; margin:0; padding:0;">Informations</h2>
+    <form method="post" onsubmit="return confirm('Supprimer définitivement ce ticket et toutes ses mises à jour ?');">
+      <input type="hidden" name="action" value="supprimer_ticket">
+      <button type="submit" class="btn btn-danger" style="font-size:0.8rem; padding:0.4rem 0.9rem;">Supprimer le ticket</button>
+    </form>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom:1.5rem;">
+    <div class="stat-box">
+      <div class="label">Délai d'ouverture</div>
+      <div class="value">{{ ticket.delai_ouverture_jours }} j</div>
+      <div class="sub">{{ 'Figé (ticket clôturé)' if ticket.statut == 'termine' else 'En cours de décompte' }}</div>
+    </div>
+  </div>
+
+  <form method="post">
+    <input type="hidden" name="action" value="modifier_ticket">
+
+    <div class="form-group">
+      <label>Titre</label>
+      <input type="text" name="titre" value="{{ ticket.titre }}" required>
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="4" style="width:100%; padding:0.5rem 0.75rem; border:1px solid var(--border-color); border-radius:8px; font-size:0.9rem; font-family:inherit;">{{ ticket.description }}</textarea>
+    </div>
+
+    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Catégorie</label>
+        <select name="categorie_id">
+          <option value="">— aucune —</option>
+          {% for c in categories %}
+          <option value="{{ c.id }}" {{ 'selected' if ticket.categorie_id == c.id }}>{{ c.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Prestataire</label>
+        <select name="prestataire_id">
+          <option value="">— aucun —</option>
+          {% for p in prestataires %}
+          <option value="{{ p.id }}" {{ 'selected' if ticket.prestataire_id == p.id }}>{{ p.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Assigné à</label>
+        <select name="assigne_id">
+          <option value="">— personne —</option>
+          {% for a in assignes %}
+          <option value="{{ a.id }}" {{ 'selected' if ticket.assigne_id == a.id }}>{{ a.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+      <div class="form-group" style="max-width:200px;">
+        <label>Statut</label>
+        <select name="statut" id="champ-statut">
+          <option value="en_cours" {{ 'selected' if ticket.statut == 'en_cours' }}>En cours</option>
+          <option value="termine" {{ 'selected' if ticket.statut == 'termine' }}>Terminé</option>
+        </select>
+      </div>
+      <div class="form-group" style="max-width:200px;">
+        <label>Date de création</label>
+        <input type="date" name="date_creation" value="{{ ticket.date_creation }}" required>
+      </div>
+      <div class="form-group" style="max-width:200px;" id="bloc-date-cloture">
+        <label>Date de clôture</label>
+        <input type="date" name="date_cloture" value="{{ ticket.date_cloture or '' }}">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Mises à jour</h2>
+
+  {% if not mises_a_jour %}
+  <p style="color:#6b7280; padding:0.5rem 0;">Aucune mise à jour pour l'instant.</p>
+  {% endif %}
+
+  {% for m in mises_a_jour %}
+  <div class="maj-row">
+    <div class="maj-row-lecture" id="maj-lecture-{{ m.id }}">
+      <div class="maj-row-date">{{ m.date | date_fr }}</div>
+      <div class="maj-row-texte">{{ m.texte }}</div>
+      <div class="maj-row-actions">
+        <button type="button" class="btn btn-secondary" onclick="toggleEditionMaj({{ m.id }})">Modifier</button>
+        <form method="post" style="display:inline;" onsubmit="return confirm('Supprimer cette mise à jour ?');">
+          <input type="hidden" name="action" value="supprimer_mise_a_jour">
+          <input type="hidden" name="mise_a_jour_id" value="{{ m.id }}">
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </form>
+      </div>
+    </div>
+
+    <form method="post" class="maj-row-edition" id="maj-edition-{{ m.id }}">
+      <input type="hidden" name="action" value="modifier_mise_a_jour">
+      <input type="hidden" name="mise_a_jour_id" value="{{ m.id }}">
+      <input type="date" name="date_maj" value="{{ m.date }}" required>
+      <textarea name="texte" rows="2" required style="flex:1; padding:0.5rem 0.75rem; border:1px solid var(--border-color); border-radius:8px; font-size:0.88rem; font-family:inherit;">{{ m.texte }}</textarea>
+      <button type="submit" class="btn btn-primary">Enregistrer</button>
+      <button type="button" class="btn btn-secondary" onclick="toggleEditionMaj({{ m.id }})">Annuler</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  <form method="post" style="margin-top:1.2rem; padding-top:1.2rem; border-top:2px solid var(--foncia-accent-light); display:flex; gap:0.8rem; align-items:flex-start;">
+    <input type="hidden" name="action" value="ajouter_mise_a_jour">
+    <input type="date" name="date_maj" value="{{ aujourd_hui }}" required>
+    <textarea name="texte" rows="2" placeholder="Nouvelle mise à jour…" required style="flex:1; padding:0.5rem 0.75rem; border:1px solid var(--border-color); border-radius:8px; font-size:0.88rem; font-family:inherit;"></textarea>
+    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleEditionMaj(id) {
+  const lecture = document.getElementById('maj-lecture-' + id);
+  const edition = document.getElementById('maj-edition-' + id);
+  const enEdition = edition.style.display === 'flex';
+  lecture.style.display = enEdition ? 'flex' : 'none';
+  edition.style.display = enEdition ? 'none' : 'flex';
+}
+
+// Le champ "Date de clôture" n'a de sens que pour un ticket "Terminé"
+function appliquerVisibiliteDateCloture() {
+  const statut = document.getElementById('champ-statut').value;
+  document.getElementById('bloc-date-cloture').style.display = (statut === 'termine') ? 'block' : 'none';
+}
+document.getElementById('champ-statut').addEventListener('change', appliquerVisibiliteDateCloture);
+appliquerVisibiliteDateCloture();
+</script>
+{% endblock %}
