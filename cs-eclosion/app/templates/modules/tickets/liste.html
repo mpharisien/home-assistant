@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}— Tickets du CS{% endblock %}
+
+{% block content %}
+<style>
+  .ticket-card {
+    display: flex;
+    align-items: stretch;
+    gap: 0.6rem;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    border: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+  }
+  .ticket-card-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.6rem 0.5rem;
+    background: #f7f9fc;
+    border-right: 1px solid var(--border-color);
+  }
+  .ticket-card-actions button {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+  }
+  .ticket-card-link {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    padding: 0.9rem 1.2rem;
+    text-decoration: none;
+    color: inherit;
+  }
+  .ticket-card-link:hover { background: #f8faff; }
+  .ticket-card-date { font-size: 0.82rem; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+  .ticket-card-categorie { width: 150px; flex-shrink: 0; }
+  .ticket-card-titre { flex: 1; font-weight: 600; font-size: 0.92rem; }
+  .ticket-card-prestataire { font-size: 0.85rem; color: var(--text-muted); width: 180px; flex-shrink: 0; text-align: right; }
+</style>
+
+<div class="page-title">Tickets du CS <span>— Sujets en cours</span></div>
+
+<div style="margin-bottom: 1.5rem;">
+  <button type="button" class="btn btn-primary" id="btn-afficher-form-creation">+ Créer un ticket</button>
+</div>
+
+<div class="card" id="form-creation-ticket" style="display:none;">
+  <h2>Nouveau ticket</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="ajouter_ticket">
+
+    <div class="form-group">
+      <label>Titre</label>
+      <input type="text" name="titre" required>
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="3" style="width:100%; padding:0.5rem 0.75rem; border:1px solid var(--border-color); border-radius:8px; font-size:0.9rem; font-family:inherit;"></textarea>
+    </div>
+
+    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Catégorie</label>
+        <select name="categorie_id">
+          <option value="">— aucune —</option>
+          {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Prestataire</label>
+        <select name="prestataire_id">
+          <option value="">— aucun —</option>
+          {% for p in prestataires %}
+          <option value="{{ p.id }}">{{ p.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1; min-width:180px;">
+        <label>Assigné à</label>
+        <select name="assigne_id">
+          <option value="">— personne —</option>
+          {% for a in assignes %}
+          <option value="{{ a.id }}">{{ a.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="max-width:200px;">
+      <label>Date de création</label>
+      <input type="date" name="date_creation" value="{{ aujourd_hui }}">
+    </div>
+
+    <div style="display:flex; gap:0.6rem;">
+      <button type="submit" class="btn btn-primary">Créer le ticket</button>
+      <button type="button" class="btn btn-secondary" id="btn-annuler-form-creation">Annuler</button>
+    </div>
+  </form>
+</div>
+
+{% if not tickets %}
+<p style="color:#6b7280; text-align:center; padding:2rem;">Aucun ticket en cours pour l'instant.</p>
+{% endif %}
+
+{% for t in tickets %}
+<div class="ticket-card">
+  <div class="ticket-card-actions">
+    <button type="button" class="btn btn-secondary btn-monter" data-ticket-id="{{ t.id }}" title="Monter">▲</button>
+    <button type="button" class="btn btn-secondary btn-descendre" data-ticket-id="{{ t.id }}" title="Descendre">▼</button>
+  </div>
+  <a class="ticket-card-link" href="{{ url_for('ticket_detail', ticket_id=t.id) }}">
+    <span class="ticket-card-date">{{ t.date_creation | date_fr }}</span>
+    <span class="ticket-card-categorie">
+      {% if t.categorie_nom %}
+      <span class="badge" style="background:{{ t.categorie_couleur }}; color:#fff;">{{ t.categorie_nom }}</span>
+      {% else %}
+      <span style="color:#c1c5cc; font-size:0.82rem;">— aucune —</span>
+      {% endif %}
+    </span>
+    <span class="ticket-card-titre">{{ t.titre }}</span>
+    <span class="ticket-card-prestataire">{{ t.prestataire_nom or '—' }}</span>
+  </a>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('btn-afficher-form-creation').addEventListener('click', () => {
+  document.getElementById('form-creation-ticket').style.display = 'block';
+  document.getElementById('btn-afficher-form-creation').style.display = 'none';
+});
+document.getElementById('btn-annuler-form-creation').addEventListener('click', () => {
+  document.getElementById('form-creation-ticket').style.display = 'none';
+  document.getElementById('btn-afficher-form-creation').style.display = 'inline-block';
+});
+
+// Boutons monter / descendre : ré-ordonnancement manuel sans quitter la page
+document.querySelectorAll('.btn-monter, .btn-descendre').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const direction = btn.classList.contains('btn-monter') ? 'haut' : 'bas';
+    const formData = new FormData();
+    formData.append('action', 'deplacer_ticket');
+    formData.append('ticket_id', btn.dataset.ticketId);
+    formData.append('direction', direction);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
+  });
+});
+</script>
+{% endblock %}
