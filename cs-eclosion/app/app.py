@@ -3,7 +3,7 @@ import io
 import csv
 import json
 import tempfile
-from datetime import datetime
+from datetime import datetime, date
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 
 import database as db
@@ -26,6 +26,11 @@ MODULES_PAR_ENDPOINT = {
     'logements': 'logements',
     'ventes': 'ventes',
     'sujets_ag': 'sujets_ag',
+    'tickets': 'tickets',
+    'ticket_detail': 'tickets',
+    'tickets_clotures': 'tickets',
+    'tickets_donnees': 'tickets',
+    'tickets_stats': 'tickets',
     'ocea_dashboard': 'ocea',
     'ocea_mon_logement': 'ocea',
     'ocea_historique_eau_froide': 'ocea',
@@ -38,6 +43,17 @@ MODULES_PAR_ENDPOINT = {
 @app.context_processor
 def inject_module_actif():
     return {'module_actif': MODULES_PAR_ENDPOINT.get(request.endpoint)}
+
+
+@app.template_filter('date_fr')
+def format_date_fr(date_iso):
+    """Convertit une date stockée en 'YYYY-MM-DD' vers l'affichage JJ-MM-AAAA (module Tickets)."""
+    if not date_iso:
+        return '—'
+    try:
+        return datetime.strptime(date_iso, '%Y-%m-%d').strftime('%d-%m-%Y')
+    except (ValueError, TypeError):
+        return date_iso
 
 
 # ─── Utilitaires ──────────────────────────────────────────────────────────────
@@ -678,6 +694,236 @@ def sujets_ag():
     idees = db.get_all_idees_ag()
     statuts = db.get_all_statuts_ag()
     return render_template('modules/sujets_ag/liste.html', idees=idees, statuts=statuts)
+
+
+# ─── Module Tickets du CS ───────────────────────────────────────────────────────
+
+def calculer_delai_ouverture_jours(ticket):
+    """
+    Nombre de jours écoulés depuis la création du ticket. Si le ticket est clôturé,
+    le compteur est figé à la date de clôture (ne continue plus d'avancer).
+    """
+    date_debut = date.fromisoformat(ticket['date_creation'])
+    date_fin = date.fromisoformat(ticket['date_cloture']) if ticket['date_cloture'] else date.today()
+    return (date_fin - date_debut).days
+
+
+def listes_donnees_tickets():
+    """Les 3 listes déroulantes (catégories, prestataires, assignés), utilisées par
+    plusieurs pages du module (accueil, détail, données)."""
+    return {
+        'categories': db.get_all_categories_tickets(),
+        'prestataires': db.get_all_prestataires_tickets(),
+        'assignes': db.get_all_assignes_tickets(),
+    }
+
+
+@app.route('/tickets', methods=['GET', 'POST'])
+def tickets():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'ajouter_ticket':
+            titre = request.form.get('titre', '').strip()
+            description = request.form.get('description', '').strip()
+            categorie_id = request.form.get('categorie_id', type=int)
+            prestataire_id = request.form.get('prestataire_id', type=int)
+            assigne_id = request.form.get('assigne_id', type=int)
+            date_creation = request.form.get('date_creation', '').strip() or date.today().isoformat()
+
+            if titre:
+                ticket_id = db.insert_ticket(titre, description, categorie_id, prestataire_id,
+                                              assigne_id, date_creation)
+                flash('Ticket créé.', 'success')
+                return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+        elif action == 'deplacer_ticket':
+            ticket_id = request.form.get('ticket_id', type=int)
+            direction = request.form.get('direction')
+            if ticket_id and direction in ('haut', 'bas'):
+                db.deplacer_ticket(ticket_id, direction)
+
+        return redirect(url_for('tickets'))
+
+    tickets_liste = db.get_tickets_en_cours()
+    for t in tickets_liste:
+        t['delai_ouverture_jours'] = calculer_delai_ouverture_jours(t)
+
+    return render_template('modules/tickets/liste.html',
+                           tickets=tickets_liste,
+                           aujourd_hui=date.today().isoformat(),
+                           **listes_donnees_tickets())
+
+
+@app.route('/tickets/<int:ticket_id>', methods=['GET', 'POST'])
+def ticket_detail(ticket_id):
+    ticket = db.get_ticket_by_id(ticket_id)
+    if not ticket:
+        flash("Ce ticket n'existe pas (ou plus).", 'error')
+        return redirect(url_for('tickets'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'modifier_ticket':
+            titre = request.form.get('titre', '').strip()
+            description = request.form.get('description', '').strip()
+            categorie_id = request.form.get('categorie_id', type=int)
+            prestataire_id = request.form.get('prestataire_id', type=int)
+            assigne_id = request.form.get('assigne_id', type=int)
+            statut = request.form.get('statut')
+            date_creation = request.form.get('date_creation', '').strip()
+            date_cloture = request.form.get('date_cloture', '').strip() or None
+
+            # Si on clôture le ticket sans préciser de date de clôture, on reprend
+            # celle déjà enregistrée (édition d'un ticket déjà clôturé), sinon
+            # aujourd'hui (on vient de le clôturer à l'instant).
+            if statut == 'termine' and not date_cloture:
+                date_cloture = ticket['date_cloture'] or date.today().isoformat()
+
+            if titre and date_creation:
+                db.update_ticket(ticket_id, titre, description, categorie_id, prestataire_id,
+                                  assigne_id, statut, date_creation, date_cloture)
+                flash('Ticket mis à jour.', 'success')
+            return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+        elif action == 'ajouter_mise_a_jour':
+            date_maj = request.form.get('date_maj', '').strip() or date.today().isoformat()
+            texte = request.form.get('texte', '').strip()
+            if texte:
+                db.add_mise_a_jour_ticket(ticket_id, date_maj, texte)
+            return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+        elif action == 'modifier_mise_a_jour':
+            mise_a_jour_id = request.form.get('mise_a_jour_id', type=int)
+            date_maj = request.form.get('date_maj', '').strip()
+            texte = request.form.get('texte', '').strip()
+            if mise_a_jour_id and date_maj and texte:
+                db.update_mise_a_jour_ticket(mise_a_jour_id, date_maj, texte)
+            return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+        elif action == 'supprimer_mise_a_jour':
+            mise_a_jour_id = request.form.get('mise_a_jour_id', type=int)
+            if mise_a_jour_id:
+                db.delete_mise_a_jour_ticket(mise_a_jour_id)
+            return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+        elif action == 'supprimer_ticket':
+            db.delete_ticket(ticket_id)
+            flash('Ticket supprimé.', 'success')
+            return redirect(url_for('tickets'))
+
+        return redirect(url_for('ticket_detail', ticket_id=ticket_id))
+
+    ticket['delai_ouverture_jours'] = calculer_delai_ouverture_jours(ticket)
+    mises_a_jour = db.get_mises_a_jour_ticket(ticket_id)
+
+    return render_template('modules/tickets/detail.html',
+                           ticket=ticket,
+                           mises_a_jour=mises_a_jour,
+                           aujourd_hui=date.today().isoformat(),
+                           **listes_donnees_tickets())
+
+
+@app.route('/tickets/clotures')
+def tickets_clotures():
+    tri = request.args.get('tri', 'cloture')
+    tickets_liste = db.get_tickets_clotures()  # déjà trié par date de clôture décroissante
+
+    if tri == 'categorie':
+        tickets_liste = sorted(tickets_liste, key=lambda t: (t['categorie_nom'] or '').lower())
+    elif tri == 'prestataire':
+        tickets_liste = sorted(tickets_liste, key=lambda t: (t['prestataire_nom'] or '').lower())
+    else:
+        tri = 'cloture'
+
+    groupes_par_annee = {}
+    for t in tickets_liste:
+        annee = t['date_cloture'][:4] if t['date_cloture'] else 'Sans date'
+        groupes_par_annee.setdefault(annee, []).append(t)
+
+    annees_triees = sorted(groupes_par_annee.keys(), reverse=True)
+    tickets_par_annee = [(annee, groupes_par_annee[annee]) for annee in annees_triees]
+
+    return render_template('modules/tickets/clotures.html',
+                           tickets_par_annee=tickets_par_annee,
+                           tri=tri)
+
+
+@app.route('/tickets/donnees', methods=['GET', 'POST'])
+def tickets_donnees():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'ajouter_categorie':
+            nom = request.form.get('nom', '').strip()
+            couleur = request.form.get('couleur', '').strip() or db.COULEURS_CATEGORIES_TICKETS[0]
+            if nom:
+                try:
+                    db.add_categorie_ticket(nom, couleur)
+                except Exception:
+                    flash(f'La catégorie « {nom} » existe déjà.', 'error')
+
+        elif action == 'modifier_categorie':
+            categorie_id = request.form.get('categorie_id', type=int)
+            nom = request.form.get('nom', '').strip()
+            couleur = request.form.get('couleur', '').strip()
+            if categorie_id and nom and couleur:
+                db.update_categorie_ticket(categorie_id, nom, couleur)
+
+        elif action == 'supprimer_categorie':
+            categorie_id = request.form.get('categorie_id', type=int)
+            if categorie_id:
+                db.delete_categorie_ticket(categorie_id)
+
+        elif action == 'ajouter_prestataire':
+            nom = request.form.get('nom', '').strip()
+            if nom:
+                try:
+                    db.add_prestataire_ticket(nom)
+                except Exception:
+                    flash(f'Le prestataire « {nom} » existe déjà.', 'error')
+
+        elif action == 'modifier_prestataire':
+            prestataire_id = request.form.get('prestataire_id', type=int)
+            nom = request.form.get('nom', '').strip()
+            if prestataire_id and nom:
+                db.update_prestataire_ticket(prestataire_id, nom)
+
+        elif action == 'supprimer_prestataire':
+            prestataire_id = request.form.get('prestataire_id', type=int)
+            if prestataire_id:
+                db.delete_prestataire_ticket(prestataire_id)
+
+        elif action == 'ajouter_assigne':
+            nom = request.form.get('nom', '').strip()
+            if nom:
+                try:
+                    db.add_assigne_ticket(nom)
+                except Exception:
+                    flash(f'« {nom} » existe déjà dans la liste des assignés.', 'error')
+
+        elif action == 'modifier_assigne':
+            assigne_id = request.form.get('assigne_id', type=int)
+            nom = request.form.get('nom', '').strip()
+            if assigne_id and nom:
+                db.update_assigne_ticket(assigne_id, nom)
+
+        elif action == 'supprimer_assigne':
+            assigne_id = request.form.get('assigne_id', type=int)
+            if assigne_id:
+                db.delete_assigne_ticket(assigne_id)
+
+        return redirect(url_for('tickets_donnees'))
+
+    return render_template('modules/tickets/donnees.html',
+                           couleurs_disponibles=db.COULEURS_CATEGORIES_TICKETS,
+                           **listes_donnees_tickets())
+
+
+@app.route('/tickets/stats')
+def tickets_stats():
+    return render_template('modules/tickets/stats.html')
 
 
 # ─── Module Relevés Océa ────────────────────────────────────────────────────────
