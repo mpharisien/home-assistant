@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}— Données Tickets{% endblock %}
+
+{% block content %}
+<style>
+  .liste-simple-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.5rem 0; border-bottom: 1px solid #f3f4f6;
+  }
+  .liste-simple-item:last-child { border-bottom: none; }
+  .liste-simple-item input.champ-editable {
+    flex: 1; border: none; background: transparent; font-size: 0.9rem; padding: 0.3rem;
+  }
+  .liste-simple-item input.champ-editable:focus {
+    outline: none; background: var(--foncia-accent-light); border-radius: 6px;
+  }
+  .liste-simple-item button { padding: 0.2rem 0.6rem; font-size: 0.75rem; }
+
+  .categorie-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    border-radius: 99px; padding: 0.35rem 0.5rem 0.35rem 0.9rem;
+    font-size: 0.82rem; cursor: pointer; margin: 0.25rem;
+  }
+  .categorie-badge button {
+    background: rgba(255,255,255,.25); border: none; color: #fff; cursor: pointer;
+    font-size: 0.85rem; line-height: 1; width: 20px; height: 20px; border-radius: 50%;
+  }
+
+  .palette-couleurs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+  .swatch-couleur {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent;
+  }
+  .swatch-couleur.selectionne { border-color: #374151; }
+</style>
+
+<div class="page-title">Tickets du CS <span>— Données</span></div>
+
+<!-- ── Catégories ── -->
+<div class="card">
+  <h2>Catégories</h2>
+
+  <div style="margin-bottom:1.2rem;">
+    {% for c in categories %}
+    <span class="categorie-badge" style="background:{{ c.couleur }}; color:#fff;"
+          data-categorie-id="{{ c.id }}" data-categorie-nom="{{ c.nom }}" data-categorie-couleur="{{ c.couleur }}">
+      <span style="font-weight:600;">{{ c.nom }}</span>
+      <button type="button" class="btn-supprimer-categorie" data-categorie-id="{{ c.id }}" data-categorie-nom="{{ c.nom }}">✕</button>
+    </span>
+    {% else %}
+    <p style="color:#6b7280;">Aucune catégorie pour l'instant.</p>
+    {% endfor %}
+  </div>
+
+  <form method="post" id="form-categorie">
+    <input type="hidden" name="action" id="form-categorie-action" value="ajouter_categorie">
+    <input type="hidden" name="categorie_id" id="form-categorie-id" value="">
+    <input type="hidden" name="couleur" id="form-categorie-couleur" value="{{ couleurs_disponibles[0] }}">
+
+    <div class="form-group" style="max-width:320px;">
+      <label id="form-categorie-label">Nom de la catégorie</label>
+      <input type="text" name="nom" id="form-categorie-nom" required>
+    </div>
+
+    <label style="display:block; font-size:0.88rem; font-weight:600; margin-bottom:0.5rem; color:#374151;">Couleur</label>
+    <div class="palette-couleurs" id="palette-couleurs">
+      {% for couleur in couleurs_disponibles %}
+      <div class="swatch-couleur {{ 'selectionne' if loop.first }}" style="background:{{ couleur }};" data-couleur="{{ couleur }}"></div>
+      {% endfor %}
+    </div>
+
+    <div style="display:flex; gap:0.6rem;">
+      <button type="submit" class="btn btn-primary" id="form-categorie-submit">+ Ajouter</button>
+      <button type="button" class="btn btn-secondary" id="form-categorie-annuler" style="display:none;" onclick="resetFormCategorie()">Annuler</button>
+    </div>
+  </form>
+</div>
+
+<!-- ── Prestataires ── -->
+<div class="card">
+  <h2>Prestataires</h2>
+
+  {% for p in prestataires %}
+  <div class="liste-simple-item">
+    <input type="text" class="champ-editable" data-action="modifier_prestataire" data-id-field="prestataire_id"
+           data-id="{{ p.id }}" value="{{ p.nom }}">
+    <button type="button" class="btn btn-danger btn-supprimer-simple" data-action="supprimer_prestataire" data-id-field="prestataire_id" data-id="{{ p.id }}" data-nom="{{ p.nom }}">Supprimer</button>
+  </div>
+  {% else %}
+  <p style="color:#6b7280;">Aucun prestataire pour l'instant.</p>
+  {% endfor %}
+
+  <form method="post" style="margin-top:1rem; display:flex; gap:0.6rem;">
+    <input type="hidden" name="action" value="ajouter_prestataire">
+    <input type="text" name="nom" placeholder="Nouveau prestataire…" required style="flex:1; padding:0.5rem 0.75rem; border:1px solid var(--border-color); border-radius:8px;">
+    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+  </form>
+</div>
+
+<!-- ── Assignés ── -->
+<div class="card">
+  <h2>Assignés</h2>
+
+  {% for a in assignes %}
+  <div class="liste-simple-item">
+    <input type="text" class="champ-editable" data-action="modifier_assigne" data-id-field="assigne_id"
+           data-id="{{ a.id }}" value="{{ a.nom }}">
+    <button type="button" class="btn btn-danger btn-supprimer-simple" data-action="supprimer_assigne" data-id-field="assigne_id" data-id="{{ a.id }}" data-nom="{{ a.nom }}">Supprimer</button>
+  </div>
+  {% else %}
+  <p style="color:#6b7280;">Aucun assigné pour l'instant.</p>
+  {% endfor %}
+
+  <form method="post" style="margin-top:1rem; display:flex; gap:0.6rem;">
+    <input type="hidden" name="action" value="ajouter_assigne">
+    <input type="text" name="nom" placeholder="Nouvel assigné…" required style="flex:1; padding:0.5rem 0.75rem; border:1px solid var(--border-color); border-radius:8px;">
+    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Sélection de couleur (catégories) ──
+document.querySelectorAll('.swatch-couleur').forEach(swatch => {
+  swatch.addEventListener('click', () => {
+    document.querySelectorAll('.swatch-couleur').forEach(s => s.classList.remove('selectionne'));
+    swatch.classList.add('selectionne');
+    document.getElementById('form-categorie-couleur').value = swatch.dataset.couleur;
+  });
+});
+
+function resetFormCategorie() {
+  document.getElementById('form-categorie-action').value = 'ajouter_categorie';
+  document.getElementById('form-categorie-id').value = '';
+  document.getElementById('form-categorie-nom').value = '';
+  document.getElementById('form-categorie-label').textContent = 'Nom de la catégorie';
+  document.getElementById('form-categorie-submit').textContent = '+ Ajouter';
+  document.getElementById('form-categorie-annuler').style.display = 'none';
+  document.querySelectorAll('.swatch-couleur').forEach(s => s.classList.remove('selectionne'));
+  const premiere = document.querySelector('.swatch-couleur');
+  if (premiere) {
+    premiere.classList.add('selectionne');
+    document.getElementById('form-categorie-couleur').value = premiere.dataset.couleur;
+  }
+}
+
+// Clic sur un badge de catégorie -> passe le formulaire en mode "modification"
+document.querySelectorAll('.categorie-badge').forEach(badge => {
+  badge.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-supprimer-categorie')) return;
+    document.getElementById('form-categorie-action').value = 'modifier_categorie';
+    document.getElementById('form-categorie-id').value = badge.dataset.categorieId;
+    document.getElementById('form-categorie-nom').value = badge.dataset.categorieNom;
+    document.getElementById('form-categorie-couleur').value = badge.dataset.categorieCouleur;
+    document.getElementById('form-categorie-label').textContent = 'Modifier la catégorie';
+    document.getElementById('form-categorie-submit').textContent = 'Enregistrer';
+    document.getElementById('form-categorie-annuler').style.display = 'inline-block';
+
+    document.querySelectorAll('.swatch-couleur').forEach(s => {
+      s.classList.toggle('selectionne', s.dataset.couleur === badge.dataset.categorieCouleur);
+    });
+    document.getElementById('form-categorie').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+});
+
+document.querySelectorAll('.btn-supprimer-categorie').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!confirm(`Supprimer la catégorie « ${btn.dataset.categorieNom} » ? Les tickets qui l'utilisent perdront cette catégorie.`)) return;
+    const formData = new FormData();
+    formData.append('action', 'supprimer_categorie');
+    formData.append('categorie_id', btn.dataset.categorieId);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
+  });
+});
+
+// ── Édition en place (prestataires / assignés) : sauvegarde au blur ──
+document.querySelectorAll('.champ-editable').forEach(champ => {
+  champ.dataset.valeurInitiale = champ.value;
+  champ.addEventListener('blur', () => {
+    if (champ.value.trim() === champ.dataset.valeurInitiale.trim() || !champ.value.trim()) return;
+    const formData = new FormData();
+    formData.append('action', champ.dataset.action);
+    formData.append(champ.dataset.idField, champ.dataset.id);
+    formData.append('nom', champ.value.trim());
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => {
+      champ.dataset.valeurInitiale = champ.value;
+    });
+  });
+  champ.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); champ.blur(); }
+  });
+});
+
+// ── Suppression (prestataires / assignés) ──
+document.querySelectorAll('.btn-supprimer-simple').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!confirm(`Supprimer « ${btn.dataset.nom} » ? Les tickets qui l'utilisent perdront cette information.`)) return;
+    const formData = new FormData();
+    formData.append('action', btn.dataset.action);
+    formData.append(btn.dataset.idField, btn.dataset.id);
+    fetch(window.location.pathname, { method: 'POST', body: formData }).then(() => window.location.reload());
+  });
+});
+</script>
+{% endblock %}
