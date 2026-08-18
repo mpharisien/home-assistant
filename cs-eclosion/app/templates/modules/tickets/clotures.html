@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}— Tickets clôturés{% endblock %}
+
+{% block content %}
+<div class="page-title">Tickets du CS <span>— Clôturés</span></div>
+
+<div style="margin-bottom:1.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+  <span style="font-size:0.88rem; font-weight:600; color:#374151;">Trier par :</span>
+  <a href="{{ url_for('tickets_clotures', tri='cloture') }}" class="btn {{ 'btn-primary' if tri == 'cloture' else 'btn-secondary' }}">Date de clôture</a>
+  <a href="{{ url_for('tickets_clotures', tri='categorie') }}" class="btn {{ 'btn-primary' if tri == 'categorie' else 'btn-secondary' }}">Catégorie</a>
+  <a href="{{ url_for('tickets_clotures', tri='prestataire') }}" class="btn {{ 'btn-primary' if tri == 'prestataire' else 'btn-secondary' }}">Prestataire</a>
+</div>
+
+{% if not tickets_par_annee %}
+<p style="color:#6b7280; text-align:center; padding:2rem;">Aucun ticket clôturé pour l'instant.</p>
+{% endif %}
+
+{% for annee, tickets_annee in tickets_par_annee %}
+<div class="accordion-item">
+  <div class="accordion-header">
+    <span>{{ annee }} — {{ tickets_annee|length }} ticket{{ 's' if tickets_annee|length > 1 else '' }}</span>
+    <span class="accordion-arrow">▼</span>
+  </div>
+  <div class="accordion-body">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date de clôture</th>
+            <th>Catégorie</th>
+            <th>Titre</th>
+            <th>Prestataire</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tickets_annee %}
+          <tr style="cursor:pointer;" onclick="window.location='{{ url_for('ticket_detail', ticket_id=t.id) }}';">
+            <td>{{ t.date_cloture | date_fr }}</td>
+            <td>
+              {% if t.categorie_nom %}
+              <span class="badge" style="background:{{ t.categorie_couleur }}; color:#fff;">{{ t.categorie_nom }}</span>
+              {% else %}
+              —
+              {% endif %}
+            </td>
+            <td><a href="{{ url_for('ticket_detail', ticket_id=t.id) }}" style="color:var(--foncia-accent); font-weight:600; text-decoration:none;">{{ t.titre }}</a></td>
+            <td>{{ t.prestataire_nom or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
