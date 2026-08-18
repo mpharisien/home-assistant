@@ -312,6 +312,9 @@
       <a href="{{ url_for('sujets_ag') }}" class="{{ 'active' if module_actif == 'sujets_ag' }}">
         <span class="module-icon">📋</span><span class="label-text">Sujets AG</span>
       </a>
+      <a href="{{ url_for('tickets') }}" class="{{ 'active' if module_actif == 'tickets' }}">
+        <span class="module-icon">🎫</span><span class="label-text">Tickets du CS</span>
+      </a>
     </nav>
     <div class="sidebar-footer">Résidence Eclosion<br>Conseil syndical</div>
   </aside>
@@ -337,6 +340,13 @@
     {% elif module_actif == 'sujets_ag' %}
     <div class="subnav">
       <a href="{{ url_for('sujets_ag') }}" class="active">Sujets AG</a>
+    </div>
+    {% elif module_actif == 'tickets' %}
+    <div class="subnav">
+      <a href="{{ url_for('tickets') }}" class="{{ 'active' if request.endpoint in ('tickets', 'ticket_detail') }}">Tickets en cours</a>
+      <a href="{{ url_for('tickets_clotures') }}" class="{{ 'active' if request.endpoint == 'tickets_clotures' }}">Clôturés</a>
+      <a href="{{ url_for('tickets_donnees') }}" class="{{ 'active' if request.endpoint == 'tickets_donnees' }}">Données</a>
+      <a href="{{ url_for('tickets_stats') }}" class="{{ 'active' if request.endpoint == 'tickets_stats' }}">Stats</a>
     </div>
     {% elif module_actif == 'ocea' %}
     <div class="subnav">
