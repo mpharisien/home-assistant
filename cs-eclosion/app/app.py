@@ -774,6 +774,7 @@ def ticket_detail(ticket_id):
             statut = request.form.get('statut')
             date_creation = request.form.get('date_creation', '').strip()
             date_cloture = request.form.get('date_cloture', '').strip() or None
+            ordre_service = request.form.get('ordre_service', '').strip() or None
 
             # Si on clôture le ticket sans préciser de date de clôture, on reprend
             # celle déjà enregistrée (édition d'un ticket déjà clôturé), sinon
@@ -783,7 +784,7 @@ def ticket_detail(ticket_id):
 
             if titre and date_creation:
                 db.update_ticket(ticket_id, titre, description, categorie_id, prestataire_id,
-                                  assigne_id, statut, date_creation, date_cloture)
+                                  assigne_id, statut, date_creation, date_cloture, ordre_service)
                 flash('Ticket mis à jour.', 'success')
             return redirect(url_for('ticket_detail', ticket_id=ticket_id))
 
