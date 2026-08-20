@@ -359,6 +359,13 @@ def init_db():
         )
     ''')
 
+    # Migration : ajout du numéro d'Ordre de service Foncia (ex: OSMIL808645658)
+    # sur une table 'tickets' déjà existante (versions précédentes du module).
+    cols_tickets = [col[1] for col in c.execute("PRAGMA table_info(tickets)").fetchall()]
+    if 'ordre_service' not in cols_tickets:
+        c.execute("ALTER TABLE tickets ADD COLUMN ordre_service TEXT")
+    conn.commit()
+
     # Mises à jour chronologiques d'un ticket (équivalent d'un fil de suivi),
     # chacune avec sa propre date librement modifiable (pour ressaisir un
     # historique ancien tel qu'il s'est réellement déroulé).
@@ -1452,7 +1459,8 @@ def get_ticket_by_id(ticket_id):
 
 
 def insert_ticket(titre, description, categorie_id, prestataire_id, assigne_id, date_creation):
-    """Un nouveau ticket est toujours créé 'en_cours' et placé tout en haut de la liste manuelle."""
+    """Un nouveau ticket est toujours créé 'en_cours' et placé tout en haut de la liste manuelle.
+    L'Ordre de service n'est pas saisi à la création (renseigné plus tard, cf. update_ticket)."""
     conn = get_db()
     min_ordre = conn.execute("SELECT MIN(ordre) as m FROM tickets WHERE statut = 'en_cours'").fetchone()['m']
     ordre = (min_ordre or 0) - 1
@@ -1468,7 +1476,7 @@ def insert_ticket(titre, description, categorie_id, prestataire_id, assigne_id, 
 
 
 def update_ticket(ticket_id, titre, description, categorie_id, prestataire_id, assigne_id,
-                   statut, date_creation, date_cloture):
+                   statut, date_creation, date_cloture, ordre_service):
     """
     Mise à jour complète d'un ticket. Si statut == 'en_cours', date_cloture est forcée à
     NULL (la clôture est effacée à la réouverture), quel que soit ce qui est transmis.
@@ -1479,10 +1487,10 @@ def update_ticket(ticket_id, titre, description, categorie_id, prestataire_id, a
     conn.execute('''
         UPDATE tickets
         SET titre = ?, description = ?, categorie_id = ?, prestataire_id = ?, assigne_id = ?,
-            statut = ?, date_creation = ?, date_cloture = ?
+            statut = ?, date_creation = ?, date_cloture = ?, ordre_service = ?
         WHERE id = ?
     ''', (titre, description, categorie_id, prestataire_id, assigne_id,
-          statut, date_creation, date_cloture, ticket_id))
+          statut, date_creation, date_cloture, ordre_service, ticket_id))
     conn.commit()
     conn.close()
 
