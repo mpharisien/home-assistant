@@ -93,6 +93,10 @@
         <label>Date de clôture</label>
         <input type="date" name="date_cloture" value="{{ ticket.date_cloture or '' }}">
       </div>
+      <div class="form-group" style="max-width:220px;">
+        <label>Ordre de service</label>
+        <input type="text" name="ordre_service" value="{{ ticket.ordre_service or '' }}" placeholder="ex: OSMIL808645658">
+      </div>
     </div>
 
     <button type="submit" class="btn btn-primary">Enregistrer</button>
