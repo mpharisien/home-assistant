@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not individu_actif %}
+<div class="card"><p>Créez d'abord un profil dans la page <a href="/individu">Profil</a>.</p></div>
+{% else %}
+
+<div class="card">
+    <h2>📅 Examens à surveiller pour {{ individu_actif.prenom }}</h2>
+    <p style="color:#888; font-size:0.9em; margin-bottom: 15px;">
+        Indiquez ici la date de votre dernier examen pour chaque type. Aucun calcul de retard automatique
+        n'est fait pour l'instant : c'est à vous de comparer la fréquence recommandée avec la dernière date.
+    </p>
+    {% if lignes_examens %}
+    <table>
+        <tr><th>Type</th><th>Fréquence</th><th>Dernière fois</th><th></th></tr>
+        {% for ligne in lignes_examens %}
+        <tr>
+            <td>
+                <strong>{{ ligne.nom }}</strong>
+                {% if ligne.description %}<br><span style="color:#888; font-size:0.85em;">{{ ligne.description }}</span>{% endif %}
+            </td>
+            <td>
+                <form method="POST" action="/examens/frequence/{{ ligne.type_id }}" style="display:flex; gap:4px; align-items:center; margin:0;">
+                    <input type="number" name="frequence_mois" min="1" value="{{ ligne.frequence_mois or '' }}"
+                           style="width:70px; margin-bottom:0; padding:4px 8px;" onchange="this.form.submit()">
+                    <span style="font-size:0.85em; color:#888;">mois</span>
+                </form>
+                <div style="font-size:0.8em; color:#888; margin-top:2px;">{{ ligne.frequence_mois | frequence }}</div>
+            </td>
+            <td>
+                <form method="POST" action="/examens/date/{{ ligne.suivi_id }}" style="display:flex; gap:6px; margin:0;">
+                    <input type="date" name="derniere_date" value="{{ ligne.derniere_date or '' }}"
+                           style="margin-bottom:0; padding:4px 8px;" onchange="this.form.submit()">
+                </form>
+            </td>
+            <td>
+                <a href="/examens/type/supprimer/{{ ligne.type_id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ce type d\'examen pour tous les profils ?')">🗑</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucun type d'examen défini pour l'instant.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>➕ Ajouter un type d'examen</h2>
+    <form method="POST" action="/examens/type/nouveau">
+        <div class="grid-2">
+            <div>
+                <label>Nom</label>
+                <input type="text" name="nom" required placeholder="ex: Dentiste">
+            </div>
+            <div>
+                <label>Fréquence (en mois)</label>
+                <input type="number" name="frequence_mois" min="1" placeholder="ex: 12 pour 1 an, 36 pour 3 ans">
+            </div>
+        </div>
+        <label>Description</label>
+        <textarea name="description" rows="2" placeholder="ex: Détartrage, vérification des caries, gencives..."></textarea>
+        <button type="submit">➕ Ajouter</button>
+    </form>
+</div>
+
+{% endif %}
+{% endblock %}
