@@ -8,7 +8,7 @@ Add-on Home Assistant pour suivre la santé de plusieurs membres de la famille (
 - ⚖️ **Poids** — Suivi et graphique d'évolution
 - 📏 **Taille** — Suivi et graphique d'évolution
 - 🦷 **Dents** — Suivi de la chute des dents
-- 📅 **Rendez-vous à venir** — Liste des rendez-vous récurrents à surveiller (dentiste, généraliste, etc.), avec la date de dernière réalisation par individu
+- 📅 **Examens** — Liste des examens récurrents à surveiller (dentiste, généraliste, etc.), pré-remplie avec 8 examens courants, fréquence exprimée en mois et modifiable, avec la date de dernière réalisation par individu
 - 📓 **Historique** — Journal des événements de santé (RDV médicaux, etc.)
 - 🧩 **Problèmes de santé chroniques** — Module à venir
 
@@ -43,7 +43,7 @@ carnet-de-sante/
 │       ├── poids.html
 │       ├── taille.html
 │       ├── dents.html
-│       ├── rdv.html
+│       ├── examens.html
 │       ├── historique.html
 │       └── problemes.html
 ├── config.json              # Configuration add-on HA
@@ -58,9 +58,9 @@ Elles sont conservées même après une mise à jour de l'add-on.
 
 ## 🗂️ Modèle de données
 
-- `individu` : fiche d'identité de chaque personne suivie
+- `individu` : fiche d'identité de chaque personne suivie (inclut date et heure de naissance)
 - `individu_actif` : mémorise quel profil est actuellement affiché
 - `poids`, `taille`, `dents` : mesures liées à un individu
-- `type_rdv` : liste commune des types de rendez-vous récurrents à surveiller
-- `suivi_rdv` : date de dernière réalisation d'un type de rendez-vous, par individu
+- `type_examen` : liste commune des types d'examens récurrents à surveiller, avec une fréquence exprimée en mois (pré-remplie avec 8 examens courants au premier démarrage)
+- `suivi_examen` : date de dernière réalisation d'un type d'examen, par individu
 - `evenement` : historique libre des événements de santé
