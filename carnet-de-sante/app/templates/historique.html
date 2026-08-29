@@ -12,7 +12,7 @@
         <div class="grid-2">
             <div>
                 <label>Date</label>
-                <input type="date" name="date" id="champ-date" required>
+                <input type="date" name="date" id="champ-date" required value="{{ today }}">
             </div>
             <div>
                 <label>Titre</label>
@@ -78,7 +78,7 @@ document.querySelectorAll('.btn-edit').forEach(function(bouton) {
 
 function annulerModification() {
     document.getElementById('champ-edit-id').value          = '';
-    document.getElementById('champ-date').value              = '';
+    document.getElementById('champ-date').value              = {{ today | tojson }};
     document.getElementById('champ-titre').value              = '';
     document.getElementById('champ-description').value       = '';
     document.getElementById('titre-formulaire').textContent  = '📓 Ajouter un événement';
