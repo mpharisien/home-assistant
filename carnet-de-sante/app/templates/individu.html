@@ -21,6 +21,12 @@
                 <input type="date" name="date_naissance" value="{{ individu_actif.date_naissance or '' }}">
             </div>
             <div>
+                <label>Heure de naissance</label>
+                <input type="time" name="heure_naissance" value="{{ individu_actif.heure_naissance or '' }}">
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
                 <label>Groupe sanguin</label>
                 <select name="groupe_sanguin">
                     <option value="" {% if not individu_actif.groupe_sanguin %}selected{% endif %}>Non renseigné</option>
@@ -29,9 +35,11 @@
                     {% endfor %}
                 </select>
             </div>
+            <div>
+                <label>Lieu de naissance</label>
+                <input type="text" name="lieu_naissance" value="{{ individu_actif.lieu_naissance or '' }}">
+            </div>
         </div>
-        <label>Lieu de naissance</label>
-        <input type="text" name="lieu_naissance" value="{{ individu_actif.lieu_naissance or '' }}">
 
         <label>Allergies</label>
         <textarea name="allergies" rows="2" placeholder="Allergies alimentaires, médicamenteuses...">{{ individu_actif.allergies or '' }}</textarea>
@@ -39,7 +47,7 @@
         <label>Antécédents médicaux / traitements en cours</label>
         <textarea name="antecedents" rows="2" placeholder="Maladies chroniques, opérations, traitement de fond...">{{ individu_actif.antecedents or '' }}</textarea>
 
-        <label>Diagnostics / troubles (TDAH, etc.)</label>
+        <label>Diagnostics</label>
         <textarea name="diagnostics" rows="2">{{ individu_actif.diagnostics or '' }}</textarea>
 
         <button type="submit">💾 Enregistrer</button>
@@ -86,8 +94,16 @@
                 <input type="text" name="nom">
             </div>
         </div>
-        <label>Date de naissance</label>
-        <input type="date" name="date_naissance">
+        <div class="grid-2">
+            <div>
+                <label>Date de naissance</label>
+                <input type="date" name="date_naissance">
+            </div>
+            <div>
+                <label>Heure de naissance</label>
+                <input type="time" name="heure_naissance">
+            </div>
+        </div>
         <button type="submit">➕ Créer ce profil</button>
     </form>
 </div>
