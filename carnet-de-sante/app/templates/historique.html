@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not individu_actif %}
+<div class="card"><p>Créez d'abord un profil dans la page <a href="/individu">Profil</a>.</p></div>
+{% else %}
+
+<div class="card">
+    <h2 id="titre-formulaire">📓 Ajouter un événement</h2>
+    <form method="POST" id="formulaire-evenement">
+        <input type="hidden" name="edit_id" id="champ-edit-id" value="">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" id="champ-date" required>
+            </div>
+            <div>
+                <label>Titre</label>
+                <input type="text" name="titre" id="champ-titre" required placeholder="ex: RDV cardiologue">
+            </div>
+        </div>
+        <label>Description</label>
+        <textarea name="description" id="champ-description" rows="3" placeholder="Détails..."></textarea>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <button type="submit">✅ Enregistrer</button>
+            <button type="button" id="bouton-annuler"
+                    onclick="annulerModification()"
+                    style="display:none; background:#aaa;">✖ Annuler</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h2>📋 Historique</h2>
+    {% if liste_evenements %}
+    <table>
+        <tr><th>Date</th><th>Titre</th><th>Description</th><th></th></tr>
+        {% for evenement in liste_evenements %}
+        <tr>
+            <td>{{ evenement.date }}</td>
+            <td><strong>{{ evenement.titre }}</strong></td>
+            <td>{{ evenement.description or "—" }}</td>
+            <td style="display:flex; gap:6px;">
+                <button class="btn-edit"
+                        data-id="{{ evenement.id }}"
+                        data-date="{{ evenement.date }}"
+                        data-titre="{{ evenement.titre | e }}"
+                        data-description="{{ (evenement.description or '') | e }}">✏️</button>
+                <a href="/historique/supprimer/{{ evenement.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ?')">🗑</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucun événement enregistré.</p>
+    {% endif %}
+</div>
+
+<script>
+document.querySelectorAll('.btn-edit').forEach(function(bouton) {
+    bouton.addEventListener('click', function() {
+        const id          = this.dataset.id;
+        const date        = this.dataset.date;
+        const titre       = this.dataset.titre;
+        const description = this.dataset.description;
+
+        document.getElementById('champ-edit-id').value        = id;
+        document.getElementById('champ-date').value            = date;
+        document.getElementById('champ-titre').value           = titre;
+        document.getElementById('champ-description').value     = description;
+        document.getElementById('titre-formulaire').textContent = '✏️ Modifier l\'événement';
+        document.getElementById('bouton-annuler').style.display = 'inline-block';
+        document.getElementById('formulaire-evenement').action  = '/historique/modifier/' + id;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+});
+
+function annulerModification() {
+    document.getElementById('champ-edit-id').value          = '';
+    document.getElementById('champ-date').value              = '';
+    document.getElementById('champ-titre').value              = '';
+    document.getElementById('champ-description').value       = '';
+    document.getElementById('titre-formulaire').textContent  = '📓 Ajouter un événement';
+    document.getElementById('bouton-annuler').style.display  = 'none';
+    document.getElementById('formulaire-evenement').action   = '/historique';
+}
+</script>
+
+{% endif %}
+{% endblock %}

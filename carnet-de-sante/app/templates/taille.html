@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not individu_actif %}
+<div class="card"><p>Créez d'abord un profil dans la page <a href="/individu">Profil</a>.</p></div>
+{% else %}
+
+<div class="card">
+    <h2>📏 Ajouter une mesure de taille</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" required value="{{ today }}">
+            </div>
+            <div>
+                <label>Taille (cm)</label>
+                <input type="number" name="taille" step="0.1" required placeholder="ex: 120.5">
+            </div>
+        </div>
+        <label>Notes</label>
+        <textarea name="notes" rows="2" placeholder="Optionnel..."></textarea>
+        <button type="submit">✅ Enregistrer</button>
+    </form>
+</div>
+
+{% if graphique and graphique|length >= 2 %}
+<div class="card">
+    <h2>📈 Évolution de la taille</h2>
+    <div style="position: relative; width: 100%; height: 260px;">
+        <canvas id="tailleChart"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script>
+        const tailleValeurs = {{ graphique | map(attribute='taille') | list | tojson }};
+        const tailleDates = {{ graphique | map(attribute='date') | list | tojson }};
+        const tailleDonnees = tailleDates.map((d, i) => ({ x: d, y: tailleValeurs[i] }));
+
+        new Chart(document.getElementById('tailleChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Taille (cm)',
+                    data: tailleDonnees,
+                    borderColor: '#0288d1',
+                    backgroundColor: 'rgba(2, 136, 209, 0.08)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#0288d1',
+                    pointHoverRadius: 7,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' cm' } }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy', displayFormats: { day: 'dd/MM/yy' } },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: { maxRotation: 45, minRotation: 0 }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: { callback: val => val + ' cm' }
+                    }
+                }
+            }
+        });
+    </script>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>📋 Historique</h2>
+    {% if historique %}
+    <table>
+        <tr><th>Date</th><th>Taille (cm)</th><th>Notes</th><th></th></tr>
+        {% for ligne in historique %}
+        <tr>
+            <td>{{ ligne.date }}</td>
+            <td><strong>{{ ligne.taille }}</strong></td>
+            <td>{{ ligne.notes or "—" }}</td>
+            <td><a href="/taille/supprimer/{{ ligne.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ?')">🗑</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucune mesure enregistrée.</p>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

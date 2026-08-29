@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if individu_actif %}
+<div class="card">
+    <h2>👤 Fiche de {{ individu_actif.prenom }}</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Prénom</label>
+                <input type="text" name="prenom" value="{{ individu_actif.prenom or '' }}" required>
+            </div>
+            <div>
+                <label>Nom</label>
+                <input type="text" name="nom" value="{{ individu_actif.nom or '' }}">
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
+                <label>Date de naissance</label>
+                <input type="date" name="date_naissance" value="{{ individu_actif.date_naissance or '' }}">
+            </div>
+            <div>
+                <label>Groupe sanguin</label>
+                <select name="groupe_sanguin">
+                    <option value="" {% if not individu_actif.groupe_sanguin %}selected{% endif %}>Non renseigné</option>
+                    {% for groupe in ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] %}
+                    <option value="{{ groupe }}" {% if individu_actif.groupe_sanguin == groupe %}selected{% endif %}>{{ groupe }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <label>Lieu de naissance</label>
+        <input type="text" name="lieu_naissance" value="{{ individu_actif.lieu_naissance or '' }}">
+
+        <label>Allergies</label>
+        <textarea name="allergies" rows="2" placeholder="Allergies alimentaires, médicamenteuses...">{{ individu_actif.allergies or '' }}</textarea>
+
+        <label>Antécédents médicaux / traitements en cours</label>
+        <textarea name="antecedents" rows="2" placeholder="Maladies chroniques, opérations, traitement de fond...">{{ individu_actif.antecedents or '' }}</textarea>
+
+        <label>Diagnostics / troubles (TDAH, etc.)</label>
+        <textarea name="diagnostics" rows="2">{{ individu_actif.diagnostics or '' }}</textarea>
+
+        <button type="submit">💾 Enregistrer</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>👥 Profils existants</h2>
+    {% if tous_les_individus %}
+    <table>
+        <tr><th>Prénom</th><th>Nom</th><th></th></tr>
+        {% for personne in tous_les_individus %}
+        <tr>
+            <td><strong>{{ personne.prenom }}</strong></td>
+            <td>{{ personne.nom or "—" }}</td>
+            <td style="display:flex; gap:6px;">
+                {% if individu_actif and personne.id == individu_actif.id %}
+                    <span class="badge">Profil affiché</span>
+                {% else %}
+                    <a href="/individu/activer/{{ personne.id }}" class="btn-edit" style="text-decoration:none;">Afficher</a>
+                {% endif %}
+                <a href="/individu/supprimer/{{ personne.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer le profil de {{ personne.prenom }} ? Cette action est irréversible et supprimera tout son historique (poids, taille, dents, rendez-vous, événements). Une confirmation supplémentaire vous sera demandée.')">🗑</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucun profil pour l'instant.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>➕ Ajouter un nouveau profil</h2>
+    <form method="POST" action="/individu/creer">
+        <div class="grid-2">
+            <div>
+                <label>Prénom</label>
+                <input type="text" name="prenom" required>
+            </div>
+            <div>
+                <label>Nom</label>
+                <input type="text" name="nom">
+            </div>
+        </div>
+        <label>Date de naissance</label>
+        <input type="date" name="date_naissance">
+        <button type="submit">➕ Créer ce profil</button>
+    </form>
+</div>
+
+{% endblock %}
