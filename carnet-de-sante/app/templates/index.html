@@ -12,16 +12,22 @@
     <h2>📊 Résumé de {{ individu_actif.prenom }}</h2>
     <div class="grid-3">
         <div class="stat-box">
-            <div class="val">{{ dernier_poids if dernier_poids else "—" }}</div>
-            <div class="label">⚖️ Dernier poids (kg)</div>
+            <div class="val">
+                {% if dernier_poids %}{{ dernier_poids }} <span class="unite">kg</span>{% else %}—{% endif %}
+            </div>
+            <div class="label">⚖️ {% if date_dernier_poids %}Relevé le {{ date_dernier_poids }}{% else %}Aucun relevé{% endif %}</div>
         </div>
         <div class="stat-box">
-            <div class="val">{{ derniere_taille if derniere_taille else "—" }}</div>
-            <div class="label">📏 Dernière taille (cm)</div>
+            <div class="val">
+                {% if derniere_taille %}{{ derniere_taille }} <span class="unite">cm</span>{% else %}—{% endif %}
+            </div>
+            <div class="label">📏 {% if date_derniere_taille %}Relevé le {{ date_derniere_taille }}{% else %}Aucun relevé{% endif %}</div>
         </div>
         <div class="stat-box">
-            <div class="val">{{ imc if imc else "—" }}</div>
-            <div class="label">🧮 IMC</div>
+            <div class="val">
+                {% if imc %}{{ imc }} <span class="unite">IMC</span>{% else %}—{% endif %}
+            </div>
+            <div class="label">🧮 Indice de masse corporelle</div>
         </div>
     </div>
 </div>
