@@ -48,6 +48,14 @@ def init_db():
         diagnostics TEXT,
         photo TEXT)""")
 
+    # Migration : ajoute la colonne heure_naissance si la table individu existait déjà
+    # sans cette colonne (installations faites avant son introduction).
+    colonnes_individu = [
+        ligne["name"] for ligne in connexion.execute("PRAGMA table_info(individu)").fetchall()
+    ]
+    if "heure_naissance" not in colonnes_individu:
+        connexion.execute("ALTER TABLE individu ADD COLUMN heure_naissance TEXT")
+
     connexion.execute("""CREATE TABLE IF NOT EXISTS individu_actif (
         id INTEGER PRIMARY KEY,
         individu_id INTEGER)""")
