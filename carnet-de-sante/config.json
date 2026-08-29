@@ -1,0 +1,20 @@
+{
+  "name": "Carnet de santé",
+  "description": "Carnet de santé familial (enfant et adulte)",
+  "version": "0.1.0",
+  "slug": "carnet_de_sante",
+  "init": false,
+  "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
+  "startup": "application",
+  "boot": "auto",
+  "ports": {
+    "4200/tcp": 4200
+  },
+  "hassio_api": true,
+  "hassio_role": "default",
+  "homeassistant_api": true,
+  "auth_api": true,
+  "map": ["share:rw"],
+  "options": {},
+  "schema": {}
+}

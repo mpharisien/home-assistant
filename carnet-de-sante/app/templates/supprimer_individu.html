@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="border: 2px solid #ff5252;">
+    <h2 style="color:#d32f2f;">⚠️ Suppression du profil de {{ individu_a_supprimer.prenom }}</h2>
+    <p style="margin-bottom: 12px;">
+        Cette action va supprimer <strong>définitivement</strong> le profil de
+        <strong>{{ individu_a_supprimer.prenom }} {{ individu_a_supprimer.nom or '' }}</strong>
+        ainsi que tout son historique :
+    </p>
+    <ul style="margin: 0 0 15px 20px; color:#555;">
+        <li>Les pesées enregistrées</li>
+        <li>Les tailles enregistrées</li>
+        <li>Le suivi des dents</li>
+        <li>Le suivi des rendez-vous</li>
+        <li>L'historique des événements de santé</li>
+    </ul>
+    <p style="margin-bottom: 20px; font-weight: bold;">
+        Cette action est irréversible et il n'existe aucune corbeille pour récupérer ces données.
+    </p>
+
+    <form method="POST" action="/individu/supprimer/{{ individu_a_supprimer.id }}/definitif" id="form-suppression-definitive">
+        <label>
+            Pour confirmer, tapez exactement le prénom
+            « <strong>{{ individu_a_supprimer.prenom }}</strong> » ci-dessous :
+        </label>
+        <input type="text" name="confirmation_prenom" id="champ-confirmation" autocomplete="off" required>
+        <button type="submit" id="bouton-suppression-definitive" disabled
+                style="background:#ff5252;">🗑 Supprimer définitivement</button>
+        <a href="/individu" style="margin-left: 15px;">Annuler</a>
+    </form>
+</div>
+
+<script>
+    const prenomAttendu = {{ individu_a_supprimer.prenom | tojson }};
+    const champConfirmation = document.getElementById('champ-confirmation');
+    const boutonSuppression = document.getElementById('bouton-suppression-definitive');
+
+    champConfirmation.addEventListener('input', function() {
+        boutonSuppression.disabled = (champConfirmation.value !== prenomAttendu);
+    });
+</script>
+
+{% endblock %}

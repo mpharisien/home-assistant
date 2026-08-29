@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🩺 Carnet de santé</title>
+    <style>
+        :root {
+            --primary: #29b6f6;
+            --primary-dark: #0288d1;
+            --bg: #eaf6fd;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: var(--bg); color: #333; }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        header h1 { font-size: 1.4em; flex-grow: 1; }
+
+        .individu-switcher { position: relative; }
+        .switcher-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+        .switcher-btn:hover { background: rgba(255,255,255,0.3); }
+        .switcher-menu {
+            display: none;
+            position: absolute;
+            top: 110%;
+            right: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            min-width: 180px;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .switcher-menu.ouvert { display: block; }
+        .switcher-menu a {
+            display: block;
+            padding: 10px 16px;
+            color: #333;
+            text-decoration: none;
+            font-size: 0.9em;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .switcher-menu a:hover { background: var(--bg); }
+        .switcher-menu a.switcher-manage { color: var(--primary-dark); font-weight: bold; border-bottom: none; }
+
+        nav {
+            background: var(--primary-dark);
+            display: flex;
+            gap: 5px;
+            padding: 8px 15px;
+            flex-wrap: wrap;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover, nav a.active { background: rgba(255,255,255,0.2); }
+
+        .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(2,136,209,0.1);
+        }
+        .card h2 { color: var(--primary-dark); margin-bottom: 15px; font-size: 1.1em; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        .stat-box {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .stat-box .val { font-size: 2em; font-weight: bold; color: var(--primary-dark); }
+        .stat-box .label { font-size: 0.8em; color: #888; margin-top: 4px; }
+
+        form label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
+        form input, form textarea, form select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+            font-family: inherit;
+        }
+        form button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        form button:hover { background: var(--primary-dark); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        th { background: var(--bg); color: var(--primary-dark); padding: 10px; text-align: left; }
+        td { padding: 9px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+
+        .btn-delete {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+            text-decoration: none;
+        }
+        .btn-delete:hover { background: #d32f2f; }
+
+        .btn-edit {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .btn-edit:hover { background: var(--primary-dark); }
+
+        .flash { padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; }
+        .flash.success { background: #e8f5e9; color: #2e7d32; }
+        .flash.info    { background: #e3f2fd; color: #1565c0; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            background: var(--bg);
+            color: var(--primary-dark);
+        }
+
+        @media (max-width: 600px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <span style="font-size:1.8em">🩺</span>
+        <h1>Carnet de santé</h1>
+        <div class="individu-switcher">
+            <button type="button" class="switcher-btn" onclick="basculerMenuIndividu()">
+                {% if individu_actif %}{{ individu_actif.prenom }}{% else %}Aucun profil{% endif %} ▾
+            </button>
+            <div class="switcher-menu" id="switcher-menu">
+                {% for personne in liste_individus %}
+                <a href="/individu/activer/{{ personne.id }}">
+                    {{ personne.prenom }}{% if personne.nom %} {{ personne.nom }}{% endif %}
+                </a>
+                {% endfor %}
+                <a href="/individu" class="switcher-manage">⚙️ Gérer les profils</a>
+            </div>
+        </div>
+    </header>
+    <nav>
+        <a href="/" {% if request.path == '/' %}class="active"{% endif %}>🏠 Accueil</a>
+        <a href="/individu" {% if request.path == '/individu' %}class="active"{% endif %}>👤 Profil</a>
+        <a href="/poids" {% if request.path == '/poids' %}class="active"{% endif %}>⚖️ Poids</a>
+        <a href="/taille" {% if request.path == '/taille' %}class="active"{% endif %}>📏 Taille</a>
+        <a href="/dents" {% if request.path == '/dents' %}class="active"{% endif %}>🦷 Dents</a>
+        <a href="/rdv" {% if request.path == '/rdv' %}class="active"{% endif %}>📅 Rendez-vous</a>
+        <a href="/historique" {% if request.path == '/historique' %}class="active"{% endif %}>📓 Historique</a>
+        <a href="/problemes" {% if request.path == '/problemes' %}class="active"{% endif %}>🧩 Problèmes</a>
+    </nav>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    <script>
+        function basculerMenuIndividu() {
+            document.getElementById('switcher-menu').classList.toggle('ouvert');
+        }
+        document.addEventListener('click', function(evenement) {
+            const menu = document.getElementById('switcher-menu');
+            const bouton = document.querySelector('.switcher-btn');
+            if (menu && bouton && !menu.contains(evenement.target) && !bouton.contains(evenement.target)) {
+                menu.classList.remove('ouvert');
+            }
+        });
+    </script>
+</body>
+</html>

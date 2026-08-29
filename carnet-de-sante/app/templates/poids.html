@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not individu_actif %}
+<div class="card"><p>Créez d'abord un profil dans la page <a href="/individu">Profil</a>.</p></div>
+{% else %}
+
+<div class="card">
+    <h2>⚖️ Ajouter une pesée</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" required value="{{ today }}">
+            </div>
+            <div>
+                <label>Poids (kg)</label>
+                <input type="number" name="poids" step="0.1" required placeholder="ex: 23.4">
+            </div>
+        </div>
+        <label>Notes</label>
+        <textarea name="notes" rows="2" placeholder="Optionnel...">{{ "" }}</textarea>
+        <button type="submit">✅ Enregistrer</button>
+    </form>
+</div>
+
+{% if graphique and graphique|length >= 2 %}
+<div class="card">
+    <h2>📈 Évolution du poids</h2>
+    <div style="position: relative; width: 100%; height: 260px;">
+        <canvas id="poidsChart"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script>
+        const poidsValeurs = {{ graphique | map(attribute='poids') | list | tojson }};
+        const poidsDates = {{ graphique | map(attribute='date') | list | tojson }};
+        const poidsDonnees = poidsDates.map((d, i) => ({ x: d, y: poidsValeurs[i] }));
+
+        new Chart(document.getElementById('poidsChart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Poids (kg)',
+                    data: poidsDonnees,
+                    borderColor: '#0288d1',
+                    backgroundColor: 'rgba(2, 136, 209, 0.08)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#0288d1',
+                    pointHoverRadius: 7,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' kg' } }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy', displayFormats: { day: 'dd/MM/yy' } },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: { maxRotation: 45, minRotation: 0 }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: { callback: val => val + ' kg' }
+                    }
+                }
+            }
+        });
+    </script>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>📋 Historique</h2>
+    {% if historique %}
+    <table>
+        <tr><th>Date</th><th>Poids (kg)</th><th>Notes</th><th></th></tr>
+        {% for ligne in historique %}
+        <tr>
+            <td>{{ ligne.date }}</td>
+            <td><strong>{{ ligne.poids }}</strong></td>
+            <td>{{ ligne.notes or "—" }}</td>
+            <td><a href="/poids/supprimer/{{ ligne.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ?')">🗑</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucune pesée enregistrée.</p>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}

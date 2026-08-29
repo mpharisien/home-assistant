@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not individu_actif %}
+<div class="card"><p>Créez d'abord un profil dans la page <a href="/individu">Profil</a>.</p></div>
+{% else %}
+
+<div class="card">
+    <h2>🦷 Ajouter une entrée</h2>
+    <form method="POST">
+        <div class="grid-2">
+            <div>
+                <label>Date</label>
+                <input type="date" name="date" required value="{{ today }}">
+            </div>
+            <div>
+                <label>Dent concernée</label>
+                <input type="text" name="dent" required placeholder="ex: incisive centrale haute gauche">
+            </div>
+        </div>
+        <label>Notes</label>
+        <textarea name="notes" rows="2" placeholder="Optionnel..."></textarea>
+        <button type="submit">✅ Enregistrer</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>📋 Historique</h2>
+    {% if historique %}
+    <table>
+        <tr><th>Date</th><th>Dent</th><th>Notes</th><th></th></tr>
+        {% for ligne in historique %}
+        <tr>
+            <td>{{ ligne.date }}</td>
+            <td><strong>{{ ligne.dent }}</strong></td>
+            <td>{{ ligne.notes or "—" }}</td>
+            <td><a href="/dents/supprimer/{{ ligne.id }}" class="btn-delete"
+                   onclick="return confirm('Supprimer ?')">🗑</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p style="color:#aaa">Aucune entrée enregistrée.</p>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
