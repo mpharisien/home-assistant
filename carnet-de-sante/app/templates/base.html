@@ -98,6 +98,7 @@
             overflow: hidden;
         }
         .stat-box .val { font-size: 2em; font-weight: bold; color: var(--primary-dark); }
+        .stat-box .val .unite { font-size: 0.4em; font-weight: normal; color: #888; margin-left: 3px; }
         .stat-box .label { font-size: 0.8em; color: #888; margin-top: 4px; }
 
         form label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
@@ -191,7 +192,7 @@
         <a href="/poids" {% if request.path == '/poids' %}class="active"{% endif %}>⚖️ Poids</a>
         <a href="/taille" {% if request.path == '/taille' %}class="active"{% endif %}>📏 Taille</a>
         <a href="/dents" {% if request.path == '/dents' %}class="active"{% endif %}>🦷 Dents</a>
-        <a href="/rdv" {% if request.path == '/rdv' %}class="active"{% endif %}>📅 Rendez-vous</a>
+        <a href="/examens" {% if request.path == '/examens' %}class="active"{% endif %}>📅 Examens</a>
         <a href="/historique" {% if request.path == '/historique' %}class="active"{% endif %}>📓 Historique</a>
         <a href="/problemes" {% if request.path == '/problemes' %}class="active"{% endif %}>🧩 Problèmes</a>
     </nav>
