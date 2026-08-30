@@ -178,9 +178,7 @@
             </button>
             <div class="switcher-menu" id="switcher-menu">
                 {% for personne in liste_individus %}
-                <a href="/individu/activer/{{ personne.id }}">
-                    {{ personne.prenom }}{% if personne.nom %} {{ personne.nom }}{% endif %}
-                </a>
+                <a href="/individu/activer/{{ personne.id }}">{{ personne.prenom }}</a>
                 {% endfor %}
                 <a href="/individu" class="switcher-manage">⚙️ Gérer les profils</a>
             </div>
