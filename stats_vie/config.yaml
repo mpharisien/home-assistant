@@ -1,6 +1,6 @@
 name: "Stats Vie"
 description: "Suivi personnel : poids, coupes de cheveux"
-version: "1.0.0"
+version: "1.0.1"
 slug: "stats_vie"
 init: false
 arch:
