@@ -5,7 +5,25 @@ from dateutil.relativedelta import relativedelta
 
 app = Flask(__name__)
 app.secret_key = "epargne-secret-2024"
-DB_PATH = "/share/epargne/epargne.db"
+DB_PATH = "/data/epargne.db"
+ANCIEN_DB_PATH = "/share/epargne/epargne.db"
+
+
+def migrer_depuis_share():
+    """Migration unique : copie la base de /share vers /data au premier démarrage.
+
+    Ne fait rien si la base existe déjà dans /data ou si l'ancienne n'existe pas.
+    L'ancien fichier est renommé en .migre (pas supprimé) par sécurité.
+    """
+    if os.path.exists(DB_PATH) or not os.path.exists(ANCIEN_DB_PATH):
+        return
+    source = sqlite3.connect(ANCIEN_DB_PATH)
+    cible = sqlite3.connect(DB_PATH)
+    source.backup(cible)
+    cible.close()
+    source.close()
+    os.rename(ANCIEN_DB_PATH, ANCIEN_DB_PATH + ".migre")
+    print(f"Migration terminée : {ANCIEN_DB_PATH} -> {DB_PATH}", flush=True)
 
 def get_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -364,4 +382,5 @@ def binance():
 
 if __name__ == "__main__":
     init_db()
+    migrer_depuis_share()
     app.run(host="0.0.0.0", port=5000, debug=False)
