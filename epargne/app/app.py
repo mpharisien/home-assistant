@@ -10,12 +10,14 @@ ANCIEN_DB_PATH = "/share/epargne/epargne.db"
 
 
 def migrer_depuis_share():
-    """Migration unique : copie la base de /share vers /data au premier démarrage.
+    """Migration unique : copie la base de /share vers /data.
 
-    Ne fait rien si la base existe déjà dans /data ou si l'ancienne n'existe pas.
-    L'ancien fichier est renommé en .migre (pas supprimé) par sécurité.
+    S'exécute tant que l'ancienne base existe dans /share, et remplace
+    le contenu de /data (une base vide a été créée par erreur en 1.0.1).
+    L'ancien fichier est ensuite renommé en .migre, donc la migration
+    ne s'exécute qu'une seule fois.
     """
-    if os.path.exists(DB_PATH) or not os.path.exists(ANCIEN_DB_PATH):
+    if not os.path.exists(ANCIEN_DB_PATH):
         return
     source = sqlite3.connect(ANCIEN_DB_PATH)
     cible = sqlite3.connect(DB_PATH)
@@ -381,6 +383,6 @@ def binance():
     return render_template("placeholder.html", active_page="binance", titre="Binance", sous_titre="Crypto — Bientôt disponible")
 
 if __name__ == "__main__":
-    init_db()
     migrer_depuis_share()
+    init_db()
     app.run(host="0.0.0.0", port=5000, debug=False)
