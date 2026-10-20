@@ -1,6 +1,6 @@
 name: "Epargne"
 description: "Suivi de portefeuille personnel"
-version: "1.0.0"
+version: "1.0.1"
 slug: "epargne"
 init: false
 arch:
