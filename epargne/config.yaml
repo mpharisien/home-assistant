@@ -1,6 +1,6 @@
 name: "Epargne"
 description: "Suivi de portefeuille personnel"
-version: "1.0.2"
+version: "1.0.3"
 slug: "epargne"
 init: false
 arch:
@@ -10,5 +10,3 @@ ports:
   5000/tcp: 5000
 ports_description:
   5000/tcp: "Interface web"
-map:
-  - share:rw
