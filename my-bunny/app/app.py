@@ -8,23 +8,6 @@ app.secret_key = "mybunny-secret-2024"
 DB_PATH = "/data/bunny.db"
 ANCIEN_DB_PATH = "/share/my-bunny/bunny.db"
 
-
-def migrer_depuis_share():
-    """Migration unique : copie la base de /share vers /data.
-
-    S'exécute tant que l'ancienne base existe dans /share. L'ancien fichier
-    est ensuite renommé en .migre, donc la migration ne s'exécute qu'une fois.
-    """
-    if not os.path.exists(ANCIEN_DB_PATH):
-        return
-    source = sqlite3.connect(ANCIEN_DB_PATH)
-    cible = sqlite3.connect(DB_PATH)
-    source.backup(cible)
-    cible.close()
-    source.close()
-    os.rename(ANCIEN_DB_PATH, ANCIEN_DB_PATH + ".migre")
-    print(f"Migration terminée : {ANCIEN_DB_PATH} -> {DB_PATH}", flush=True)
-
 HA_URL = "http://supervisor/core"
 HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 
@@ -85,24 +68,22 @@ def init_db():
 # COLLECTE TEMPÉRATURE DEPUIS HOME ASSISTANT
 # ──────────────────────────────────────────────
 def fetch_ha_sensor(entity_id):
+    """Lit l'état d'un capteur HA. Renvoie None (et le signale dans le journal) en cas d'échec."""
+    url = f"{HA_URL}/api/states/{entity_id}"
+    headers = {"Authorization": f"Bearer {HA_TOKEN}"}
     try:
-        url = f"{HA_URL}/api/states/{entity_id}"
-        headers = {"Authorization": f"Bearer {HA_TOKEN}"}
-        print(f"=== FETCH === URL: {url}")
         r = requests.get(url, headers=headers, timeout=5)
-        print(f"=== FETCH === Status: {r.status_code}, Body: {r.text[:200]}")
         if r.status_code == 200:
             return float(r.json()["state"])
+        print(f"Lecture de {entity_id} impossible : code HTTP {r.status_code}", flush=True)
     except Exception as e:
-        print(f"=== FETCH ERROR === {e}")
+        print(f"Lecture de {entity_id} impossible : {e}", flush=True)
     return None
 
 
 def collect_temperature():
-    print(f"=== COLLECTE TEMP === Token présent: {bool(HA_TOKEN)}, longueur: {len(HA_TOKEN)}")
     temp = fetch_ha_sensor(TEMP_SENSOR)
-    hum  = fetch_ha_sensor(HUM_SENSOR)
-    print(f"=== RÉSULTAT === temp={temp}, hum={hum}")
+    hum = fetch_ha_sensor(HUM_SENSOR)
     if temp is not None and hum is not None:
         conn = get_db()
         conn.execute(
@@ -307,10 +288,12 @@ def inject_animal():
 # DÉMARRAGE
 # ──────────────────────────────────────────────
 if __name__ == "__main__":
-    migrer_depuis_share()
+    from waitress import serve
+
     init_db()
     scheduler = BackgroundScheduler()
     scheduler.add_job(collect_temperature, "interval", minutes=15)
     scheduler.start()
     collect_temperature()  # collecte immédiate au démarrage
-    app.run(host="0.0.0.0", port=4000, debug=False)
+    print("My Bunny démarré sur le port 4000", flush=True)
+    serve(app, host="0.0.0.0", port=4000)
