@@ -47,8 +47,8 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const labels = {{ mesures | map(attribute='date') | list | reverse | tojson }};
-  const data   = {{ mesures | map(attribute='poids') | list | reverse | tojson }};
+  const labels = {{ mesures | map(attribute='date') | reverse | list | tojson }};
+  const data   = {{ mesures | map(attribute='poids') | reverse | list | tojson }};
   new Chart(document.getElementById('graphiquePoids'), {
     type: 'line',
     data: {
