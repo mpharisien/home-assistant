@@ -5,7 +5,25 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 app.secret_key = "mybunny-secret-2024"
-DB_PATH = "/share/my-bunny/bunny.db"
+DB_PATH = "/data/bunny.db"
+ANCIEN_DB_PATH = "/share/my-bunny/bunny.db"
+
+
+def migrer_depuis_share():
+    """Migration unique : copie la base de /share vers /data.
+
+    S'exécute tant que l'ancienne base existe dans /share. L'ancien fichier
+    est ensuite renommé en .migre, donc la migration ne s'exécute qu'une fois.
+    """
+    if not os.path.exists(ANCIEN_DB_PATH):
+        return
+    source = sqlite3.connect(ANCIEN_DB_PATH)
+    cible = sqlite3.connect(DB_PATH)
+    source.backup(cible)
+    cible.close()
+    source.close()
+    os.rename(ANCIEN_DB_PATH, ANCIEN_DB_PATH + ".migre")
+    print(f"Migration terminée : {ANCIEN_DB_PATH} -> {DB_PATH}", flush=True)
 
 HA_URL = "http://supervisor/core"
 HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
@@ -289,6 +307,7 @@ def inject_animal():
 # DÉMARRAGE
 # ──────────────────────────────────────────────
 if __name__ == "__main__":
+    migrer_depuis_share()
     init_db()
     scheduler = BackgroundScheduler()
     scheduler.add_job(collect_temperature, "interval", minutes=15)
