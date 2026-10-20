@@ -12,6 +12,7 @@ import regroupements as regr
 app = Flask(__name__)
 app.secret_key = 'cs_eclosion_secret_2024'
 
+db.migrer_depuis_share()
 db.init_db()
 
 
