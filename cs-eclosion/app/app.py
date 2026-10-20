@@ -12,7 +12,6 @@ import regroupements as regr
 app = Flask(__name__)
 app.secret_key = 'cs_eclosion_secret_2024'
 
-db.migrer_depuis_share()
 db.init_db()
 
 
@@ -1180,4 +1179,6 @@ def ocea_saisie_thermique():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=2000, debug=False, threaded=True)
+    from waitress import serve
+    print("CS Eclosion démarré sur le port 2000", flush=True)
+    serve(app, host='0.0.0.0', port=2000)
