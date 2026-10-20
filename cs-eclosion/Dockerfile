@@ -2,7 +2,7 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir flask
+RUN pip install --no-cache-dir flask waitress
 
 COPY app/ /app/
 COPY run.sh /run.sh
