@@ -2,31 +2,11 @@ import sqlite3
 import os
 
 DB_PATH = os.environ.get('DB_PATH', '/data/cs_eclosion.db')
-ANCIEN_DB_PATH = '/share/cs_eclosion/cs_eclosion.db'
-
-
-def migrer_depuis_share():
-    """Migration unique : copie la base de /share vers /data.
-
-    S'exécute tant que l'ancienne base existe dans /share. L'ancien fichier
-    est ensuite renommé en .migre, donc la migration ne s'exécute qu'une fois.
-    """
-    if not os.path.exists(ANCIEN_DB_PATH):
-        return
-    source = sqlite3.connect(ANCIEN_DB_PATH)
-    cible = sqlite3.connect(DB_PATH)
-    source.backup(cible)
-    cible.close()
-    source.close()
-    os.rename(ANCIEN_DB_PATH, ANCIEN_DB_PATH + '.migre')
-    print(f"Migration terminée : {ANCIEN_DB_PATH} -> {DB_PATH}", flush=True)
-
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
 
 def init_db():
     conn = get_db()
