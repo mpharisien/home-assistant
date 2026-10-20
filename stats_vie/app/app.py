@@ -7,7 +7,6 @@ app.secret_key = "stats-vie-secret-2024"
 DB_PATH = "/data/stats_vie.db"
 
 def get_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
