@@ -6,24 +6,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = "carnet-de-sante-secret-2026"
 DB_PATH = "/data/carnet_de_sante.db"
-ANCIEN_DB_PATH = "/share/carnet_de_sante/carnet_de_sante.db"
-
-
-def migrer_depuis_share():
-    """Migration unique : copie la base de /share vers /data.
-
-    S'exécute tant que l'ancienne base existe dans /share. L'ancien fichier
-    est ensuite renommé en .migre, donc la migration ne s'exécute qu'une fois.
-    """
-    if not os.path.exists(ANCIEN_DB_PATH):
-        return
-    source = sqlite3.connect(ANCIEN_DB_PATH)
-    cible = sqlite3.connect(DB_PATH)
-    source.backup(cible)
-    cible.close()
-    source.close()
-    os.rename(ANCIEN_DB_PATH, ANCIEN_DB_PATH + ".migre")
-    print(f"Migration terminée : {ANCIEN_DB_PATH} -> {DB_PATH}", flush=True)
 
 # Liste des examens pré-remplis au premier démarrage (nom, fréquence en mois, description).
 # Basée sur les recommandations générales de suivi médical (hors examens spécifiques au sexe).
@@ -702,6 +684,8 @@ def problemes():
 # DÉMARRAGE
 # ──────────────────────────────────────────────
 if __name__ == "__main__":
-    migrer_depuis_share()
+    from waitress import serve
+
     init_db()
-    app.run(host="0.0.0.0", port=4200, debug=False)
+    print("Carnet de santé démarré sur le port 4200", flush=True)
+    serve(app, host="0.0.0.0", port=4200)
