@@ -1,4 +1,3 @@
 #!/bin/sh
-export DB_PATH=/share/cs_eclosion/cs_eclosion.db
-mkdir -p /share/cs_eclosion
+export DB_PATH=/data/cs_eclosion.db
 python /app/app.py
