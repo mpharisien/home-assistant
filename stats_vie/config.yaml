@@ -1,6 +1,6 @@
 name: "Stats Vie"
 description: "Suivi personnel : poids, coupes de cheveux"
-version: "1.0.1"
+version: "1.0.2"
 slug: "stats_vie"
 init: false
 arch:
@@ -10,5 +10,4 @@ ports:
   5001/tcp: 5001
 ports_description:
   5001/tcp: "Interface web"
-map:
-  - share:rw
+  
