@@ -10,55 +10,112 @@ PRINCIPES (choix validés en octobre 2026, à relire avant toute modification)
    un logement anormal il y a six mois le resterait pour toujours.
 
 2. La consommation est ramenée en m³ PAR JOUR. Les tournées n'ont pas toutes la même
-   durée (ex. 102 jours puis 115 jours) : sans cette division, une période plus longue
-   paraîtrait toujours plus "gourmande".
+   durée : sans cette division, une période plus longue paraîtrait plus "gourmande".
 
 3. Une seule période (début + fin) pour l'eau froide ET le thermique : les deux compteurs
    sont toujours relevés le même jour lors des tournées.
 
-4. Pour comparer des logements de tailles différentes, on divise par le TANTIÈME (la
+4. On compare UNIQUEMENT les logements entre eux, sur la même période. La comparaison
+   d'un logement avec sa propre période précédente a été abandonnée (v1.7.1) : avec une
+   dizaine de logements vides ou occupés par intermittence et des dates de relevé
+   irrégulières, elle produisait surtout des alertes inexplicables.
+
+5. Pour comparer des logements de tailles différentes, on divise par le TANTIÈME (la
    surface n'est pas connue pour tous les logements). On calcule ensuite un INDICE :
        indice = (conso par jour / tantième) / médiane de l'immeuble de ce même ratio × 100
-   100 = comme un logement médian de même taille ; 250 = 2,5 fois plus.
-   On utilise la MÉDIANE et non la moyenne : quelques valeurs aberrantes (justement celles
-   qu'on cherche) fausseraient une moyenne, pas une médiane.
+   100 = comme un logement médian de même taille ; 200 = 2 fois plus.
+   On utilise la MÉDIANE et non la moyenne : les quelques valeurs aberrantes (justement
+   celles qu'on cherche) fausseraient une moyenne, pas une médiane.
 
-5. Seuil « logement vide » (optionnel, en m³/jour) : un logement dont TOUS les compteurs
-   connus sont sous le seuil est considéré comme vide et retiré des comparaisons.
-   Si UN SEUL compteur est sous le seuil, le logement n'est PAS retiré : c'est justement
-   l'anomalie "eau froide sans thermique" (ou l'inverse) qu'on veut détecter
-   (compteur bloqué ou mal relevé).
+6. Seuil « logement vide » (optionnel, en m³/jour) : un logement dont TOUS les compteurs
+   connus sont sous le seuil est considéré comme vide et ignoré. Si UN SEUL compteur est
+   sous le seuil, le logement n'est PAS ignoré : c'est justement ce qu'on veut détecter
+   (compteur bloqué, vanne oubliée...).
 
-6. Dates "complètes" : certaines tournées ne concernent que quelques logements (ex. les 3
-   logements d'un même étage). Une date est dite complète si au moins 60 % des logements
-   y ont été relevés. Ce seuil de 60 % sert UNIQUEMENT à choisir des valeurs par défaut
-   raisonnables (période affichée par défaut, période précédente) : comparer l'immeuble
-   à 3 logements n'aurait pas de sens. 60 % plutôt que 100 % pour tolérer quelques
-   logements oubliés ou inaccessibles lors d'une tournée complète.
-   L'utilisateur peut toujours choisir lui-même une date partielle : les mêmes règles
-   s'appliquent alors, sur les seuls logements relevés (les médianes sont moins fiables,
-   c'est un choix assumé).
+7. Saison de chauffe : en été, le chauffage est coupé et le thermique est quasiment nul
+   partout. Les règles qui supposent que le chauffage tourne sont alors désactivées.
+   Une période est "de chauffe" si le chauffage a été en marche au moins la MOITIÉ de ses
+   jours (dates d'allumage / coupure saisies dans l'onglet Chauffage). En dessous, le
+   thermique est trop faible pour que les comparaisons aient un sens.
+   Si aucune date n'est saisie, on ne sait pas : toutes les règles s'appliquent.
+
+8. Dates "complètes" : certaines tournées ne concernent que quelques logements (ex. les
+   3 logements d'un même étage). Une date est complète si au moins 60 % des logements y
+   ont été relevés. Ce seuil sert UNIQUEMENT à choisir la période proposée par défaut :
+   l'utilisateur peut toujours choisir une date partielle, et les mêmes règles
+   s'appliquent alors aux seuls logements relevés (médianes moins fiables, choix assumé).
+
+NIVEAUX D'ALERTE (du plus grave au moins grave)
+  rouge, orange, jaune : consommation trop élevée ou incohérence, par ordre de gravité ;
+  vert : tout ce qui est "bas" (consommation faible), à simple titre d'information.
+Pour une même règle et un même compteur, un logement n'apparaît qu'une fois, au niveau
+le plus élevé atteint.
 
 Ce module ne lit ni n'écrit la base : il reçoit des données et renvoie des résultats.
 """
-from datetime import date as _date
+from datetime import date as _date, timedelta
 from statistics import median
 
 FLUIDES = ('eau_froide', 'thermique')
 LIBELLES = {'eau_froide': 'Eau froide', 'thermique': 'Thermique'}
 
-# Part minimale des logements relevés pour qu'une date soit "complète" (voir principe 6).
+# Ordre d'affichage des niveaux d'alerte (du plus grave au moins grave)
+NIVEAUX = ('rouge', 'orange', 'jaune', 'vert')
+
+# Part minimale des logements relevés pour qu'une date soit "complète" (principe 8).
 PART_MINIMALE_DATE_COMPLETE = 0.60
 
-# Seuils de détection, exprimés en indice (100 = médiane de l'immeuble, à taille égale).
-# Fixés volontairement larges pour ne signaler que les cas nets ; à ajuster si trop sensibles.
-INDICE_TRES_ELEVE = 250       # plus de 2,5 fois la médiane
-INDICE_TRES_FAIBLE = 40       # moins de 0,4 fois la médiane
-INDICE_ERREUR_CHIFFRE = 800   # plus de 8 fois la médiane : chiffre en trop ou virgule mal placée, probablement
-# Un indice multiplié ou divisé par 3 d'une période à l'autre est jugé "brutal". On compare
-# des indices (relatifs à l'immeuble) et non des volumes : ainsi, la hausse normale du
-# chauffage en hiver touche tout l'immeuble et ne déclenche pas d'alerte.
-RATIO_CHANGEMENT_BRUTAL = 3
+# Part minimale des jours de la période avec chauffage en marche pour parler de
+# "période de chauffe" (principe 7).
+PART_MINIMALE_JOURS_CHAUFFE = 0.50
+
+# Consommation élevée par rapport aux autres logements (indice, 100 = médiane).
+# 2 fois la médiane = jaune, 3 fois = orange, 4 fois = rouge.
+PALIERS_CONSO_ELEVEE = ((400, 'rouge'), (300, 'orange'), (200, 'jaune'))
+# Au-delà de 8 fois la médiane, on suggère de vérifier le relevé (chiffre en trop,
+# virgule mal placée...). Ce n'est plus une règle à part, seulement une mention.
+INDICE_VERIFIER_RELEVE = 800
+# Consommation faible : 2 fois moins que la médiane (indice ≤ 50) = vert.
+INDICE_CONSO_FAIBLE = 50
+
+# Un compteur nettement plus haut que l'autre, en indices (règles 7 et 8) :
+# 2 fois = jaune, 3 fois = orange, 4 fois = rouge.
+PALIERS_RATIO_COMPTEURS = ((4, 'rouge'), (3, 'orange'), (2, 'jaune'))
+
+# Liste des règles, affichée telle quelle dans le dashboard (lien "Voir les règles").
+# À tenir à jour si une règle change.
+REGLES = [
+    {'numero': 1, 'nom': 'Index en baisse', 'compteur': 'Eau froide',
+     'declenchement': "Index de fin plus petit que l'index de début",
+     'niveaux': 'rouge', 'desactivee': 'Jamais'},
+    {'numero': 2, 'nom': 'Index en baisse', 'compteur': 'Thermique',
+     'declenchement': "Index de fin plus petit que l'index de début",
+     'niveaux': 'rouge', 'desactivee': 'Jamais'},
+    {'numero': 3, 'nom': 'Thermique sans eau froide', 'compteur': 'Eau froide',
+     'declenchement': 'Thermique au-dessus du seuil, eau froide en dessous (à zéro si aucun seuil)',
+     'niveaux': 'rouge', 'desactivee': 'Jamais'},
+    {'numero': 4, 'nom': 'Eau froide sans thermique', 'compteur': 'Thermique',
+     'declenchement': 'Eau froide au-dessus du seuil, thermique en dessous (à zéro si aucun seuil)',
+     'niveaux': 'orange', 'desactivee': 'Hors chauffage'},
+    {'numero': 5, 'nom': 'Consommation élevée', 'compteur': 'Eau froide',
+     'declenchement': '2 / 3 / 4 fois la médiane à taille égale (indice ≥ 200 / 300 / 400)',
+     'niveaux': 'jaune / orange / rouge', 'desactivee': 'Jamais'},
+    {'numero': 6, 'nom': 'Consommation élevée', 'compteur': 'Thermique',
+     'declenchement': '2 / 3 / 4 fois la médiane à taille égale (indice ≥ 200 / 300 / 400)',
+     'niveaux': 'jaune / orange / rouge', 'desactivee': 'Hors chauffage'},
+    {'numero': 7, 'nom': "Thermique élevé par rapport à l'eau froide", 'compteur': 'Thermique',
+     'declenchement': "Indice thermique ≥ 2 / 3 / 4 fois l'indice eau froide",
+     'niveaux': 'jaune / orange / rouge', 'desactivee': 'Hors chauffage'},
+    {'numero': 8, 'nom': 'Eau froide élevée par rapport au thermique', 'compteur': 'Eau froide',
+     'declenchement': "Indice eau froide ≥ 2 / 3 / 4 fois l'indice thermique",
+     'niveaux': 'jaune / orange / rouge', 'desactivee': 'Hors chauffage'},
+    {'numero': 9, 'nom': 'Consommation faible', 'compteur': 'Eau froide',
+     'declenchement': '2 fois moins que la médiane à taille égale, ou moins (indice ≤ 50)',
+     'niveaux': 'vert', 'desactivee': 'Jamais'},
+    {'numero': 10, 'nom': 'Consommation faible', 'compteur': 'Thermique',
+     'declenchement': '2 fois moins que la médiane à taille égale, ou moins (indice ≤ 50)',
+     'niveaux': 'vert', 'desactivee': 'Hors chauffage'},
+]
 
 
 def _fr(valeur, decimales=1):
@@ -68,6 +125,16 @@ def _fr(valeur, decimales=1):
 
 def _jours_entre(debut, fin):
     return (_date.fromisoformat(fin) - _date.fromisoformat(debut)).days
+
+
+def niveau_conso_elevee(indice):
+    """Niveau d'alerte d'un indice de consommation (rouge/orange/jaune), ou None."""
+    if indice is None:
+        return None
+    for seuil, niveau in PALIERS_CONSO_ELEVEE:
+        if indice >= seuil:
+            return niveau
+    return None
 
 
 # ─── Dates de relevé ──────────────────────────────────────────────────────────
@@ -85,35 +152,49 @@ def dates_avec_nombre_releves(releves_par_fluide):
     return [{'date': d, 'nb': len(ids)} for d, ids in sorted(logements_par_date.items(), reverse=True)]
 
 
-def dates_completes(dates, nb_logements):
-    """Dates où au moins 60 % des logements ont été relevés (voir principe 6), plus récente en premier."""
-    minimum = nb_logements * PART_MINIMALE_DATE_COMPLETE
-    return [d['date'] for d in dates if d['nb'] >= minimum]
-
-
 def periode_par_defaut(dates, nb_logements):
     """
-    Période proposée à l'ouverture du dashboard : les deux dernières dates complètes.
-    S'il n'y en a pas deux, on se rabat sur les deux dernières dates tout court.
+    Période proposée à l'ouverture du dashboard : les deux dernières dates complètes
+    (au moins 60 % des logements relevés, principe 8). S'il n'y en a pas deux, on se
+    rabat sur les deux dernières dates tout court.
     """
-    completes = dates_completes(dates, nb_logements)
+    minimum = nb_logements * PART_MINIMALE_DATE_COMPLETE
+    completes = [d['date'] for d in dates if d['nb'] >= minimum]
     if len(completes) >= 2:
         return completes[1], completes[0]
     toutes = [d['date'] for d in dates]
     return (toutes[1], toutes[0]) if len(toutes) >= 2 else (None, None)
 
 
-def periode_precedente(dates, nb_logements, debut):
+# ─── Saison de chauffe ────────────────────────────────────────────────────────
+
+def jours_de_chauffe(evenements, debut, fin):
     """
-    Période qui précède celle analysée : de la dernière date COMPLÈTE avant le début,
-    jusqu'au début. On ignore les dates partielles : comparer un logement à une période
-    où seuls 3 logements avaient été relevés n'aurait pas de sens (médiane sur 3 valeurs).
+    Nombre de jours de la période [debut, fin[ pendant lesquels le chauffage était en marche.
+
+    evenements : liste de dicts {'date': 'AAAA-MM-JJ', 'action': 'allumage' ou 'coupure'}.
+    - Le jour d'un événement, le nouvel état s'applique dès ce jour-là.
+    - Avant le tout premier événement saisi, on considère l'état inverse de cet événement
+      (si la première ligne est un allumage, le chauffage était coupé avant).
+    Retourne None si aucun événement n'est saisi (état inconnu).
     """
-    avant = [d for d in dates_completes(dates, nb_logements) if d < debut]
-    return (avant[0], debut) if avant else None
+    if not evenements:
+        return None
+    evts = sorted(evenements, key=lambda e: e['date'])
+    jour = _date.fromisoformat(debut)
+    dernier_jour = _date.fromisoformat(fin)
+    etat = evts[0]['action'] != 'allumage'  # état avant le premier événement
+    i, nb = 0, 0
+    while jour < dernier_jour:
+        while i < len(evts) and evts[i]['date'] <= jour.isoformat():
+            etat = evts[i]['action'] == 'allumage'
+            i += 1
+        nb += etat
+        jour += timedelta(days=1)
+    return nb
 
 
-# ─── Calculs sur une période ──────────────────────────────────────────────────
+# ─── Calculs sur la période ───────────────────────────────────────────────────
 
 def _calculer_periode(logements, releves_par_fluide, debut, fin, seuil):
     """
@@ -136,7 +217,7 @@ def _calculer_periode(logements, releves_par_fluide, debut, fin, seuil):
             ligne[fluide] = (i_fin - i_debut) / jours if i_debut is not None and i_fin is not None else None
 
         connues = [ligne[f] for f in FLUIDES if ligne[f] is not None]
-        # Vide = tous les compteurs connus sous le seuil (principe 5). Une valeur négative n'est
+        # Vide = tous les compteurs connus sous le seuil (principe 6). Une valeur négative n'est
         # jamais "vide" : c'est un index en baisse, donc une erreur à signaler.
         ligne['vide'] = seuil is not None and bool(connues) and all(0 <= c < seuil for c in connues)
         lignes.append(ligne)
@@ -146,7 +227,7 @@ def _calculer_periode(logements, releves_par_fluide, debut, fin, seuil):
         Valeur utilisable pour la médiane et l'indice : logement non vide, avec un tantième,
         consommation connue, et au-dessus du seuil (strictement positive s'il n'y a pas de seuil).
         Un compteur à l'arrêt alors que l'autre tourne est suspect : on ne le laisse pas tirer
-        la médiane vers le bas, et il est signalé par la règle 2 ("eau froide sans thermique").
+        la médiane vers le bas ; il est signalé par les règles 3 et 4.
         """
         v = li[fluide]
         return (not li['vide'] and li['tantieme'] and v is not None
@@ -170,168 +251,138 @@ def _calculer_periode(logements, releves_par_fluide, debut, fin, seuil):
 
 # ─── Détection des anomalies ──────────────────────────────────────────────────
 
-def _indices_si_echange(a, b, fluide, releves, debut, fin, mediane):
+def _detecter_anomalies(lignes, seuil, chauffage_actif):
     """
-    Indices qu'auraient les logements a et b si on échangeait leurs index de FIN de période.
-    Sert à détecter une confusion entre deux compteurs pendant la tournée.
+    Applique les règles 1 à 10 (voir REGLES). chauffage_actif : False si la période est
+    hors chauffage (règles 4, 6, 7, 8 et 10 désactivées), True ou None sinon.
     """
-    jours = _jours_entre(debut, fin)
-    a_debut, a_fin = releves.get((a['id'], debut)), releves.get((a['id'], fin))
-    b_debut, b_fin = releves.get((b['id'], debut)), releves.get((b['id'], fin))
-    if None in (a_debut, a_fin, b_debut, b_fin) or not mediane:
-        return None
-    conso_a = (b_fin - a_debut) / jours
-    conso_b = (a_fin - b_debut) / jours
-    return conso_a / a['tantieme'] / mediane * 100, conso_b / b['tantieme'] / mediane * 100
-
-
-def _detecter_anomalies(lignes, lignes_prec, medianes, releves_par_fluide, debut, fin, seuil):
     anomalies = []
-    normal = lambda indice: INDICE_TRES_FAIBLE < indice < INDICE_TRES_ELEVE
+    hors_chauffage = chauffage_actif is False
 
-    def ajouter(li, gravite, fluide, type_, explication):
+    def ajouter(li, niveau, fluide, regle, type_, explication):
         anomalies.append({
             'numero_appartement': li['numero_appartement'],
-            'gravite': gravite,  # 1 = à vérifier en priorité (barre rouge), 2 = à surveiller (barre orange)
+            'niveau': niveau,
             'fluide': LIBELLES[fluide],
             'fluide_code': fluide,
+            'regle': regle,
             'type': type_,
             'explication': explication,
         })
 
+    # "À l'arrêt" : sous le seuil s'il est défini, sinon exactement zéro.
+    arrete = (lambda v: v < seuil) if seuil is not None else (lambda v: v == 0)
+
     for li in lignes:
-        # Règle 1 — Index en baisse : physiquement impossible, donc erreur de saisie
+        # Règles 1 et 2 — Index en baisse : physiquement impossible, donc erreur de saisie
         # (ou compteur remplacé). Signalée même pour un logement vide.
-        for fluide in FLUIDES:
+        for regle, fluide in ((1, 'eau_froide'), (2, 'thermique')):
             if li[fluide] is not None and li[fluide] < 0:
-                ajouter(li, 1, fluide, 'Index en baisse',
+                ajouter(li, 'rouge', fluide, regle, 'Index en baisse',
                         "L'index de fin est plus petit que l'index de début : erreur de saisie ou compteur remplacé ?")
 
         if li['vide']:
             continue
 
-        # Règle 2 — Un compteur tourne, l'autre non. "Non" = sous le seuil s'il est défini,
-        # sinon exactement zéro. Probablement un compteur bloqué ou mal relevé.
         ef, th = li['eau_froide'], li['thermique']
         if ef is not None and th is not None and ef >= 0 and th >= 0:
-            arrete = (lambda v: v < seuil) if seuil is not None else (lambda v: v == 0)
-            if arrete(th) and not arrete(ef):
-                ajouter(li, 1, 'thermique', 'Eau froide sans thermique',
-                        f"{_fr(ef, 3)} m³/jour d'eau froide mais quasiment pas de thermique ({_fr(th, 3)} m³/jour) : "
-                        "compteur thermique bloqué ou mal relevé ?")
+            # Règle 3 — Thermique sans eau froide (rouge, toute l'année) : typiquement un
+            # logement inoccupé dont la vanne d'eau froide est fermée mais pas celle du
+            # chauffage, qui chauffe donc pour rien. Ou compteur d'eau froide bloqué.
             if arrete(ef) and not arrete(th):
-                ajouter(li, 1, 'eau_froide', 'Thermique sans eau froide',
+                ajouter(li, 'rouge', 'eau_froide', 3, 'Thermique sans eau froide',
                         f"{_fr(th, 3)} m³/jour de thermique mais quasiment pas d'eau froide ({_fr(ef, 3)} m³/jour) : "
-                        "compteur d'eau froide bloqué ou mal relevé ?")
+                        "logement inoccupé chauffé, ou compteur d'eau froide bloqué ?")
+            # Règle 4 — Eau froide sans thermique (orange) : hors chauffage, c'est normal,
+            # d'où la désactivation. En période de chauffe : radiateurs fermés ou compteur bloqué.
+            if not hors_chauffage and arrete(th) and not arrete(ef):
+                ajouter(li, 'orange', 'thermique', 4, 'Eau froide sans thermique',
+                        f"{_fr(ef, 3)} m³/jour d'eau froide mais quasiment pas de thermique ({_fr(th, 3)} m³/jour) : "
+                        "radiateurs fermés, ou compteur thermique bloqué ou mal relevé ?")
 
-        # Règle 3 — Consommation hors norme par rapport à l'immeuble, à taille égale (indice).
-        for fluide in FLUIDES:
+        # Règles 5 et 6 — Consommation élevée par rapport aux autres logements (indice).
+        # Règles 9 et 10 — Consommation faible (vert). Les règles thermiques (6 et 10) sont
+        # désactivées hors chauffage : le thermique y est trop faible pour être comparé.
+        for fluide, regle_haut, regle_bas in (('eau_froide', 5, 9), ('thermique', 6, 10)):
+            if fluide == 'thermique' and hors_chauffage:
+                continue
             indice = li[f'indice_{fluide}']
             if indice is None:
                 continue
-            fois = _fr(indice / 100)
-            if indice >= INDICE_ERREUR_CHIFFRE:
-                ajouter(li, 1, fluide, 'Erreur de chiffre ?',
-                        f"{fois} fois la médiane de l'immeuble à taille égale : chiffre en trop ou virgule mal placée ?")
-            elif indice >= INDICE_TRES_ELEVE:
-                ajouter(li, 2, fluide, 'Consommation très élevée',
-                        f"{fois} fois la médiane de l'immeuble à taille égale.")
-            elif indice <= INDICE_TRES_FAIBLE:
-                ajouter(li, 2, fluide, 'Consommation très faible',
-                        f"Seulement {fois} fois la médiane de l'immeuble à taille égale : "
-                        "compteur qui sous-compte, ou logement peu occupé ?")
+            niveau = niveau_conso_elevee(indice)
+            if niveau:
+                verif = " Vérifier une erreur de relevé." if indice >= INDICE_VERIFIER_RELEVE else ''
+                ajouter(li, niveau, fluide, regle_haut, 'Consommation élevée',
+                        f"{_fr(indice / 100)} fois la médiane de l'immeuble à taille égale.{verif}")
+            elif indice <= INDICE_CONSO_FAIBLE:
+                fois_moins = f"{_fr(100 / indice)} fois moins" if indice > 0 else "beaucoup moins"
+                ajouter(li, 'vert', fluide, regle_bas, 'Consommation faible',
+                        f"{fois_moins} que la médiane de l'immeuble à taille égale : logement peu occupé, "
+                        "ou compteur qui sous-compte ?")
 
-    # Règle 4 — Relevés inversés : deux logements anormaux (hors norme ou index en baisse) qui
-    # redeviennent normaux TOUS LES DEUX si on échange leurs index de fin. Typique d'une
-    # confusion entre deux compteurs voisins pendant la tournée.
-    for fluide in FLUIDES:
-        candidats = [li for li in lignes
-                     if not li['vide'] and li['tantieme'] and li[fluide] is not None
-                     and (li[fluide] < 0 or (li[f'indice_{fluide}'] is not None and not normal(li[f'indice_{fluide}'])))]
-        for i, a in enumerate(candidats):
-            for b in candidats[i + 1:]:
-                indices = _indices_si_echange(a, b, fluide, releves_par_fluide[fluide], debut, fin, medianes[fluide])
-                if indices and all(normal(x) for x in indices):
-                    for li, autre in ((a, b), (b, a)):
-                        ajouter(li, 1, fluide, 'Relevés inversés ?',
-                                f"Hors norme, mais redevient normal si on échange son relevé avec celui du logement "
-                                f"{autre['numero_appartement']} : confusion pendant la tournée ?")
+        # Règles 7 et 8 — Un compteur nettement plus haut que l'autre, en indices. Les deux
+        # indices doivent exister (compteurs au-dessus du seuil). Désactivées hors chauffage.
+        i_ef, i_th = li['indice_eau_froide'], li['indice_thermique']
+        if not hors_chauffage and i_ef and i_th:
+            for regle, fluide, haut, bas, libelle in (
+                    (7, 'thermique', i_th, i_ef, "Thermique élevé par rapport à l'eau froide"),
+                    (8, 'eau_froide', i_ef, i_th, 'Eau froide élevée par rapport au thermique')):
+                ratio = haut / bas
+                for palier, niveau in PALIERS_RATIO_COMPTEURS:
+                    if ratio >= palier:
+                        ajouter(li, niveau, fluide, regle, libelle,
+                                f"Indice {LIBELLES[fluide].lower()} {_fr(ratio)} fois plus élevé que l'autre compteur "
+                                f"({haut} contre {bas}).")
+                        break
 
-    # Règle 5 — Changement brutal par rapport à la période précédente. On compare des indices,
-    # donc l'évolution de tout l'immeuble (saison de chauffe, vacances...) est neutralisée.
-    if lignes_prec:
-        prec = {li['id']: li for li in lignes_prec}
-        for li in lignes:
-            p = prec.get(li['id'])
-            if not p or li['vide'] or p['vide']:
-                continue
-            for fluide in FLUIDES:
-                avant, apres = p[f'indice_{fluide}'], li[f'indice_{fluide}']
-                if not avant or not apres or apres >= INDICE_ERREUR_CHIFFRE:
-                    continue  # pas de comparaison possible, ou déjà signalé comme erreur de chiffre
-                ratio = apres / avant
-                if ratio >= RATIO_CHANGEMENT_BRUTAL:
-                    ajouter(li, 1, fluide, 'Hausse brutale',
-                            f"Consommation {_fr(ratio)} fois plus forte que sur la période précédente, "
-                            "à évolution de l'immeuble égale : fuite ?")
-                elif ratio <= 1 / RATIO_CHANGEMENT_BRUTAL:
-                    ajouter(li, 2, fluide, 'Baisse brutale',
-                            f"Consommation {_fr(1 / ratio)} fois plus faible que sur la période précédente, "
-                            "à évolution de l'immeuble égale : compteur bloqué ou logement inoccupé ?")
-
-    anomalies.sort(key=lambda a: (a['gravite'], a['numero_appartement'], a['fluide']))
+    rang = {n: i for i, n in enumerate(NIVEAUX)}
+    anomalies.sort(key=lambda a: (rang[a['niveau']], a['numero_appartement'], a['regle']))
     return anomalies
 
 
 # ─── Point d'entrée ───────────────────────────────────────────────────────────
 
-def analyser(logements, releves_eau_froide, releves_thermique, debut, fin, seuil):
+def analyser(logements, releves_eau_froide, releves_thermique, debut, fin, seuil, evenements_chauffage):
     """
     logements : liste de dicts (id, numero_appartement, tantieme)
     releves_eau_froide / releves_thermique : dict {(logement_id, 'AAAA-MM-JJ'): index en m³}
     debut, fin : dates 'AAAA-MM-JJ' (debut < fin)
     seuil : seuil "logement vide" en m³/jour, ou None
+    evenements_chauffage : liste de dicts {'date', 'action'} (onglet Chauffage)
     """
     releves = {'eau_froide': releves_eau_froide, 'thermique': releves_thermique}
-    dates = dates_avec_nombre_releves(releves)
-
     lignes, medianes, medianes_brutes = _calculer_periode(logements, releves, debut, fin, seuil)
 
-    prec = periode_precedente(dates, len(logements), debut)
-    lignes_prec = _calculer_periode(logements, releves, *prec, seuil)[0] if prec else None
+    jours = _jours_entre(debut, fin)
+    nb_jours_chauffe = jours_de_chauffe(evenements_chauffage, debut, fin)
+    # True = période de chauffe, False = hors chauffage, None = inconnu (aucune date saisie)
+    chauffage_actif = None if nb_jours_chauffe is None else nb_jours_chauffe >= jours * PART_MINIMALE_JOURS_CHAUFFE
 
-    anomalies = _detecter_anomalies(lignes, lignes_prec, medianes, releves, debut, fin, seuil)
+    anomalies = _detecter_anomalies(lignes, seuil, chauffage_actif)
 
     # Informations à afficher : compteurs exclus faute de relevé à l'une des deux dates
     sans_releve = {f: [li['numero_appartement'] for li in lignes if li[f] is None] for f in FLUIDES}
     fluides_absents = [LIBELLES[f] for f in FLUIDES if len(sans_releve[f]) == len(lignes)]
 
-    # Données du graphique "période précédente / période choisie"
-    comparaison = []
-    if lignes_prec:
-        p_par_id = {li['id']: li for li in lignes_prec}
-        for li in lignes:
-            p = p_par_id.get(li['id'])
-            if p:
-                comparaison.append({
-                    'numero_appartement': li['numero_appartement'],
-                    'eau_froide': [p['indice_eau_froide'], li['indice_eau_froide']],
-                    'thermique': [p['indice_thermique'], li['indice_thermique']],
-                })
-
     return {
         'debut': debut,
         'fin': fin,
-        'jours': _jours_entre(debut, fin),
+        'jours': jours,
         'seuil': seuil,
         'lignes': lignes,
         'medianes': medianes,
         'medianes_brutes': medianes_brutes,
         'anomalies': anomalies,
-        'periode_precedente': prec,
-        'comparaison': comparaison,
+        'compte_niveaux': {n: sum(1 for a in anomalies if a['niveau'] == n) for n in NIVEAUX},
         'vides': [li['numero_appartement'] for li in lignes if li['vide']],
         'sans_releve': sans_releve,
         'fluides_absents': fluides_absents,
-        'seuils_indice': {'tres_eleve': INDICE_TRES_ELEVE, 'tres_faible': INDICE_TRES_FAIBLE},
+        'jours_chauffe': nb_jours_chauffe,
+        'chauffage_actif': chauffage_actif,
+        'regles': REGLES,
+        'paliers': {
+            'conso_elevee': [p for p, _ in PALIERS_CONSO_ELEVEE],  # [400, 300, 200]
+            'conso_faible': INDICE_CONSO_FAIBLE,
+            'ratio': [p for p, _ in PALIERS_RATIO_COMPTEURS],      # [4, 3, 2]
+        },
     }
