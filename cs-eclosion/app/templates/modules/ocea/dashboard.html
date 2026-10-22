@@ -9,19 +9,33 @@
   .ocea-filtres .form-group { margin-bottom: 0; min-width: 190px; }
   .ocea-note { font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem; }
   .ocea-info { font-size: 0.85rem; color: #92400e; background: #fef3c7; border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 1rem; }
-  .gravite-1 td:first-child { border-left: 4px solid #dc2626; }
-  .gravite-2 td:first-child { border-left: 4px solid #f59e0b; }
+  /* Niveaux d'alerte (v1.7.1) : rouge > orange > jaune ; vert = consommation basse */
+  .niveau-rouge td:first-child  { border-left: 4px solid #dc2626; }
+  .niveau-orange td:first-child { border-left: 4px solid #ea580c; }
+  .niveau-jaune td:first-child  { border-left: 4px solid #eab308; }
+  .niveau-vert td:first-child   { border-left: 4px solid #16a34a; }
+  .texte-rouge  { color: #dc2626; font-weight: 600; }
+  .texte-orange { color: #ea580c; font-weight: 600; }
+  .texte-jaune  { color: #a16207; font-weight: 600; }
+  .texte-vert   { color: #16a34a; font-weight: 600; }
+  .filtres-niveaux { display: flex; gap: 1.25rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; font-size: 0.9rem; }
+  .filtres-niveaux label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+  .regles-ocea summary { cursor: pointer; color: #2d7dd2; font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .regles-ocea table { font-size: 0.82rem; margin-bottom: 1rem; }
+  .ocea-chauffage { font-size: 0.85rem; border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 1rem; }
+  .ocea-chauffage.actif { background: #fee2e2; color: #991b1b; }
+  .ocea-chauffage.inactif { background: #dbeafe; color: #1e40af; }
+  .ocea-chauffage.inconnu { background: #f3f4f6; color: #374151; }
+  .graphique-double + .graphique-double { margin-top: 1.5rem; }
   .pastille { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; }
   .pastille.eau_froide { background: #2d7dd2; }
   .pastille.thermique { background: #f59e0b; }
   .sans-retour { white-space: nowrap; }
-  .indice-haut { color: #dc2626; font-weight: 600; }
-  .indice-bas { color: #b45309; font-weight: 600; }
   .ocea-separateur { margin: 2rem 0 1rem; font-size: 1.1rem; font-weight: 700; color: #374151; }
 </style>
 
 {% if dates | length >= 2 %}
-<!-- ════════════════ ANALYSE PAR PÉRIODE (ajout v1.6.4) ════════════════ -->
+<!-- ════════════════ ANALYSE PAR PÉRIODE (ajout v1.6.4, règles revues en v1.7.1) ════════════════ -->
 
 <!-- ── Choix de la période et du seuil ── -->
 <div class="card">
@@ -67,6 +81,14 @@
   {% endif %}
 {% endfor %}
 
+{% if analyse.chauffage_actif is none %}
+<div class="ocea-chauffage inconnu">Aucune date de chauffage renseignée : toutes les règles sont appliquées. <a href="{{ url_for('ocea_chauffage') }}">Saisir les dates de chauffage</a></div>
+{% elif analyse.chauffage_actif %}
+<div class="ocea-chauffage actif">Chauffage en marche {{ analyse.jours_chauffe }} jours sur {{ analyse.jours }} : période de chauffe, toutes les règles sont appliquées.</div>
+{% else %}
+<div class="ocea-chauffage inactif">Chauffage en marche {{ analyse.jours_chauffe }} jours sur {{ analyse.jours }} : période hors chauffage, les règles 4, 6, 7, 8 et 10 sont désactivées.</div>
+{% endif %}
+
 <div class="stat-grid" style="margin-bottom:1.5rem;">
   <div class="stat-box"><div class="label">Durée</div><div class="value">{{ analyse.jours }} jours</div>
     <div class="sub">du {{ analyse.debut[8:10] }}/{{ analyse.debut[5:7] }}/{{ analyse.debut[0:4] }} au {{ analyse.fin[8:10] }}/{{ analyse.fin[5:7] }}/{{ analyse.fin[0:4] }}</div></div>
@@ -75,7 +97,12 @@
   <div class="stat-box"><div class="label">Logements vides ignorés</div><div class="value">{{ analyse.vides | length }}</div>
     <div class="sub">{{ analyse.vides | join(', ') if analyse.vides else ('aucun' if analyse.seuil is not none else 'aucun seuil défini') }}</div></div>
   <div class="stat-box"><div class="label">Anomalies</div><div class="value">{{ analyse.anomalies | length }}</div>
-    <div class="sub">dont {{ analyse.anomalies | selectattr('gravite', 'equalto', 1) | list | length }} à vérifier en priorité</div></div>
+    <div class="sub">
+      <span class="texte-rouge">{{ analyse.compte_niveaux.rouge }} rouge(s)</span>,
+      <span class="texte-orange">{{ analyse.compte_niveaux.orange }} orange(s)</span>,
+      <span class="texte-jaune">{{ analyse.compte_niveaux.jaune }} jaune(s)</span>,
+      <span class="texte-vert">{{ analyse.compte_niveaux.vert }} vert(s)</span>
+    </div></div>
 </div>
 
 <!-- ── A. Anomalies ── -->
@@ -83,19 +110,49 @@
   <h2>Anomalies détectées</h2>
   <p class="ocea-note">
     L'« indice » compare chaque logement à la médiane de l'immeuble, à taille égale (consommation divisée par le tantième) :
-    100 = comme un logement médian, 250 = 2,5 fois plus. Une anomalie n'est pas forcément une erreur : c'est un point à vérifier.
-    Barre rouge = à vérifier en priorité, barre orange = à surveiller.
+    100 = comme un logement médian, 200 = 2 fois plus. Une anomalie n'est pas forcément une erreur : c'est un point à vérifier.
+    Rouge, orange, jaune = du plus au moins important ; vert = consommation basse, pour information.
   </p>
+
+  <details class="regles-ocea">
+    <summary>Voir les règles de détection</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Règle</th><th>Compteur</th><th>Se déclenche quand…</th><th>Niveau</th><th>Désactivée</th></tr></thead>
+        <tbody>
+          {% for r in analyse.regles %}
+          <tr>
+            <td>{{ r.numero }}</td><td>{{ r.nom }}</td><td>{{ r.compteur }}</td><td>{{ r.declenchement }}</td>
+            <td class="sans-retour">{{ r.niveaux }}</td><td>{{ r.desactivee }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="ocea-note">
+      Une seule alerte par règle et par compteur, au niveau le plus élevé atteint. Un logement vide (les deux compteurs sous le seuil)
+      n'est concerné que par les règles 1 et 2. Hors chauffage = chauffage en marche moins de la moitié des jours de la période (onglet Chauffage).
+      Au-delà de 8 fois la médiane, l'alerte suggère de vérifier une erreur de relevé.
+    </p>
+  </details>
+
   {% if analyse.anomalies %}
+  <div class="filtres-niveaux">
+    <label><input type="checkbox" class="filtre-niveau" value="rouge" checked> <span class="texte-rouge">Rouge ({{ analyse.compte_niveaux.rouge }})</span></label>
+    <label><input type="checkbox" class="filtre-niveau" value="orange" checked> <span class="texte-orange">Orange ({{ analyse.compte_niveaux.orange }})</span></label>
+    <label><input type="checkbox" class="filtre-niveau" value="jaune" checked> <span class="texte-jaune">Jaune ({{ analyse.compte_niveaux.jaune }})</span></label>
+    <label><input type="checkbox" class="filtre-niveau" value="vert" checked> <span class="texte-vert">Vert ({{ analyse.compte_niveaux.vert }})</span></label>
+  </div>
   <div class="table-wrap">
-    <table>
-      <thead><tr><th>Logement</th><th>Compteur</th><th>Anomalie</th><th>Explication</th></tr></thead>
+    <table id="table-anomalies">
+      <thead><tr><th>Logement</th><th>Compteur</th><th>Règle</th><th>Anomalie</th><th>Explication</th></tr></thead>
       <tbody>
         {% for a in analyse.anomalies %}
-        <tr class="gravite-{{ a.gravite }}">
+        <tr class="niveau-{{ a.niveau }}" data-niveau="{{ a.niveau }}">
           <td><strong>{{ a.numero_appartement }}</strong></td>
           <td class="sans-retour"><span class="pastille {{ a.fluide_code }}"></span>{{ a.fluide }}</td>
-          <td>{{ a.type }}</td>
+          <td>{{ a.regle }}</td>
+          <td class="texte-{{ a.niveau }}">{{ a.type }}</td>
           <td style="font-size:0.85rem;">{{ a.explication }}</td>
         </tr>
         {% endfor %}
@@ -118,17 +175,17 @@
   <div class="chart-box" style="height:420px;"><canvas id="chartBarresPeriode"></canvas></div>
 </div>
 
-<!-- ── C & D. Nuages tantième / consommation sur la période ── -->
+<!-- ── C. Nuages tantième / consommation sur la période (eau froide en bleu, thermique en orange) ── -->
 <div class="card">
-  <h2>Eau froide sur la période selon le tantième</h2>
-  <p class="ocea-note">Chaque point est un logement. Ligne pleine = médiane de l'immeuble ; lignes pointillées = 2,5 fois et 0,4 fois la médiane. Points cerclés de rouge = hors de cette zone ou index en baisse.</p>
-  <div class="chart-box" style="height:420px;"><canvas id="chartTantiemeEauFroide"></canvas></div>
-</div>
-
-<div class="card">
-  <h2>Thermique sur la période selon le tantième</h2>
-  <p class="ocea-note">Même lecture que le graphique précédent, pour le compteur thermique.</p>
-  <div class="chart-box" style="height:420px;"><canvas id="chartTantiemeThermique"></canvas></div>
+  <h2>Comparaison sur la période selon le tantième</h2>
+  <p class="ocea-note">
+    Chaque point est un logement : en bleu l'eau froide, en orange le thermique. Ligne pleine = médiane de l'immeuble.
+    Lignes pointillées : jaune = 2 fois la médiane, orange foncé = 3 fois, rouge = 4 fois, verte = 2 fois moins.
+    Le contour d'un point prend la couleur de son alerte. Hors chauffage, les alertes thermiques sont désactivées : le graphique
+    thermique n'affiche alors que la médiane.
+  </p>
+  <div class="graphique-double chart-box" style="height:400px;"><canvas id="chartTantiemeEauFroide"></canvas></div>
+  <div class="graphique-double chart-box" style="height:400px;"><canvas id="chartTantiemeThermique"></canvas></div>
 </div>
 
 <!-- ── E. Eau froide face au thermique ── -->
@@ -138,26 +195,12 @@
     Chaque point est un logement, placé selon ses deux indices (100 = médiane de l'immeuble, à taille égale). Les logements « normaux » se regroupent
     autour du croisement des lignes à 100. En haut à gauche : beaucoup de thermique pour peu d'eau froide ; en bas à droite : l'inverse.
     Axes logarithmiques (chaque graduation multiplie la précédente), pour que les valeurs extrêmes n'écrasent pas les autres.
+    Lignes pointillées : un indice 2 fois (jaune), 3 fois (orange foncé) ou 4 fois (rouge) plus élevé que l'autre (règles 7 et 8),
+    au-dessus de la diagonale pour le thermique, en dessous pour l'eau froide ; le contour des points prend la couleur de l'alerte.
+    Hors chauffage, ces règles sont désactivées et les lignes ne sont pas affichées.
     Les logements dont un compteur est sous le seuil n'apparaissent pas ici : ils figurent dans les anomalies.
   </p>
   <div class="chart-box" style="height:460px;"><canvas id="chartFroideThermique"></canvas></div>
-</div>
-
-<!-- ── F. Période précédente / période choisie ── -->
-<div class="card">
-  <h2>Évolution par rapport à la période précédente</h2>
-  {% if analyse.periode_precedente %}
-  {% set pp = analyse.periode_precedente %}
-  <p class="ocea-note">
-    Période précédente : du {{ pp[0][8:10] }}/{{ pp[0][5:7] }}/{{ pp[0][0:4] }} au {{ pp[1][8:10] }}/{{ pp[1][5:7] }}/{{ pp[1][0:4] }}
-    (dernier relevé comprenant au moins 60 % des logements). Chaque point est un logement et un compteur : son indice sur la période précédente
-    (horizontal) et sur la période choisie (vertical). Un logement stable reste près de la diagonale ; les lignes pointillées marquent une
-    consommation multipliée ou divisée par 3. Axes logarithmiques. Un compteur sans relevé sur l'une des deux périodes n'apparaît pas.
-  </p>
-  <div class="chart-box" style="height:460px;"><canvas id="chartPeriodes"></canvas></div>
-  {% else %}
-  <p class="ocea-note">Pas de période précédente : aucun relevé comprenant au moins 60 % des logements avant la date de début.</p>
-  {% endif %}
 </div>
 
 <!-- ── G. Tableau détaillé ── -->
@@ -185,7 +228,9 @@
           {% for f in ['eau_froide', 'thermique'] %}
           <td class="montant">{{ ('%.3f'|format(l[f])).replace('.', ',') if l[f] is not none else '—' }}</td>
           {% set i = l['indice_' ~ f] %}
-          <td class="montant {{ 'indice-haut' if i is not none and i >= analyse.seuils_indice.tres_eleve }} {{ 'indice-bas' if i is not none and i <= analyse.seuils_indice.tres_faible }}">{{ i if i is not none else '—' }}</td>
+          {% set p = analyse.paliers.conso_elevee %}
+          {% set classe = 'texte-rouge' if i is not none and i >= p[0] else 'texte-orange' if i is not none and i >= p[1] else 'texte-jaune' if i is not none and i >= p[2] else 'texte-vert' if i is not none and i <= analyse.paliers.conso_faible else '' %}
+          <td class="montant {{ classe }}">{{ i if i is not none else '—' }}</td>
           {% endfor %}
           <td>{{ 'Vide (ignoré)' if l.vide else '' }}</td>
         </tr>
@@ -234,27 +279,19 @@
   </div>
 </div>
 
-<!-- ── Graphiques comparatifs (dernier relevé) ── -->
+<!-- ── Graphiques comparatifs (dernier relevé), eau froide en bleu et thermique en orange ── -->
 <div class="card">
-  <h2>Eau froide — index actuel par logement</h2>
-  <div class="chart-box" style="height:400px;"><canvas id="chartBarEauFroide"></canvas></div>
+  <h2>Index actuel par logement</h2>
+  <p class="ocea-note">Dernier index relevé de chaque logement : en bleu l'eau froide, en orange le thermique.</p>
+  <div class="graphique-double chart-box" style="height:400px;"><canvas id="chartBarEauFroide"></canvas></div>
+  <div class="graphique-double chart-box" style="height:400px;"><canvas id="chartBarThermique"></canvas></div>
 </div>
 
 <div class="card">
-  <h2>Thermique — index actuel par logement</h2>
-  <div class="chart-box" style="height:400px;"><canvas id="chartBarThermique"></canvas></div>
-</div>
-
-<div class="card">
-  <h2>Eau froide — évolution dans le temps, tous logements</h2>
-  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">L'axe horizontal respecte l'espacement réel entre les dates de relevé.</p>
-  <div class="chart-box" style="height:420px;"><canvas id="chartEvolutionEauFroide"></canvas></div>
-</div>
-
-<div class="card">
-  <h2>Thermique — évolution dans le temps, tous logements</h2>
-  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">L'axe horizontal respecte l'espacement réel entre les dates de relevé.</p>
-  <div class="chart-box" style="height:420px;"><canvas id="chartEvolutionThermique"></canvas></div>
+  <h2>Évolution des index dans le temps</h2>
+  <p class="ocea-note">Une courbe par logement : en bleu l'eau froide, en orange le thermique. L'axe horizontal respecte l'espacement réel entre les dates de relevé.</p>
+  <div class="graphique-double chart-box" style="height:420px;"><canvas id="chartEvolutionEauFroide"></canvas></div>
+  <div class="graphique-double chart-box" style="height:420px;"><canvas id="chartEvolutionThermique"></canvas></div>
 </div>
 
 <div class="card">
@@ -424,11 +461,24 @@ if (ctx3 && dataScatter.length) {
     }
   });
 }
-// ════════════════ ANALYSE PAR PÉRIODE (ajout v1.6.4) ════════════════
+// ════════════════ ANALYSE PAR PÉRIODE (ajout v1.6.4, règles revues en v1.7.1) ════════════════
 // Les calculs (consommations, indices, anomalies) sont faits côté serveur dans analyse_ocea.py ;
-// ici on ne fait que dessiner.
+// ici on ne fait que dessiner. Les paliers d'alerte viennent aussi du serveur, pour qu'il n'y
+// ait qu'un seul endroit où les modifier.
 const analyse = {{ analyse | tojson }};
 const fmt = (v, d = 3) => (v === null || v === undefined) ? '—' : v.toFixed(d).replace('.', ',');
+
+// Couleurs des niveaux d'alerte. L'orange d'alerte est plus foncé que l'orange du thermique,
+// pour ne pas se confondre avec les points thermiques.
+const COULEUR_NIVEAU = { rouge: '#dc2626', orange: '#c2410c', jaune: '#eab308', vert: '#16a34a' };
+
+// Filtres d'affichage du tableau des anomalies, par niveau
+document.querySelectorAll('.filtre-niveau').forEach(cb => cb.addEventListener('change', () => {
+  const visibles = [...document.querySelectorAll('.filtre-niveau:checked')].map(c => c.value);
+  document.querySelectorAll('#table-anomalies tbody tr').forEach(tr => {
+    tr.style.display = visibles.includes(tr.dataset.niveau) ? '' : 'none';
+  });
+}));
 
 // Tri du tableau détaillé de la période
 let triPeriode = { col: null, dir: 1 };
@@ -457,7 +507,8 @@ document.querySelectorAll('#table-periode th.sortable').forEach((th, colIndex) =
 });
 
 if (analyse) {
-  const S = analyse.seuils_indice;
+  const P = analyse.paliers;                         // conso_elevee [400,300,200], conso_faible 50, ratio [4,3,2]
+  const horsChauffage = analyse.chauffage_actif === false;
   // Échelles logarithmiques : on n'affiche que des graduations « rondes »
   const GRADUATIONS = [10, 25, 50, 100, 200, 400, 1000, 2500, 5000];
   const graduationLog = v => GRADUATIONS.includes(Math.round(v)) ? Math.round(v) : null;
@@ -465,6 +516,19 @@ if (analyse) {
   // Logements non vides, triés par numéro
   const occupes = analyse.lignes.filter(l => !l.vide)
     .sort((a, b) => a.numero_appartement.localeCompare(b.numero_appartement, 'fr', { numeric: true }));
+
+  // Niveau d'alerte d'un logement pour un compteur (mêmes paliers que analyse_ocea.py)
+  function niveauPoint(l, fluide) {
+    if (l[fluide] !== null && l[fluide] < 0) return 'rouge';                 // index en baisse
+    if (fluide === 'thermique' && horsChauffage) return null;                 // règles 6 et 10 désactivées
+    const i = l['indice_' + fluide];
+    if (i === null) return null;
+    if (i >= P.conso_elevee[0]) return 'rouge';
+    if (i >= P.conso_elevee[1]) return 'orange';
+    if (i >= P.conso_elevee[2]) return 'jaune';
+    if (i <= P.conso_faible) return 'vert';
+    return null;
+  }
 
   // ── B. Barres combinées ──
   const valeursBarres = (mode, fluide) => occupes.map(l => {
@@ -502,11 +566,7 @@ if (analyse) {
     }));
   }
 
-  // ── C & D. Nuages tantième / consommation ──
-  // Hors norme = index en baisse, ou indice au-delà de 2,5 fois / en deçà de 0,4 fois la médiane.
-  const horsNorme = (l, fluide) => l[fluide] < 0 ||
-    (l['indice_' + fluide] !== null && (l['indice_' + fluide] >= S.tres_eleve || l['indice_' + fluide] <= S.tres_faible));
-
+  // ── C. Nuages tantième / consommation ──
   function nuageTantieme(canvasId, fluide, couleur, libelle) {
     const canvas = document.getElementById(canvasId);
     const points = occupes.filter(l => l.tantieme && l[fluide] !== null);
@@ -514,11 +574,25 @@ if (analyse) {
     const ratioMedian = analyse.medianes[fluide];  // m³/jour par tantième
     const xs = points.map(l => l.tantieme);
     const xmin = Math.floor(Math.min(...xs) / 10) * 10 - 10, xmax = Math.ceil(Math.max(...xs) / 10) * 10 + 10;
-    // Droites de référence : conso = ratio médian × tantième (× 1, × 2,5 et × 0,4)
-    const droite = (facteur, label, pointille) => ({
+    // Droite de référence : conso = ratio médian × facteur × tantième
+    const droite = (facteur, label, couleurLigne, pointille) => ({
       type: 'line', label, data: [{ x: xmin, y: ratioMedian * facteur * xmin }, { x: xmax, y: ratioMedian * facteur * xmax }],
-      borderColor: couleur, borderWidth: 1.5, borderDash: pointille ? [6, 4] : [], pointRadius: 0, fill: false,
+      borderColor: couleurLigne, borderWidth: pointille ? 1.5 : 2, borderDash: pointille ? [6, 4] : [], pointRadius: 0, fill: false,
     });
+    const lignes = [];
+    if (ratioMedian) {
+      lignes.push(droite(1, 'Médiane', couleur, false));
+      // Lignes d'alerte, sauf pour le thermique hors chauffage (règles thermiques désactivées)
+      if (!(fluide === 'thermique' && horsChauffage)) {
+        lignes.push(
+          droite(P.conso_elevee[2] / 100, '2 × la médiane', COULEUR_NIVEAU.jaune, true),
+          droite(P.conso_elevee[1] / 100, '3 × la médiane', COULEUR_NIVEAU.orange, true),
+          droite(P.conso_elevee[0] / 100, '4 × la médiane', COULEUR_NIVEAU.rouge, true),
+          droite(P.conso_faible / 100, '2 × moins que la médiane', COULEUR_NIVEAU.vert, true),
+        );
+      }
+    }
+    const niveaux = points.map(l => niveauPoint(l, fluide));
     new Chart(canvas, {
       type: 'scatter',
       data: {
@@ -527,22 +601,22 @@ if (analyse) {
             label: libelle,
             data: points.map(l => ({ x: l.tantieme, y: l[fluide], appt: l.numero_appartement, indice: l['indice_' + fluide] })),
             backgroundColor: couleur,
-            pointRadius: points.map(l => horsNorme(l, fluide) ? 9 : 6),
-            borderColor: points.map(l => horsNorme(l, fluide) ? ROUGE : couleur),
-            borderWidth: points.map(l => horsNorme(l, fluide) ? 3 : 1),
+            pointRadius: niveaux.map(n => n ? 8 : 6),
+            borderColor: niveaux.map(n => n ? COULEUR_NIVEAU[n] : couleur),
+            borderWidth: niveaux.map(n => n ? 3 : 1),
           },
-          ...(ratioMedian ? [droite(1, 'Médiane', false), droite(S.tres_eleve / 100, '2,5 × la médiane', true), droite(S.tres_faible / 100, '0,4 × la médiane', true)] : []),
+          ...lignes,
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { filter: c => c.datasetIndex === 0, callbacks: { label: c => `Logement ${c.raw.appt} : ${fmt(c.raw.y)} m³/jour, tantième ${c.raw.x} — indice ${c.raw.indice ?? '—'}` } }
+          tooltip: { filter: c => c.datasetIndex === 0, callbacks: { label: c => `${libelle} — logement ${c.raw.appt} : ${fmt(c.raw.y)} m³/jour, tantième ${c.raw.x}, indice ${c.raw.indice ?? '—'}` } }
         },
         scales: {
           x: { type: 'linear', min: xmin, max: xmax, title: { display: true, text: 'Tantième (dix-millièmes)' } },
-          y: { title: { display: true, text: libelle + ' (m³ par jour)' } }
+          y: { title: { display: true, text: libelle + ' (m³ par jour)', color: couleur } }
         }
       }
     });
@@ -558,13 +632,34 @@ if (analyse) {
   if (canvasFT && pointsFT.length) {
     const valeurs = pointsFT.flatMap(l => [l.indice_eau_froide, l.indice_thermique]);
     const minFT = Math.min(25, ...valeurs) * 0.8, maxFT = Math.max(400, ...valeurs) * 1.25;
+    // Niveau d'alerte des règles 7 et 8 : écart entre les deux indices (2 / 3 / 4 fois)
+    const niveauRatio = l => {
+      if (horsChauffage) return null;
+      const r = Math.max(l.indice_thermique / l.indice_eau_froide, l.indice_eau_froide / l.indice_thermique);
+      return r >= P.ratio[0] ? 'rouge' : r >= P.ratio[1] ? 'orange' : r >= P.ratio[2] ? 'jaune' : null;
+    };
+    const niveaux = pointsFT.map(niveauRatio);
+    // Droite y = facteur × x (au-dessus de la diagonale : thermique plus élevé ; en dessous : eau froide)
+    const droite = (facteur, couleurLigne, pointille) => ({
+      type: 'line', data: [{ x: minFT, y: minFT * facteur }, { x: maxFT, y: maxFT * facteur }],
+      borderColor: couleurLigne, borderWidth: 1.5, borderDash: pointille ? [6, 4] : [], pointRadius: 0,
+    });
+    const lignesRatio = horsChauffage ? [] : [
+      droite(P.ratio[2], COULEUR_NIVEAU.jaune, true), droite(1 / P.ratio[2], COULEUR_NIVEAU.jaune, true),
+      droite(P.ratio[1], COULEUR_NIVEAU.orange, true), droite(1 / P.ratio[1], COULEUR_NIVEAU.orange, true),
+      droite(P.ratio[0], COULEUR_NIVEAU.rouge, true), droite(1 / P.ratio[0], COULEUR_NIVEAU.rouge, true),
+    ];
     new Chart(canvasFT, {
       type: 'scatter',
       data: {
         datasets: [
-          { label: 'Logements', data: pointsFT.map(l => ({ x: l.indice_eau_froide, y: l.indice_thermique, appt: l.numero_appartement })), backgroundColor: '#6b7280', pointRadius: 6 },
-          { type: 'line', label: 'Médiane eau froide', data: [{ x: 100, y: minFT }, { x: 100, y: maxFT }], borderColor: BLEU, borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0 },
-          { type: 'line', label: 'Médiane thermique', data: [{ x: minFT, y: 100 }, { x: maxFT, y: 100 }], borderColor: ORANGE, borderDash: [6, 4], borderWidth: 1.5, pointRadius: 0 },
+          { label: 'Logements', data: pointsFT.map(l => ({ x: l.indice_eau_froide, y: l.indice_thermique, appt: l.numero_appartement })),
+            backgroundColor: '#6b7280', pointRadius: niveaux.map(n => n ? 8 : 6),
+            borderColor: niveaux.map(n => n ? COULEUR_NIVEAU[n] : '#6b7280'), borderWidth: niveaux.map(n => n ? 3 : 1) },
+          { type: 'line', data: [{ x: 100, y: minFT }, { x: 100, y: maxFT }], borderColor: BLEU, borderDash: [2, 3], borderWidth: 1.5, pointRadius: 0 },
+          { type: 'line', data: [{ x: minFT, y: 100 }, { x: maxFT, y: 100 }], borderColor: ORANGE, borderDash: [2, 3], borderWidth: 1.5, pointRadius: 0 },
+          droite(1, GRIS, false),
+          ...lignesRatio,
         ]
       },
       options: {
@@ -576,39 +671,6 @@ if (analyse) {
         scales: {
           x: { type: 'logarithmic', min: minFT, max: maxFT, ticks: { callback: graduationLog }, title: { display: true, text: 'Indice eau froide (100 = médiane)', color: BLEU } },
           y: { type: 'logarithmic', min: minFT, max: maxFT, ticks: { callback: graduationLog }, title: { display: true, text: 'Indice thermique (100 = médiane)', color: ORANGE } }
-        }
-      }
-    });
-  }
-
-  // ── F. Période précédente / période choisie (indices, axes logarithmiques) ──
-  const canvasPeriodes = document.getElementById('chartPeriodes');
-  if (canvasPeriodes && analyse.comparaison.length) {
-    const pts = fluide => analyse.comparaison.filter(c => c[fluide][0] > 0 && c[fluide][1] > 0)
-      .map(c => ({ x: c[fluide][0], y: c[fluide][1], appt: c.numero_appartement }));
-    const pEF = pts('eau_froide'), pTH = pts('thermique');
-    const valeurs = [...pEF, ...pTH].flatMap(p => [p.x, p.y]);
-    const minP = Math.min(25, ...valeurs) * 0.8, maxP = Math.max(400, ...valeurs) * 1.25;
-    const diagonale = (f, label) => ({ type: 'line', label, data: [{ x: minP, y: minP * f }, { x: maxP, y: maxP * f }],
-      borderColor: GRIS, borderDash: f === 1 ? [] : [6, 4], borderWidth: 1.5, pointRadius: 0 });
-    new Chart(canvasPeriodes, {
-      type: 'scatter',
-      data: {
-        datasets: [
-          { label: 'Eau froide', data: pEF, backgroundColor: BLEU, pointRadius: 6 },
-          { label: 'Thermique', data: pTH, backgroundColor: ORANGE, pointRadius: 6 },
-          diagonale(1, 'Stable'), diagonale(3, '× 3'), diagonale(1 / 3, '÷ 3'),
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { labels: { filter: item => item.datasetIndex < 2 } },
-          tooltip: { filter: c => c.datasetIndex < 2, callbacks: { label: c => `${c.dataset.label} — logement ${c.raw.appt} : indice ${c.raw.x} → ${c.raw.y}` } }
-        },
-        scales: {
-          x: { type: 'logarithmic', min: minP, max: maxP, ticks: { callback: graduationLog }, title: { display: true, text: 'Indice sur la période précédente' } },
-          y: { type: 'logarithmic', min: minP, max: maxP, ticks: { callback: graduationLog }, title: { display: true, text: 'Indice sur la période choisie' } }
         }
       }
     });
