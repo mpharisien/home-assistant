@@ -974,7 +974,8 @@ def ocea_dashboard():
         if debut >= fin:
             erreur_periode = "La date de début doit être antérieure à la date de fin."
         else:
-            analyse = ocea.analyser(logements, releves_ef, releves_th, debut, fin, seuil)
+            analyse = ocea.analyser(logements, releves_ef, releves_th, debut, fin, seuil,
+                                    db.get_evenements_chauffage())
 
     return render_template('modules/ocea/dashboard.html',
                            data=data,
@@ -987,6 +988,44 @@ def ocea_dashboard():
                            analyse=analyse,
                            erreur_periode=erreur_periode,
                            numeros_par_id={l['id']: l['numero_appartement'] for l in logements})
+
+
+# ─── Océa > Chauffage : historique des allumages et coupures (v1.7.1) ─────────
+# Ces dates déterminent si une période de relevés est "de chauffe" (voir analyse_ocea.py).
+
+@app.route('/ocea/chauffage', methods=['GET', 'POST'])
+def ocea_chauffage():
+    if request.method == 'POST':
+        date_evt = request.form.get('date', '').strip()
+        action = request.form.get('action')
+        if date_evt and action in ('allumage', 'coupure'):
+            db.add_evenement_chauffage(date_evt, action, request.form.get('commentaire', '').strip())
+            flash('Date ajoutée.', 'success')
+        else:
+            flash('Date et action obligatoires.', 'error')
+        return redirect(url_for('ocea_chauffage'))
+    return render_template('modules/ocea/chauffage.html',
+                           evenements=db.get_evenements_chauffage(),
+                           aujourdhui=datetime.now().strftime('%Y-%m-%d'))
+
+
+@app.route('/ocea/chauffage/<int:evenement_id>/modifier', methods=['POST'])
+def ocea_chauffage_modifier(evenement_id):
+    date_evt = request.form.get('date', '').strip()
+    action = request.form.get('action')
+    if date_evt and action in ('allumage', 'coupure'):
+        db.update_evenement_chauffage(evenement_id, date_evt, action, request.form.get('commentaire', '').strip())
+        flash('Date modifiée.', 'success')
+    else:
+        flash('Date et action obligatoires.', 'error')
+    return redirect(url_for('ocea_chauffage'))
+
+
+@app.route('/ocea/chauffage/<int:evenement_id>/supprimer', methods=['POST'])
+def ocea_chauffage_supprimer(evenement_id):
+    db.delete_evenement_chauffage(evenement_id)
+    flash('Date supprimée.', 'success')
+    return redirect(url_for('ocea_chauffage'))
 
 
 @app.route('/ocea/mon-logement', methods=['GET', 'POST'])
