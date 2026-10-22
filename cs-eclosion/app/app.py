@@ -8,6 +8,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 
 import database as db
 import regroupements as regr
+import analyse_ocea as ocea
 
 app = Flask(__name__)
 app.secret_key = 'cs_eclosion_secret_2024'
@@ -949,10 +950,43 @@ def ocea_dashboard():
     eau_froide_historique = db.get_all_releves_eau_froide()
     thermique_historique = db.get_all_releves_thermique_index5()
 
+    # ── Analyse par période (voir analyse_ocea.py pour les principes de calcul) ──
+    releves_ef = {(r['logement_id'], r['date']): r['index_m3'] for r in eau_froide_historique}
+    releves_th = {(r['logement_id'], r['date']): r['valeur'] for r in thermique_historique}
+    dates = ocea.dates_avec_nombre_releves({'eau_froide': releves_ef, 'thermique': releves_th})
+
+    # Seuil "logement vide" : la dernière valeur saisie est mémorisée en base et devient la
+    # valeur par défaut. Champ vide = pas de seuil (aucun logement ignoré).
+    if 'seuil' in request.args:
+        db.set_parametre('ocea_seuil_vide', request.args.get('seuil', '').strip().replace(',', '.'))
+    seuil_texte = db.get_parametre('ocea_seuil_vide') or ''
+    try:
+        seuil = float(seuil_texte) if seuil_texte else None
+    except ValueError:
+        seuil, seuil_texte = None, ''
+
+    debut_defaut, fin_defaut = ocea.periode_par_defaut(dates, len(logements))
+    debut = request.args.get('debut') or debut_defaut
+    fin = request.args.get('fin') or fin_defaut
+
+    analyse, erreur_periode = None, None
+    if debut and fin:
+        if debut >= fin:
+            erreur_periode = "La date de début doit être antérieure à la date de fin."
+        else:
+            analyse = ocea.analyser(logements, releves_ef, releves_th, debut, fin, seuil)
+
     return render_template('modules/ocea/dashboard.html',
                            data=data,
                            eau_froide_historique=eau_froide_historique,
-                           thermique_historique=thermique_historique)
+                           thermique_historique=thermique_historique,
+                           dates=dates,
+                           debut=debut,
+                           fin=fin,
+                           seuil_texte=seuil_texte,
+                           analyse=analyse,
+                           erreur_periode=erreur_periode,
+                           numeros_par_id={l['id']: l['numero_appartement'] for l in logements})
 
 
 @app.route('/ocea/mon-logement', methods=['GET', 'POST'])
