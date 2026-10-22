@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}— Océa — Chauffage{% endblock %}
+
+{% block content %}
+<style>
+  .chauffage-form { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+  .chauffage-form .form-group { margin-bottom: 0; }
+  .chauffage-ligne td { vertical-align: middle; }
+  .chauffage-ligne input, .chauffage-ligne select { width: 100%; }
+  .badge-allumage { color: #b91c1c; font-weight: 600; }
+  .badge-coupure { color: #1d4ed8; font-weight: 600; }
+</style>
+
+<div class="page-title">Chauffage <span>— Historique des allumages et coupures</span></div>
+
+<div class="card">
+  <h2>Ajouter une date</h2>
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">
+    Ces dates servent au dashboard pour savoir si une période de relevés est « de chauffe » : le chauffage doit avoir été
+    en marche au moins la moitié des jours de la période. Hors chauffage, les règles qui supposent que le chauffage tourne
+    sont désactivées. Le nouvel état s'applique dès le jour indiqué ; avant la toute première date saisie, l'état inverse
+    est considéré (si la première ligne est un allumage, le chauffage était coupé avant).
+  </p>
+  <form method="post" class="chauffage-form">
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input type="date" name="date" id="date" value="{{ aujourdhui }}" required>
+    </div>
+    <div class="form-group">
+      <label for="action">Action</label>
+      <select name="action" id="action" required>
+        <option value="allumage">Allumage</option>
+        <option value="coupure">Coupure</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:1; min-width:220px;">
+      <label for="commentaire">Commentaire (facultatif)</label>
+      <input type="text" name="commentaire" id="commentaire">
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Historique</h2>
+  {% if evenements %}
+  <p style="font-size:0.85rem; color:#6b7280; margin-bottom:1rem;">Du plus récent au plus ancien. Modifie une ligne directement dans le tableau, puis clique sur « Enregistrer ».</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th style="width:170px;">Date</th><th style="width:160px;">Action</th><th>Commentaire</th><th style="width:230px;"></th></tr>
+      </thead>
+      <tbody>
+        {% for e in evenements %}
+        <tr class="chauffage-ligne">
+          <td><input type="date" name="date" value="{{ e.date }}" form="modifier-{{ e.id }}" required></td>
+          <td>
+            <select name="action" form="modifier-{{ e.id }}" class="{{ 'badge-allumage' if e.action == 'allumage' else 'badge-coupure' }}">
+              <option value="allumage" {{ 'selected' if e.action == 'allumage' }}>Allumage</option>
+              <option value="coupure" {{ 'selected' if e.action == 'coupure' }}>Coupure</option>
+            </select>
+          </td>
+          <td><input type="text" name="commentaire" value="{{ e.commentaire or '' }}" form="modifier-{{ e.id }}"></td>
+          <td style="white-space:nowrap;">
+            <form id="modifier-{{ e.id }}" method="post" action="{{ url_for('ocea_chauffage_modifier', evenement_id=e.id) }}" style="display:inline;">
+              <button type="submit" class="btn btn-secondary">Enregistrer</button>
+            </form>
+            <form method="post" action="{{ url_for('ocea_chauffage_supprimer', evenement_id=e.id) }}" style="display:inline;"
+                  onsubmit="return confirm('Supprimer cette date ?');">
+              <button type="submit" class="btn btn-danger">Supprimer</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:#6b7280; text-align:center; padding:1.5rem;">Aucune date saisie. Tant que cette liste est vide, le dashboard applique toutes les règles de détection.</p>
+  {% endif %}
+</div>
+{% endblock %}
