@@ -10,7 +10,7 @@
 </div>
 {% else %}
 
-<!-- ── Tableau croisé ── -->
+<!-- ── Tableau croisé : date la plus récente à gauche (demande d'octobre 2026) ── -->
 <div class="card">
   <h2>Index INDEX 5 relevés (m³) — un logement par ligne, une date par colonne</h2>
   <div class="table-wrap">
@@ -18,7 +18,7 @@
       <thead>
         <tr>
           <th>N° Appt</th>
-          {% for d in dates %}
+          {% for d in dates | reverse %}
           <th style="text-align:right; white-space:nowrap;">{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}</th>
           {% endfor %}
         </tr>
@@ -27,7 +27,7 @@
         {% for l in lignes %}
         <tr>
           <td><strong>{{ l.numero_appartement }}</strong></td>
-          {% for d in dates %}
+          {% for d in dates | reverse %}
           <td class="montant" style="{{ '' if d in l.valeurs else 'color:#d1d5db;' }}">{{ '%.3f'|format(l.valeurs[d]) if d in l.valeurs else '—' }}</td>
           {% endfor %}
         </tr>
