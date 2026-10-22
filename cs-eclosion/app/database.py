@@ -377,6 +377,33 @@ def init_db():
         )
     ''')
 
+    # ── Migration unique (version 1.6.4) : relevé d'eau froide à 0 à la date de pose ──
+    # Les compteurs d'eau froide ont tous été posés le 18 mars 2026, à l'index 0. Enregistrer
+    # ce relevé "à zéro" permet d'analyser la toute première période (pose -> 1er relevé).
+    # - La grille de saisie ne permet pas de saisir 0 (0 y signifie "supprimer le relevé"),
+    #   d'où cet ajout par le code.
+    # - ON CONFLICT DO NOTHING : un relevé déjà présent à cette date n'est jamais écrasé.
+    # - Exécutée une seule fois (drapeau dans la table parametres) : si un de ces relevés
+    #   est supprimé volontairement plus tard, il ne sera pas recréé au redémarrage.
+    # - Sur une installation neuve sans logements, rien n'est ajouté (et la migration est
+    #   considérée comme faite) : il suffira alors de saisir les relevés normalement.
+    # - Ne concerne PAS le thermique : ces compteurs sont bien plus anciens (date de pose et
+    #   index de départ inconnus).
+    DATE_POSE_EAU_FROIDE = '2026-03-18'
+    deja_fait = c.execute(
+        "SELECT 1 FROM parametres WHERE cle = 'migration_releve_pose_eau_froide'"
+    ).fetchone()
+    if not deja_fait:
+        for (logement_id,) in c.execute('SELECT id FROM logements').fetchall():
+            c.execute('''
+                INSERT INTO releves_eau_froide (logement_id, date, index_m3) VALUES (?, ?, 0)
+                ON CONFLICT(logement_id, date) DO NOTHING
+            ''', (logement_id, DATE_POSE_EAU_FROIDE))
+        c.execute(
+            "INSERT INTO parametres (cle, valeur) VALUES ('migration_releve_pose_eau_froide', ?)",
+            (DATE_POSE_EAU_FROIDE,)
+        )
+
     conn.commit()
     conn.close()
 
