@@ -377,6 +377,20 @@ def init_db():
         )
     ''')
 
+    # ── Saison de chauffe (v1.7.1) ──
+    # Historique des allumages et coupures du chauffage collectif, saisi dans l'onglet
+    # Océa > Chauffage. Sert à savoir si une période de relevés est "de chauffe" : certaines
+    # règles de détection d'anomalies n'ont de sens que lorsque le chauffage tourne.
+    # action : 'allumage' ou 'coupure'. Le nouvel état s'applique dès le jour indiqué.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS chauffage_evenements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            action TEXT NOT NULL CHECK (action IN ('allumage', 'coupure')),
+            commentaire TEXT
+        )
+    ''')
+
     # ── Migration unique (version 1.6.4) : relevé d'eau froide à 0 à la date de pose ──
     # Les compteurs d'eau froide ont tous été posés le 18 mars 2026, à l'index 0. Enregistrer
     # ce relevé "à zéro" permet d'analyser la toute première période (pose -> 1er relevé).
@@ -896,6 +910,39 @@ def update_vente(vente_id, logement_id, date_annonce, prix_annonce, valeur_fonci
 def delete_vente(vente_id):
     conn = get_db()
     conn.execute('DELETE FROM ventes WHERE id = ?', (vente_id,))
+    conn.commit()
+    conn.close()
+
+
+# ─── Saison de chauffe (onglet Océa > Chauffage) ──────────────────────────────
+
+def get_evenements_chauffage():
+    """Allumages et coupures du chauffage, du plus récent au plus ancien."""
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM chauffage_evenements ORDER BY date DESC, id DESC').fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_evenement_chauffage(date, action, commentaire=None):
+    conn = get_db()
+    conn.execute('INSERT INTO chauffage_evenements (date, action, commentaire) VALUES (?, ?, ?)',
+                 (date, action, commentaire or None))
+    conn.commit()
+    conn.close()
+
+
+def update_evenement_chauffage(evenement_id, date, action, commentaire=None):
+    conn = get_db()
+    conn.execute('UPDATE chauffage_evenements SET date = ?, action = ?, commentaire = ? WHERE id = ?',
+                 (date, action, commentaire or None, evenement_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_evenement_chauffage(evenement_id):
+    conn = get_db()
+    conn.execute('DELETE FROM chauffage_evenements WHERE id = ?', (evenement_id,))
     conn.commit()
     conn.close()
 
