@@ -190,6 +190,18 @@ a.carte:hover { box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); }
 .tableau .centre { text-align: center; }
 .tableau .commentaire { white-space: normal; color: var(--texte-doux); max-width: 280px; }
 .tableau .separateur { border-left: 2px solid var(--bordure); }
+
+/* Ligne d'en-tête qui indique l'origine des données (Actions à rendement).
+   Elle n'est pas « collante » : seule la ligne des titres de colonnes l'est. */
+.tableau thead tr.groupes-colonnes th {
+  position: static;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.tableau thead th.source-internet { background: var(--bleu-clair); color: #1e40af; }
+.tableau thead th.source-saisie { background: #ede9fe; color: #5b21b6; }
+.tableau thead th.source-calcul { background: #f1f5f9; color: #334155; }
 .tableau td.boutons { text-align: right; }
 .tableau td.boutons form { display: inline; }
 
@@ -226,7 +238,7 @@ th[data-ordre="decroissant"]::after { content: " ▼"; font-size: 0.7em; }
 .etiquette-achat { background: var(--bleu-clair); }
 .etiquette-vente { background: var(--orange-clair); }
 .etiquette-dividende { background: var(--vert-clair); }
-.etiquette-apport { background: #ede9fe; }
+.etiquette-apport, .etiquette-remboursement { background: #ede9fe; }
 .etiquette-retrait, .etiquette-frais { background: var(--rouge-clair); }
 
 /* --- Boutons ------------------------------------------------------------- */

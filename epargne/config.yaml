@@ -8,7 +8,7 @@
 
 name: "Épargne"
 description: "Suivi de l'épargne : PEA (actions à rendement), Epsor, Enerfip"
-version: "2.0.0"
+version: "2.1.0"
 
 # Le "slug" est l'identifiant technique de l'add-on. Il ne doit plus changer :
 # c'est lui qui relie l'add-on à son dossier de données (/data).

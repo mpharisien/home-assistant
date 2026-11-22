@@ -14,7 +14,7 @@ from app import bourse_yahoo
 from app.base_de_donnees import obtenir_connexion
 from app.outils import aujourdhui, format_champ, lire_date, lire_nombre
 from app.pea import calculs, donnees, import_csv
-from app.reglages import TYPES_AVEC_ACTION, TYPES_MOUVEMENT_PEA
+from app.reglages import TYPES_ACTION_FACULTATIVE, TYPES_AVEC_ACTION, TYPES_MOUVEMENT_PEA
 
 blueprint_pea = Blueprint("pea", __name__, url_prefix="/pea")
 
@@ -132,6 +132,7 @@ def _lire_formulaire_mouvement(formulaire) -> tuple[dict, list[str]]:
         date = None
 
     avec_action = type_mouvement in TYPES_AVEC_ACTION
+    garder_action = avec_action or type_mouvement in TYPES_ACTION_FACULTATIVE
     achat_ou_vente = type_mouvement in ("achat", "vente")
     nom_action = (formulaire.get("action") or "").strip()
     quantite = nombre("quantite", "Nombre")
@@ -163,7 +164,7 @@ def _lire_formulaire_mouvement(formulaire) -> tuple[dict, list[str]]:
     mouvement = {
         "date": date,
         "type": type_mouvement,
-        "nom_action": nom_action if avec_action else None,
+        "nom_action": (nom_action or None) if garder_action else None,
         "quantite": quantite if avec_action else None,
         "cours": cours if achat_ou_vente else None,
         "frais": frais if achat_ou_vente else 0.0,

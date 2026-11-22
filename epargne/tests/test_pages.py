@@ -67,7 +67,9 @@ class TestPages(unittest.TestCase):
         accueil = self.verifier_page("/")
         self.assertIn("1 620,50", accueil)        # valeur Epsor
         actions = self.verifier_page("/pea/actions")
-        self.assertIn("MMT.PA", actions)
+        self.assertNotIn("<th>Symbole</th>", actions)    # colonne retirée en 2.1.0
+        self.assertIn('title="MMT.PA"', actions)          # symbole visible au survol du nom
+        self.assertIn("Tes données", actions)            # origine des colonnes indiquée
         self.assertIn("nom-detenue", actions)           # Carrefour est détenue
         dividendes = self.verifier_page("/pea/dividendes")
         self.assertIn("2025", dividendes)
@@ -100,6 +102,17 @@ class TestPages(unittest.TestCase):
         self.assertIn("125,00", self.verifier_page("/pea/historique"))
         self.client.post("/pea/mouvements/1/supprimer")
         self.assertIn("Aucun mouvement", self.verifier_page("/pea/historique"))
+
+    def test_saisie_remboursement_sans_action(self):
+        reponse = self.client.post("/pea/mouvements/nouveau", data={
+            "date": "2026-02-01", "type": "remboursement", "action": "", "montant": "12,40",
+        })
+        self.assertEqual(reponse.status_code, 302)
+        historique = self.verifier_page("/pea/historique")
+        self.assertIn("etiquette-remboursement", historique)
+        self.assertIn("12,40", historique)
+        self.verifier_page("/pea/mouvements/1/modifier")
+        self.verifier_page("/pea/")
 
     def test_fiche_action_et_dividendes(self):
         reponse = self.client.post("/pea/actions/nouvelle", data={

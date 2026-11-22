@@ -117,6 +117,39 @@ class TestRejeuPea(unittest.TestCase):
         ]
         self.assertEqual(rejouer_mouvements(mouvements, jusqu_au="2025-12-31").positions[1].quantite, 10)
 
+    def test_remboursement_sans_action(self):
+        # Frais remboursés : augmente les liquidités, mais pas les versements
+        mouvements = [
+            mouvement("2025-01-01", "apport", 1000),
+            mouvement("2025-02-01", "remboursement", 25),
+        ]
+        etat = rejouer_mouvements(mouvements)
+        self.assertAlmostEqual(etat.liquidites, 1025)
+        self.assertAlmostEqual(etat.apports_nets, 1000)
+        self.assertEqual(etat.positions, {})
+
+    def test_remboursement_lie_a_une_action_baisse_le_pru(self):
+        mouvements = [
+            mouvement("2025-01-01", "achat", 1000, 1, "A", 100),       # PRU = 10
+            mouvement("2025-06-01", "remboursement", 50, 1, "A"),      # capital rendu
+        ]
+        etat = rejouer_mouvements(mouvements)
+        position = etat.positions[1]
+        self.assertEqual(position.quantite, 100)
+        self.assertAlmostEqual(position.pru, 9.5)
+        self.assertAlmostEqual(position.plus_value_realisee, 0)
+        self.assertAlmostEqual(etat.liquidites, -1000 + 50)
+
+    def test_remboursement_action_vendue_compte_comme_gain(self):
+        mouvements = [
+            mouvement("2025-01-01", "achat", 100, 1, "A", 10),
+            mouvement("2025-02-01", "vente", 100, 1, "A", 10),
+            mouvement("2025-03-01", "remboursement", 5, 1, "A"),
+        ]
+        position = rejouer_mouvements(mouvements).positions[1]
+        self.assertEqual(position.cout_total, 0)
+        self.assertAlmostEqual(position.plus_value_realisee, 5)
+
     def test_valeur_au_cours_actuel(self):
         position = rejouer_mouvements([mouvement("2025-01-01", "achat", 1000, 1, "A", 100)]).positions[1]
         self.assertIsNone(position.valeur)

@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from app.outils import lire_date, lire_nombre, lire_nombre_souple, normaliser_texte
 from app.pea import donnees
+from app.reglages import TYPES_ACTION_FACULTATIVE, TYPES_AVEC_ACTION
 
 # Nombre maximal de lignes parcourues pour trouver la ligne d'en-tête
 _LIGNES_MAX_AVANT_ENTETE = 10
@@ -101,6 +102,8 @@ _OPERATIONS = {
     "versement": "apport", "depot": "apport",
     "retrait": "retrait", "retrait de liquidites": "retrait",
     "frais": "frais", "taxe": "frais", "taxes": "frais", "droits de garde": "frais",
+    "remboursement": "remboursement", "remboursements": "remboursement",
+    "remboursement de frais": "remboursement",
 }
 
 
@@ -114,7 +117,7 @@ def analyser_ligne_mouvement(lire) -> dict:
     if type_mouvement is None:
         raise ValueError(
             f"opération « {operation} » non reconnue (attendu : Achat, Vente, Coupons, "
-            "Ajout de liquidités, Retrait de liquidités ou Frais)."
+            "Ajout de liquidités, Retrait de liquidités, Frais ou Remboursement)."
         )
 
     date = lire_date(lire("date"))
@@ -125,7 +128,7 @@ def analyser_ligne_mouvement(lire) -> dict:
     montant = lire_nombre(lire("montant"))
     nom_action = lire("action")
 
-    if type_mouvement in ("achat", "vente", "dividende") and not nom_action:
+    if type_mouvement in TYPES_AVEC_ACTION and not nom_action:
         raise ValueError("le nom de l'action est obligatoire pour ce type d'opération.")
     if type_mouvement in ("achat", "vente") and not quantite:
         raise ValueError("le nombre de titres est obligatoire pour un achat ou une vente.")
@@ -141,11 +144,12 @@ def analyser_ligne_mouvement(lire) -> dict:
         else:
             raise ValueError("le montant est vide et ne peut pas être calculé.")
 
-    avec_action = type_mouvement in ("achat", "vente", "dividende")
+    avec_action = type_mouvement in TYPES_AVEC_ACTION
+    garder_action = avec_action or type_mouvement in TYPES_ACTION_FACULTATIVE
     return {
         "date": date,
         "type": type_mouvement,
-        "nom_action": nom_action if avec_action else None,
+        "nom_action": (nom_action or None) if garder_action else None,
         "quantite": abs(quantite) if avec_action and quantite is not None else None,
         # Le cours n'a de sens que pour un achat ou une vente
         "cours": cours if type_mouvement in ("achat", "vente") else None,

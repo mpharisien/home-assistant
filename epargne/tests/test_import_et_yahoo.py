@@ -3,11 +3,12 @@ Tests de l'import CSV et de la lecture des réponses Yahoo (sans accès Internet
 """
 
 import os
+import sqlite3
 import tempfile
 import unittest
 from datetime import datetime
 
-from app.base_de_donnees import initialiser_base, ouvrir_connexion
+from app.base_de_donnees import MIGRATIONS, initialiser_base, ouvrir_connexion
 from app.bourse_yahoo import ErreurYahoo, analyser_reponse
 from app.pea import import_csv
 from app.pea.donnees import lister_mouvements, lire_dividendes_exercice
@@ -82,6 +83,17 @@ class TestImportMouvements(BaseTemporaire):
         resultat = import_csv.importer_mouvements(self.connexion, contenu)
         self.assertEqual(resultat.erreurs, [])
         self.assertAlmostEqual(lister_mouvements(self.connexion)[0]["montant"], 51)
+
+    def test_remboursement(self):
+        contenu = ("Date;Opération;Nombre;Action;Montant\n"
+                   "01/02/2026;Remboursement;;;15\n"
+                   "02/02/2026;Remboursement;;COFACE;7,5\n").encode()
+        resultat = import_csv.importer_mouvements(self.connexion, contenu)
+        self.assertEqual(resultat.erreurs, [])
+        sans_action, avec_action = lister_mouvements(self.connexion)
+        self.assertEqual((sans_action["type"], sans_action["action_id"], sans_action["montant"]),
+                         ("remboursement", None, 15))
+        self.assertEqual((avec_action["nom_action"], avec_action["montant"]), ("COFACE", 7.5))
 
     def test_entete_introuvable(self):
         resultat = import_csv.importer_mouvements(self.connexion, b"a,b,c\n1,2,3\n")
@@ -168,7 +180,35 @@ class TestBaseDeDonnees(unittest.TestCase):
         initialiser_base(chemin)
         initialiser_base(chemin)  # au 2e démarrage, rien à faire
         connexion = ouvrir_connexion(chemin)
-        self.assertEqual(connexion.execute("PRAGMA user_version").fetchone()[0], 1)
+        self.assertEqual(connexion.execute("PRAGMA user_version").fetchone()[0], len(MIGRATIONS))
+        connexion.close()
+
+    def test_migration_2_conserve_les_donnees(self):
+        # Simule une base créée par la version 2.0.0 (migration 1 seulement)
+        chemin = os.path.join(tempfile.mkdtemp(), "v200.db")
+        connexion = ouvrir_connexion(chemin)
+        connexion.executescript(f"BEGIN;{MIGRATIONS[0][1]}PRAGMA user_version = 1;COMMIT;")
+        connexion.execute("INSERT INTO actions (id, nom) VALUES (1, 'COFACE')")
+        connexion.execute("INSERT INTO dividendes_exercice VALUES (1, 2025, 1.3)")
+        connexion.execute("INSERT INTO pea_mouvements (date, type, action_id, quantite, montant) "
+                          "VALUES ('2025-01-02', 'achat', 1, 10, 150)")
+        connexion.commit()
+        with self.assertRaises(sqlite3.IntegrityError):  # la v2.0.0 refusait ce type
+            connexion.execute("INSERT INTO pea_mouvements (date, type, montant) "
+                              "VALUES ('2025-01-03', 'remboursement', 5)")
+        connexion.close()
+
+        initialiser_base(chemin)  # applique la migration 2
+
+        connexion = ouvrir_connexion(chemin)
+        self.assertEqual(connexion.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual(len(lister_mouvements(connexion)), 1)
+        self.assertEqual(lire_dividendes_exercice(connexion), {1: {2025: 1.3}})
+        connexion.execute("INSERT INTO pea_mouvements (date, type, montant) "
+                          "VALUES ('2025-01-03', 'remboursement', 5)")
+        # Le lien vers les actions est toujours contrôlé
+        with self.assertRaises(sqlite3.IntegrityError):
+            connexion.execute("DELETE FROM actions WHERE id = 1")
         connexion.close()
 
 

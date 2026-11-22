@@ -8,7 +8,8 @@ mouvement passé corrige automatiquement tous les résultats.
 PRIX DE REVIENT (méthode du « prix moyen pondéré », utilisée en France) :
   - un achat ajoute son montant (frais inclus) au prix de revient total ;
   - une vente retire du prix de revient la part correspondant aux titres
-    vendus ; le prix de revient unitaire (PRU) des titres restants ne change pas.
+    vendus ; le prix de revient unitaire (PRU) des titres restants ne change pas ;
+  - un remboursement lié à une action diminue son prix de revient.
 """
 
 from collections import defaultdict
@@ -115,8 +116,13 @@ def rejouer_mouvements(mouvements, jusqu_au: str | None = None) -> EtatPea:
         if type_mouvement == "frais":
             etat.liquidites -= montant
             continue
+        if type_mouvement == "remboursement":
+            etat.liquidites += montant
+            if mouvement["action_id"] is None:
+                continue  # remboursement général (frais, taxe...) : rien d'autre à faire
+            # Sinon, on continue ci-dessous pour mettre à jour l'action concernée
 
-        # Mouvements liés à une action : achat, vente, dividende
+        # Mouvements liés à une action : achat, vente, dividende, remboursement
         action_id = mouvement["action_id"]
         position = etat.positions.get(action_id)
         if position is None:
@@ -150,6 +156,15 @@ def rejouer_mouvements(mouvements, jusqu_au: str | None = None) -> EtatPea:
         elif type_mouvement == "dividende":
             position.dividendes += montant
             etat.liquidites += montant
+
+        elif type_mouvement == "remboursement":
+            # Argent rendu au titre de cette action (capital rendu, taxe
+            # remboursée...) : il diminue le prix de revient des titres détenus.
+            # Ce qui dépasserait le prix de revient (ou si l'action n'est plus
+            # détenue) est compté comme un gain réalisé.
+            baisse_cout = min(montant, position.cout_total) if position.detenue else 0.0
+            position.cout_total -= baisse_cout
+            position.plus_value_realisee += montant - baisse_cout
 
     return etat
 

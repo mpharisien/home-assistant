@@ -9,7 +9,7 @@ Interface web accessible sur le réseau local : `http://<adresse-de-home-assista
 - **PEA** (actions à rendement)
   - *Portefeuille* : actions détenues, prix de revient unitaire (PRU), valeur au cours actuel,
     plus-value latente, liquidités.
-  - *Historique* : achats, ventes, dividendes, ajouts / retraits de liquidités, frais.
+  - *Historique* : achats, ventes, dividendes, ajouts / retraits de liquidités, frais, remboursements.
   - *Dividendes* : dividendes reçus par année et par action, avec le rendement sur le prix de revient.
   - *Actions à rendement* : cours, plus bas et plus hauts sur 1, 5 et 10 ans (Yahoo Finance),
     dividendes par exercice, moyenne, tendance, rendement et « taux de décision ».

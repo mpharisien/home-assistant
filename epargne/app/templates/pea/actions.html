@@ -26,9 +26,15 @@
     <div class="defilement">
       <table class="tableau triable">
         <thead>
+          {# 1re ligne d'en-tête : d'où viennent les données de chaque groupe de colonnes #}
+          <tr class="groupes-colonnes">
+            <th></th>
+            <th colspan="7" class="separateur source-internet">Yahoo Finance · mis à jour par « Actualiser les cours »</th>
+            <th colspan="{{ annees|length }}" class="separateur source-saisie">Tes données · dividende par action</th>
+            <th colspan="5" class="separateur source-calcul">Calculés par l'application</th>
+          </tr>
           <tr>
             <th>Action</th>
-            <th>Symbole</th>
             <th class="nombre separateur">Min 10 ans</th>
             <th class="nombre">Min 5 ans</th>
             <th class="nombre">Min 1 an</th>
@@ -39,7 +45,7 @@
             {% for annee in annees %}
               <th class="nombre {{ 'separateur' if loop.first }}">Div. {{ annee }}</th>
             {% endfor %}
-            <th class="centre">Tendance</th>
+            <th class="centre separateur">Tendance</th>
             <th class="nombre">Moyenne div.</th>
             <th class="nombre separateur" title="Moyenne des dividendes ÷ cours actuel">Rendement</th>
             <th class="nombre" title="Dividendes détachés sur les 12 derniers mois (Yahoo) ÷ cours actuel">Rdt 12 mois</th>
@@ -51,10 +57,11 @@
             {% set c = ligne.cours %}
             <tr>
               <td class="{{ 'nom-detenue' if ligne.detenue else ('nom-evidence' if ligne.action.en_evidence) }}">
-                <a class="lien-discret" href="{{ url_for('pea.modifier_action', action_id=ligne.action.id) }}">{{ ligne.action.nom }}</a>
+                <a class="lien-discret" href="{{ url_for('pea.modifier_action', action_id=ligne.action.id) }}"
+                   title="{{ ligne.action.ticker or 'Pas de symbole Yahoo : cours non récupéré' }}">{{ ligne.action.nom }}</a>
+                {% if not ligne.action.ticker %}<span class="alerte-yahoo" title="Pas de symbole Yahoo : renseigne-le dans la fiche de l'action pour obtenir le cours">⚠</span>{% endif %}
                 {% if c and c.erreur %}<span class="alerte-yahoo" title="Dernière actualisation : {{ c.erreur }}">⚠</span>{% endif %}
               </td>
-              <td>{{ ligne.action.ticker or '—' }}</td>
               <td class="nombre separateur" data-valeur="{{ valeur_tri(c.min_10ans if c else none) }}">{{ (c.min_10ans if c else none)|nombre }}</td>
               <td class="nombre" data-valeur="{{ valeur_tri(c.min_5ans if c else none) }}">{{ (c.min_5ans if c else none)|nombre }}</td>
               <td class="nombre" data-valeur="{{ valeur_tri(c.min_1an if c else none) }}">{{ (c.min_1an if c else none)|nombre }}</td>
@@ -66,7 +73,7 @@
                 {% set montant = ligne.dividendes.get(annee) %}
                 <td class="nombre {{ 'separateur' if loop.first }}" data-valeur="{{ valeur_tri(montant) }}">{{ montant|nombre(3) if montant is not none else '' }}</td>
               {% endfor %}
-              <td class="centre tendance-{{ ligne.tendance }}" data-valeur="{{ {'hausse': 1, 'stable': 0, 'baisse': -1}.get(ligne.tendance, '') }}">{{ symboles_tendance.get(ligne.tendance, '') }}</td>
+              <td class="centre separateur tendance-{{ ligne.tendance }}" data-valeur="{{ {'hausse': 1, 'stable': 0, 'baisse': -1}.get(ligne.tendance, '') }}">{{ symboles_tendance.get(ligne.tendance, '') }}</td>
               <td class="nombre" data-valeur="{{ valeur_tri(ligne.moyenne_dividendes) }}">{{ ligne.moyenne_dividendes|nombre(3) }}</td>
               <td class="nombre separateur" data-valeur="{{ valeur_tri(ligne.rendement) }}" style="{{ fond_degrade(ligne.rendement, 0.12) }}">{{ ligne.rendement|pourcent }}</td>
               <td class="nombre" data-valeur="{{ valeur_tri(ligne.rendement_12_mois) }}">{{ ligne.rendement_12_mois|pourcent }}</td>
@@ -85,10 +92,12 @@
   <details>
     <summary>Comment sont calculés ces indicateurs ?</summary>
     <ul class="explications">
-      <li><strong>Cours, Min / Max</strong> : récupérés sur Yahoo Finance (bouton « Actualiser les cours »).
-        Min / Max 1 an = plus bas / plus haut sur 52 semaines ; 5 et 10 ans = calculés sur l'historique hebdomadaire.</li>
-      <li><strong>Div. {{ annees[0] }} à {{ annees[-1] }}</strong> : dividende par action au titre de l'exercice,
-        saisi dans la fiche de l'action (ou importé du Google Sheet).</li>
+      <li><strong>Cours, Min / Max</strong> : récupérés sur Yahoo Finance (bouton « Actualiser les cours »),
+        ils ne se saisissent pas à la main. Min / Max 1 an = plus bas / plus haut sur 52 semaines ;
+        5 et 10 ans = calculés sur l'historique hebdomadaire.</li>
+      <li><strong>Div. {{ annees[0] }} à {{ annees[-1] }}</strong> : tes données. Dividende par action au titre de
+        l'exercice, saisi dans la fiche de l'action (clic sur son nom) ou importé du Google Sheet.
+        La fiche affiche aussi les dividendes trouvés sur Yahoo, pour t'aider à les remplir.</li>
       <li><strong>Moyenne div.</strong> : moyenne des dividendes renseignés de {{ annees_moyenne[0] }} à {{ annees_moyenne[-1] }}.</li>
       <li><strong>Tendance</strong> : compare la moyenne des dividendes {{ annees[-2] }}-{{ annees[-1] }}
         à celle de {{ annees[0] }}-{{ annees[-3] }} (↑ hausse ou ↓ baisse de plus de 5 %, sinon →).</li>

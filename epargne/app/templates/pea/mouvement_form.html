@@ -23,7 +23,7 @@
       </div>
 
       {# Les blocs "data-types" ne sont affichés que pour les types d'opération listés #}
-      <div class="champ champ-large" data-types="achat vente dividende">
+      <div class="champ champ-large" data-types="achat vente dividende remboursement">
         <label for="action">Action</label>
         <input type="text" id="action" name="action" list="liste-actions" autocomplete="off"
                value="{{ valeurs.get('action', '') }}" placeholder="Choisir ou saisir un nom">
@@ -31,6 +31,8 @@
           {% for action in actions %}<option value="{{ action.nom }}">{% endfor %}
         </datalist>
         <span class="aide">Une action qui n'existe pas encore sera créée automatiquement.</span>
+        <span class="aide" data-types="remboursement">Facultatif : à renseigner si le remboursement
+          concerne une action (il diminue alors son prix de revient). Vide pour des frais remboursés.</span>
       </div>
       <div class="champ" data-types="achat vente dividende">
         <label for="quantite">Nombre de titres</label>

@@ -13,7 +13,7 @@ Pour faire évoluer la structure plus tard (ajouter une table, une colonne...) :
   1. NE PAS modifier une migration existante (elle a déjà été appliquée sur
      ta base de Home Assistant, elle ne serait pas rejouée).
   2. Ajouter une nouvelle migration à la fin de la liste, avec le numéro suivant,
-     par exemple : (2, "ALTER TABLE actions ADD COLUMN secteur TEXT;")
+     par exemple : (3, "ALTER TABLE actions ADD COLUMN secteur TEXT;")
 Tes données existantes sont ainsi conservées.
 """
 
@@ -119,9 +119,35 @@ CREATE TABLE poche_valorisations (
 );
 """
 
+# Version 2.1.0 : ajout du type de mouvement « remboursement ».
+# La migration 1 limitait les types possibles avec un CHECK, que SQLite ne sait
+# pas modifier : on recrée donc la table (en recopiant les données) sans cette
+# limite. La liste des types autorisés est désormais uniquement dans
+# reglages.TYPES_MOUVEMENT_PEA, et l'application la vérifie avant d'enregistrer.
+# Ajouter un type plus tard ne demandera donc plus de migration.
+_MIGRATION_2 = """
+CREATE TABLE pea_mouvements_v2 (
+    id          INTEGER PRIMARY KEY,
+    date        TEXT NOT NULL,      -- format AAAA-MM-JJ
+    type        TEXT NOT NULL,      -- une clé de reglages.TYPES_MOUVEMENT_PEA
+    action_id   INTEGER REFERENCES actions(id) ON DELETE RESTRICT,
+    quantite    REAL,
+    cours       REAL,               -- cours unitaire (achat / vente uniquement)
+    frais       REAL NOT NULL DEFAULT 0,
+    montant     REAL NOT NULL CHECK (montant >= 0),
+    commentaire TEXT
+);
+INSERT INTO pea_mouvements_v2 (id, date, type, action_id, quantite, cours, frais, montant, commentaire)
+    SELECT id, date, type, action_id, quantite, cours, frais, montant, commentaire FROM pea_mouvements;
+DROP TABLE pea_mouvements;
+ALTER TABLE pea_mouvements_v2 RENAME TO pea_mouvements;
+CREATE INDEX idx_pea_mouvements_date ON pea_mouvements (date);
+"""
+
 # Liste ordonnée des migrations : (numéro, script SQL). Voir l'explication en haut.
 MIGRATIONS = [
     (1, _MIGRATION_1),
+    (2, _MIGRATION_2),
 ]
 
 

@@ -35,7 +35,7 @@
     <p class="aide">
       Colonnes utilisées : <strong>Date</strong>, <strong>Opération</strong>, <strong>Montant</strong>
       (obligatoires), Nombre, Action, Cours, Dividende, Frais.<br>
-      Opérations reconnues : Achat, Vente, Coupons, Ajout de liquidités, Retrait de liquidités, Frais.
+      Opérations reconnues : Achat, Vente, Coupons, Ajout de liquidités, Retrait de liquidités, Frais, Remboursement.
     </p>
     <form method="post" action="{{ url_for('pea.importer_mouvements') }}" enctype="multipart/form-data"
           {% if nb_mouvements %}data-confirmation="L'historique contient déjà {{ nb_mouvements }} mouvement(s). Continuer l'import ?"{% endif %}>

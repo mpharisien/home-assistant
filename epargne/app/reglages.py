@@ -35,9 +35,15 @@ TYPES_MOUVEMENT_PEA = {
     "apport": "Ajout de liquidités",
     "retrait": "Retrait de liquidités",
     "frais": "Frais / taxes",
+    # Argent rendu sur le PEA qui n'est ni un versement de ta part, ni un
+    # dividende : frais ou taxe remboursés, capital rendu par une société...
+    # S'il concerne une action, il diminue son prix de revient.
+    "remboursement": "Remboursement",
 }
-# Types de mouvements qui concernent une action précise
+# Types de mouvements qui concernent obligatoirement une action précise
 TYPES_AVEC_ACTION = ("achat", "vente", "dividende")
+# Types pour lesquels l'action est facultative
+TYPES_ACTION_FACULTATIVE = ("remboursement",)
 
 # --- PEA : tableau « Actions à rendement » -----------------------------------
 # Avec N = année en cours, on affiche les dividendes de N-4 à N+1
