@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titre %}{{ definition.nom }} - {{ 'Modifier' if mouvement_id else 'Ajouter' }} un mouvement{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <h1>{{ definition.nom }} : {{ 'modifier le mouvement' if mouvement_id else 'ajouter un mouvement' }}</h1>
+</div>
+
+<section class="panneau formulaire">
+  <form method="post">
+    <div class="champs">
+      <div class="champ">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{ valeurs.get('date', '') }}" required>
+      </div>
+      <div class="champ">
+        <label for="type">Opération</label>
+        <select id="type" name="type">
+          {% for code_type, type_defini in definition.types.items() %}
+            <option value="{{ code_type }}" {{ 'selected' if valeurs.get('type') == code_type }}>{{ type_defini.libelle }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="champ champ-large">
+        <label for="libelle">{{ definition.libelle_support }}</label>
+        <input type="text" id="libelle" name="libelle" list="liste-libelles" autocomplete="off"
+               value="{{ valeurs.get('libelle', '') }}">
+        <datalist id="liste-libelles">
+          {% for libelle in libelles %}<option value="{{ libelle }}">{% endfor %}
+        </datalist>
+      </div>
+      <div class="champ">
+        <label for="montant">Montant (€)</label>
+        <input type="text" inputmode="decimal" id="montant" name="montant" value="{{ valeurs.get('montant', '') }}" required>
+      </div>
+      <div class="champ champ-large">
+        <label for="commentaire">Commentaire</label>
+        <input type="text" id="commentaire" name="commentaire" value="{{ valeurs.get('commentaire', '') }}">
+      </div>
+    </div>
+
+    <div class="boutons-formulaire">
+      <button type="submit" class="bouton">Enregistrer</button>
+      <a class="bouton bouton-secondaire" href="{{ url_for('poches.page_poche', code=code) }}">Annuler</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

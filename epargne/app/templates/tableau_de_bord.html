@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "macros.html" import bouton_actualiser %}
+{% block titre %}Tableau de bord{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <h1>Tableau de bord</h1>
+  <div class="actions-page">{{ bouton_actualiser(url_for('tableau_de_bord.accueil'), portefeuille.date_maj_cours) }}</div>
+</div>
+
+{% if portefeuille.liquidites < -0.005 %}
+  <div class="message message-avertissement">
+    Les liquidités du PEA calculées sont négatives ({{ portefeuille.liquidites|euros }}) :
+    il manque probablement des « Ajouts de liquidités » dans l'historique du PEA.
+  </div>
+{% endif %}
+{% if portefeuille.cours_manquants %}
+  <div class="message message-avertissement">
+    Cours inconnu pour : {{ portefeuille.cours_manquants|join(', ') }}.
+    Ces actions sont comptées à leur prix de revient.
+  </div>
+{% endif %}
+
+<section class="cartes">
+  <div class="carte carte-principale">
+    <div class="carte-titre">Épargne totale</div>
+    <div class="carte-valeur">{{ total|euros }}</div>
+  </div>
+  {% for poche in poches %}
+    <a class="carte" href="{{ poche.lien }}">
+      <div class="carte-titre">{{ poche.nom }}</div>
+      <div class="carte-valeur">{{ poche.valeur|euros }}</div>
+      <div class="carte-detail">{{ poche.detail }}</div>
+    </a>
+  {% endfor %}
+</section>
+
+<section class="grille-2">
+  <div class="panneau">
+    <h2>Répartition par poche</h2>
+    {% if camembert_poches.valeurs %}
+      <div class="graphique">
+        <canvas data-graphique="camembert" data-donnees='{{ camembert_poches|tojson }}'></canvas>
+      </div>
+    {% else %}
+      <p class="vide">Aucune donnée pour l'instant.</p>
+    {% endif %}
+  </div>
+  <div class="panneau">
+    <h2>Répartition du PEA</h2>
+    {% if camembert_pea.valeurs %}
+      <div class="graphique">
+        <canvas data-graphique="camembert" data-donnees='{{ camembert_pea|tojson }}'></canvas>
+      </div>
+    {% else %}
+      <p class="vide">Aucune action dans le PEA pour l'instant.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="cartes">
+  <a class="carte" href="{{ url_for('pea.dividendes') }}">
+    <div class="carte-titre">Dividendes PEA reçus cette année</div>
+    <div class="carte-valeur">{{ portefeuille.dividendes_annee|euros }}</div>
+    <div class="carte-detail">L'an dernier : {{ portefeuille.dividendes_annee_precedente|euros }}</div>
+  </a>
+  <a class="carte" href="{{ url_for('pea.portefeuille') }}">
+    <div class="carte-titre">Plus-value latente PEA</div>
+    <div class="carte-valeur">{{ portefeuille.plus_value_latente|euros }}</div>
+    <div class="carte-detail">{{ portefeuille.plus_value_latente_ratio|pourcent }} du prix de revient</div>
+  </a>
+</section>
+{% endblock %}

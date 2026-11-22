@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "macros.html" import bouton_actualiser, fond_degrade, valeur_tri %}
+{% block titre %}PEA - Actions à rendement{% endblock %}
+
+{% block contenu %}
+{% set symboles_tendance = {'hausse': '↑', 'baisse': '↓', 'stable': '→'} %}
+<div class="titre-page">
+  <div>
+    <h1>Actions à rendement</h1>
+    <p class="sous-titre">Indicateurs pour décider si c'est le moment d'acheter.</p>
+  </div>
+  <div class="actions-page">
+    {{ bouton_actualiser(url_for('pea.actions'), date_maj_cours) }}
+    <a class="bouton" href="{{ url_for('pea.nouvelle_action') }}">+ Ajouter une action</a>
+  </div>
+</div>
+
+<section class="panneau">
+  <div class="legende-couleurs">
+    <span><span class="pastille nom-detenue"></span>Détenue dans le PEA</span>
+    <span><span class="pastille nom-evidence"></span>Mise en évidence</span>
+    <span>Clic sur un nom : modifier l'action et ses dividendes · Clic sur un titre de colonne : trier</span>
+  </div>
+
+  {% if lignes %}
+    <div class="defilement">
+      <table class="tableau triable">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th>Symbole</th>
+            <th class="nombre separateur">Min 10 ans</th>
+            <th class="nombre">Min 5 ans</th>
+            <th class="nombre">Min 1 an</th>
+            <th class="nombre">Cours</th>
+            <th class="nombre">Max 1 an</th>
+            <th class="nombre">Max 5 ans</th>
+            <th class="nombre">Max 10 ans</th>
+            {% for annee in annees %}
+              <th class="nombre {{ 'separateur' if loop.first }}">Div. {{ annee }}</th>
+            {% endfor %}
+            <th class="centre">Tendance</th>
+            <th class="nombre">Moyenne div.</th>
+            <th class="nombre separateur" title="Moyenne des dividendes ÷ cours actuel">Rendement</th>
+            <th class="nombre" title="Dividendes détachés sur les 12 derniers mois (Yahoo) ÷ cours actuel">Rdt 12 mois</th>
+            <th class="nombre" title="(Max 1 an − cours) ÷ (Max 1 an − Min 1 an) : 100 % = au plus bas de l'année">Taux de décision</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ligne in lignes %}
+            {% set c = ligne.cours %}
+            <tr>
+              <td class="{{ 'nom-detenue' if ligne.detenue else ('nom-evidence' if ligne.action.en_evidence) }}">
+                <a class="lien-discret" href="{{ url_for('pea.modifier_action', action_id=ligne.action.id) }}">{{ ligne.action.nom }}</a>
+                {% if c and c.erreur %}<span class="alerte-yahoo" title="Dernière actualisation : {{ c.erreur }}">⚠</span>{% endif %}
+              </td>
+              <td>{{ ligne.action.ticker or '—' }}</td>
+              <td class="nombre separateur" data-valeur="{{ valeur_tri(c.min_10ans if c else none) }}">{{ (c.min_10ans if c else none)|nombre }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(c.min_5ans if c else none) }}">{{ (c.min_5ans if c else none)|nombre }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(c.min_1an if c else none) }}">{{ (c.min_1an if c else none)|nombre }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(c.cours_actuel if c else none) }}"><strong>{{ (c.cours_actuel if c else none)|nombre }}</strong></td>
+              <td class="nombre" data-valeur="{{ valeur_tri(c.max_1an if c else none) }}">{{ (c.max_1an if c else none)|nombre }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(c.max_5ans if c else none) }}">{{ (c.max_5ans if c else none)|nombre }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(c.max_10ans if c else none) }}">{{ (c.max_10ans if c else none)|nombre }}</td>
+              {% for annee in annees %}
+                {% set montant = ligne.dividendes.get(annee) %}
+                <td class="nombre {{ 'separateur' if loop.first }}" data-valeur="{{ valeur_tri(montant) }}">{{ montant|nombre(3) if montant is not none else '' }}</td>
+              {% endfor %}
+              <td class="centre tendance-{{ ligne.tendance }}" data-valeur="{{ {'hausse': 1, 'stable': 0, 'baisse': -1}.get(ligne.tendance, '') }}">{{ symboles_tendance.get(ligne.tendance, '') }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(ligne.moyenne_dividendes) }}">{{ ligne.moyenne_dividendes|nombre(3) }}</td>
+              <td class="nombre separateur" data-valeur="{{ valeur_tri(ligne.rendement) }}" style="{{ fond_degrade(ligne.rendement, 0.12) }}">{{ ligne.rendement|pourcent }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(ligne.rendement_12_mois) }}">{{ ligne.rendement_12_mois|pourcent }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(ligne.taux_decision) }}" style="{{ fond_degrade(ligne.taux_decision, 1) }}">{{ ligne.taux_decision|pourcent }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="vide">Aucune action. Ajoute une action ou importe ta liste depuis le Google Sheet (menu Import).</p>
+  {% endif %}
+</section>
+
+<section class="panneau">
+  <details>
+    <summary>Comment sont calculés ces indicateurs ?</summary>
+    <ul class="explications">
+      <li><strong>Cours, Min / Max</strong> : récupérés sur Yahoo Finance (bouton « Actualiser les cours »).
+        Min / Max 1 an = plus bas / plus haut sur 52 semaines ; 5 et 10 ans = calculés sur l'historique hebdomadaire.</li>
+      <li><strong>Div. {{ annees[0] }} à {{ annees[-1] }}</strong> : dividende par action au titre de l'exercice,
+        saisi dans la fiche de l'action (ou importé du Google Sheet).</li>
+      <li><strong>Moyenne div.</strong> : moyenne des dividendes renseignés de {{ annees_moyenne[0] }} à {{ annees_moyenne[-1] }}.</li>
+      <li><strong>Tendance</strong> : compare la moyenne des dividendes {{ annees[-2] }}-{{ annees[-1] }}
+        à celle de {{ annees[0] }}-{{ annees[-3] }} (↑ hausse ou ↓ baisse de plus de 5 %, sinon →).</li>
+      <li><strong>Rendement</strong> : moyenne des dividendes ÷ cours actuel.</li>
+      <li><strong>Rdt 12 mois</strong> : dividendes réellement détachés sur les 12 derniers mois (Yahoo) ÷ cours actuel.</li>
+      <li><strong>Taux de décision</strong> : position du cours dans sa fourchette sur 1 an :
+        (Max 1 an − cours) ÷ (Max 1 an − Min 1 an). 100 % = l'action est à son plus bas de l'année, 0 % = à son plus haut.</li>
+      <li>Le tableau affiche les actions détenues et celles cochées « suivre » dans leur fiche.</li>
+    </ul>
+  </details>
+</section>
+{% endblock %}

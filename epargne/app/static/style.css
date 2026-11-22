@@ -1,0 +1,301 @@
+/* ==========================================================================
+   STYLE DE L'APPLICATION ÉPARGNE
+   --------------------------------------------------------------------------
+   Les couleurs et tailles principales sont des « variables » définies dans
+   :root ci-dessous : les modifier ici change toute l'application.
+   ========================================================================== */
+
+:root {
+  --fond: #f3f5f9;
+  --surface: #ffffff;
+  --texte: #1f2937;
+  --texte-doux: #6b7280;
+  --bordure: #e3e7ee;
+  --entete: #1e293b;
+  --primaire: #2563eb;
+  --primaire-fonce: #1d4ed8;
+  --positif: #15803d;
+  --negatif: #b91c1c;
+  --vert-clair: #dcfce7;
+  --vert-detenue: #86efac;
+  --jaune-evidence: #fde68a;
+  --rouge-clair: #fee2e2;
+  --bleu-clair: #dbeafe;
+  --orange-clair: #ffedd5;
+  --rayon: 10px;
+  --ombre: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+/* L'attribut "hidden" doit toujours masquer l'élément (utilisé par le script) */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+a { color: var(--primaire); }
+h1 { font-size: 1.6rem; margin: 0; }
+h2 { font-size: 1.15rem; margin: 0 0 12px; }
+
+/* --- En-tête et menus ---------------------------------------------------- */
+
+.entete {
+  background: var(--entete);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 24px;
+  flex-wrap: wrap;
+}
+.marque {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-decoration: none;
+  padding: 14px 0;
+}
+.menu { display: flex; flex-wrap: wrap; }
+.menu a {
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 16px 14px;
+  border-bottom: 3px solid transparent;
+}
+.menu a:hover { color: #fff; }
+.menu a.actif { color: #fff; border-bottom-color: #60a5fa; }
+
+.sous-menu {
+  background: var(--surface);
+  border-bottom: 1px solid var(--bordure);
+  padding: 0 24px;
+  display: flex;
+  flex-wrap: wrap;
+}
+.sous-menu a {
+  color: var(--texte-doux);
+  text-decoration: none;
+  padding: 11px 14px;
+  border-bottom: 2px solid transparent;
+}
+.sous-menu a:hover { color: var(--texte); }
+.sous-menu a.actif { color: var(--primaire); border-bottom-color: var(--primaire); font-weight: 600; }
+
+main {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.titre-page {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.titre-page .actions-page { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sous-titre { color: var(--texte-doux); margin: 4px 0 0; }
+
+/* --- Messages ------------------------------------------------------------ */
+
+.messages { margin-bottom: 16px; display: grid; gap: 8px; }
+.message {
+  padding: 10px 14px;
+  border-radius: var(--rayon);
+  border: 1px solid transparent;
+}
+.message-succes { background: var(--vert-clair); border-color: #bbf7d0; }
+.message-erreur { background: var(--rouge-clair); border-color: #fecaca; }
+.message-info { background: var(--bleu-clair); border-color: #bfdbfe; }
+.message-avertissement { background: var(--orange-clair); border-color: #fed7aa; }
+.message ul { margin: 6px 0 0; padding-left: 20px; }
+
+/* --- Cartes de synthèse -------------------------------------------------- */
+
+.cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.carte {
+  background: var(--surface);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+}
+a.carte:hover { box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); }
+.carte-titre { color: var(--texte-doux); font-size: 0.88rem; }
+.carte-valeur { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+.carte-detail { color: var(--texte-doux); font-size: 0.85rem; margin-top: 4px; }
+.carte-principale { background: var(--entete); color: #fff; }
+.carte-principale .carte-titre, .carte-principale .carte-detail { color: #cbd5e1; }
+
+/* --- Panneaux et grilles ------------------------------------------------- */
+
+.panneau {
+  background: var(--surface);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+  padding: 18px;
+  margin-bottom: 20px;
+}
+.grille-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+}
+.grille-2 > .panneau { margin-bottom: 0; }
+.grille-2 + * { margin-top: 20px; }
+.graphique { position: relative; height: 320px; }
+.vide { color: var(--texte-doux); font-style: italic; }
+.aide { color: var(--texte-doux); font-size: 0.85rem; }
+
+/* --- Tableaux ------------------------------------------------------------ */
+
+.defilement { overflow-x: auto; }
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+.tableau th, .tableau td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--bordure);
+  text-align: left;
+  white-space: nowrap;
+}
+.tableau thead th {
+  background: #f8fafc;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #475569;
+  position: sticky;
+  top: 0;
+}
+.tableau tbody tr:hover td { background: #f8fafc; }
+.tableau tfoot td { font-weight: 700; border-top: 2px solid var(--bordure); }
+.tableau .nombre { text-align: right; font-variant-numeric: tabular-nums; }
+.tableau .centre { text-align: center; }
+.tableau .commentaire { white-space: normal; color: var(--texte-doux); max-width: 280px; }
+.tableau .separateur { border-left: 2px solid var(--bordure); }
+.tableau td.boutons { text-align: right; }
+.tableau td.boutons form { display: inline; }
+
+/* Tableaux triables : un clic sur le titre d'une colonne trie la colonne */
+th.triable-entete { cursor: pointer; user-select: none; }
+th.triable-entete:hover { color: var(--primaire); }
+th[data-ordre="croissant"]::after { content: " ▲"; font-size: 0.7em; }
+th[data-ordre="decroissant"]::after { content: " ▼"; font-size: 0.7em; }
+
+/* Tableau des actions à rendement */
+.nom-detenue { background: var(--vert-detenue) !important; font-weight: 600; }
+.nom-evidence { background: var(--jaune-evidence) !important; font-weight: 600; }
+.lien-discret { color: inherit; text-decoration: none; }
+.lien-discret:hover { text-decoration: underline; }
+.alerte-yahoo { color: var(--negatif); cursor: help; }
+.valeur-saisie-auto { color: var(--texte-doux); }
+.legende-couleurs { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 12px; font-size: 0.85rem; }
+.pastille { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
+
+.positif { color: var(--positif); }
+.negatif { color: var(--negatif); }
+.tendance-hausse { color: var(--positif); font-weight: 700; }
+.tendance-baisse { color: var(--negatif); font-weight: 700; }
+.tendance-stable { color: var(--texte-doux); font-weight: 700; }
+
+/* Étiquettes de type de mouvement */
+.etiquette {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background: #e2e8f0;
+}
+.etiquette-achat { background: var(--bleu-clair); }
+.etiquette-vente { background: var(--orange-clair); }
+.etiquette-dividende { background: var(--vert-clair); }
+.etiquette-apport { background: #ede9fe; }
+.etiquette-retrait, .etiquette-frais { background: var(--rouge-clair); }
+
+/* --- Boutons ------------------------------------------------------------- */
+
+.bouton {
+  display: inline-block;
+  background: var(--primaire);
+  color: #fff;
+  border: 1px solid var(--primaire);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bouton:hover { background: var(--primaire-fonce); }
+.bouton:disabled { opacity: 0.6; cursor: wait; }
+.bouton-secondaire { background: var(--surface); color: var(--texte); border-color: var(--bordure); }
+.bouton-secondaire:hover { background: #f1f5f9; }
+.bouton-danger { background: var(--surface); color: var(--negatif); border-color: #fecaca; }
+.bouton-danger:hover { background: var(--rouge-clair); }
+.bouton-petit { padding: 3px 9px; font-size: 0.82rem; }
+
+.formulaire-actualiser { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.date-maj { color: var(--texte-doux); font-size: 0.85rem; }
+
+/* --- Formulaires --------------------------------------------------------- */
+
+.formulaire { max-width: 720px; }
+.champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.champ { display: flex; flex-direction: column; gap: 4px; }
+.champ-large { grid-column: 1 / -1; }
+.champ label { font-weight: 600; font-size: 0.88rem; }
+.champ input, .champ select, .champ textarea, .filtres select, .filtres input {
+  font: inherit;
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+}
+.champ input:focus, .champ select:focus, .champ textarea:focus { outline: 2px solid #93c5fd; border-color: var(--primaire); }
+.case-a-cocher { flex-direction: row; align-items: center; gap: 8px; }
+.case-a-cocher label { font-weight: normal; }
+.boutons-formulaire { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
+.filtres { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.grille-dividendes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+.formulaire-en-ligne { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 12px; }
+
+.explications { margin: 0; padding-left: 20px; }
+.explications li { margin-bottom: 4px; }
+
+/* --- Petits écrans (téléphone) -------------------------------------------- */
+
+@media (max-width: 700px) {
+  main { padding: 14px; }
+  .entete, .sous-menu { padding: 0 12px; }
+  .grille-2 { grid-template-columns: 1fr; }
+  .carte-valeur { font-size: 1.25rem; }
+}

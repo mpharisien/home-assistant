@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block titre %}{{ resume.definition.nom }}{% endblock %}
+
+{% block contenu %}
+{% set d = resume.definition %}
+<div class="titre-page">
+  <div>
+    <h1>{{ d.nom }}</h1>
+    <p class="sous-titre">{{ d.description }}</p>
+  </div>
+  <div class="actions-page">
+    <a class="bouton" href="{{ url_for('poches.nouveau_mouvement', code=resume.code) }}">+ Ajouter un mouvement</a>
+  </div>
+</div>
+
+<section class="cartes">
+  <div class="carte carte-principale">
+    <div class="carte-titre">Valeur estimée</div>
+    <div class="carte-valeur">{{ resume.valeur|euros }}</div>
+    <div class="carte-detail">
+      {% if resume.derniere_valorisation %}
+        Valorisation du {{ resume.derniere_valorisation.date|date_fr }} + mouvements depuis
+      {% else %}
+        Capital versé (aucune valorisation saisie)
+      {% endif %}
+    </div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Capital net versé</div>
+    <div class="carte-valeur">{{ resume.capital_net|euros }}</div>
+    <div class="carte-detail">Versements − retraits</div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Revenus perçus</div>
+    <div class="carte-valeur">{{ resume.revenus|euros }}</div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Frais et impôts</div>
+    <div class="carte-valeur">{{ resume.charges|euros }}</div>
+  </div>
+</section>
+
+<section class="panneau">
+  <h2>Historique</h2>
+  {% if resume.mouvements %}
+    <div class="defilement">
+      <table class="tableau">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Opération</th>
+            <th>{{ d.libelle_support }}</th>
+            <th class="nombre">Montant</th>
+            <th>Commentaire</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in resume.mouvements %}
+            <tr>
+              <td>{{ m.date|date_fr }}</td>
+              <td>{{ d.types[m.type].libelle if m.type in d.types else m.type }}</td>
+              <td>{{ m.libelle or '' }}</td>
+              <td class="nombre">{{ m.montant|euros }}</td>
+              <td class="commentaire">{{ m.commentaire or '' }}</td>
+              <td class="boutons">
+                <a class="bouton bouton-secondaire bouton-petit"
+                   href="{{ url_for('poches.modifier_mouvement', code=resume.code, mouvement_id=m.id) }}">Modifier</a>
+                <form method="post" action="{{ url_for('poches.supprimer_mouvement', code=resume.code, mouvement_id=m.id) }}"
+                      data-confirmation="Supprimer ce mouvement du {{ m.date|date_fr }} ?">
+                  <button type="submit" class="bouton bouton-danger bouton-petit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="vide">Aucun mouvement pour l'instant.</p>
+  {% endif %}
+</section>
+
+<section class="panneau">
+  <h2>Valorisations</h2>
+  <p class="aide">
+    Relève de temps en temps la valeur affichée sur le site de {{ d.nom }} : elle sert à estimer la
+    valeur actuelle de la poche (plus-values comprises).
+  </p>
+  <form method="post" action="{{ url_for('poches.ajouter_valorisation', code=resume.code) }}" class="formulaire-en-ligne">
+    <div class="champ">
+      <label for="date_valorisation">Date</label>
+      <input type="date" id="date_valorisation" name="date" value="{{ date_du_jour }}" required>
+    </div>
+    <div class="champ">
+      <label for="valeur">Valeur (€)</label>
+      <input type="text" inputmode="decimal" id="valeur" name="valeur" required>
+    </div>
+    <button type="submit" class="bouton">Enregistrer la valorisation</button>
+  </form>
+
+  {% if resume.valorisations %}
+    <div class="defilement">
+      <table class="tableau">
+        <thead><tr><th>Date</th><th class="nombre">Valeur</th><th></th></tr></thead>
+        <tbody>
+          {% for v in resume.valorisations %}
+            <tr>
+              <td>{{ v.date|date_fr }}</td>
+              <td class="nombre">{{ v.valeur|euros }}</td>
+              <td class="boutons">
+                <form method="post" action="{{ url_for('poches.supprimer_valorisation', code=resume.code, valorisation_id=v.id) }}"
+                      data-confirmation="Supprimer la valorisation du {{ v.date|date_fr }} ?">
+                  <button type="submit" class="bouton bouton-danger bouton-petit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

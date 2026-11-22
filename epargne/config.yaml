@@ -1,12 +1,37 @@
-name: "Epargne"
-description: "Suivi de portefeuille personnel"
-version: "1.0.3"
+# ============================================================================
+# CARTE D'IDENTITÉ DE L'ADD-ON pour Home Assistant
+# ----------------------------------------------------------------------------
+# Home Assistant lit ce fichier pour savoir comment afficher, construire et
+# lancer l'add-on. À chaque modification du code, il faut augmenter le numéro
+# de "version" : c'est ce qui fait apparaître la mise à jour dans Home Assistant.
+# ============================================================================
+
+name: "Épargne"
+description: "Suivi de l'épargne : PEA (actions à rendement), Epsor, Enerfip"
+version: "2.0.0"
+
+# Le "slug" est l'identifiant technique de l'add-on. Il ne doit plus changer :
+# c'est lui qui relie l'add-on à son dossier de données (/data).
 slug: "epargne"
-init: false
+
+# Architectures supportées (un Intel NUC = amd64)
 arch:
-  - aarch64
   - amd64
+  - aarch64
+
+# Démarrage automatique avec Home Assistant
+startup: application
+boot: auto
+
+# init: true = Docker ajoute un mini-programme qui transmet proprement le
+# signal d'arrêt à Python (arrêt immédiat au lieu d'attendre 10 secondes).
+init: true
+
+# Port de l'interface web : http://<adresse-de-home-assistant>:5000/
 ports:
   5000/tcp: 5000
 ports_description:
-  5000/tcp: "Interface web"
+  5000/tcp: "Interface web Épargne"
+
+# Ajoute un bouton « Ouvrir l'interface web » sur la page de l'add-on
+webui: "http://[HOST]:[PORT:5000]/"

@@ -1,2 +1,9 @@
-flask==3.0.3
-python-dateutil==2.9.0
+# Librairies Python nécessaires (installées automatiquement par le Dockerfile).
+# Les versions sont figées pour que l'add-on se construise toujours à l'identique.
+
+# Flask : le « cadre » de l'application web (pages, formulaires, URLs)
+Flask==3.0.3
+# Waitress : le serveur web qui fait tourner Flask de façon fiable
+waitress==3.0.2
+# tzdata : la liste des fuseaux horaires (pour afficher l'heure de Paris)
+tzdata==2025.2

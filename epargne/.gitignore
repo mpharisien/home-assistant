@@ -1,0 +1,15 @@
+# Fichiers à ne JAMAIS envoyer sur GitHub (le dépôt est public).
+
+# Base de données créée quand on lance l'application en local sur son PC :
+# elle contient tes données personnelles.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Fichiers temporaires générés par Python
+__pycache__/
+*.pyc
+
+# Environnement Python local éventuel
+.venv/

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "macros.html" import valeur_tri %}
+{% block titre %}PEA - Dividendes{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <div>
+    <h1>Dividendes reçus</h1>
+    <p class="sous-titre">Par année et par action, avec le rendement obtenu sur le prix de revient.</p>
+  </div>
+</div>
+
+{% if annees %}
+  <section class="panneau">
+    <h2>Dividendes reçus par année</h2>
+    <div class="graphique">
+      <canvas data-graphique="barres" data-donnees='{{ graphique|tojson }}'></canvas>
+    </div>
+  </section>
+
+  <section class="grille-2">
+    {% for annee in annees %}
+      <div class="panneau">
+        <h2>{{ annee.annee }}</h2>
+        <div class="defilement">
+          <table class="tableau triable">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th class="nombre">Dividendes</th>
+                <th class="nombre" title="Prix de revient des titres détenus au 31/12 (ou à la date du dernier dividende de l'année si l'action a été vendue depuis)">Prix de revient</th>
+                <th class="nombre">Rendement</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ligne in annee.lignes %}
+                <tr>
+                  <td>{{ ligne.nom }}</td>
+                  <td class="nombre" data-valeur="{{ ligne.dividendes }}">{{ ligne.dividendes|euros }}</td>
+                  <td class="nombre" data-valeur="{{ valeur_tri(ligne.prix_de_revient) }}">{{ ligne.prix_de_revient|euros }}</td>
+                  <td class="nombre" data-valeur="{{ valeur_tri(ligne.rendement) }}">{{ ligne.rendement|pourcent }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total</td>
+                <td class="nombre">{{ annee.total_dividendes|euros }}</td>
+                <td class="nombre">{{ annee.total_prix_de_revient|euros }}</td>
+                <td class="nombre">{{ annee.rendement|pourcent }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+  </section>
+  <p class="aide">
+    Prix de revient : celui des titres détenus au 31 décembre (frais inclus). Les actions détenues
+    sans dividende dans l'année sont listées car elles font partie du capital investi.
+  </p>
+{% else %}
+  <section class="panneau">
+    <p class="vide">Aucun dividende enregistré pour l'instant.</p>
+  </section>
+{% endif %}
+{% endblock %}

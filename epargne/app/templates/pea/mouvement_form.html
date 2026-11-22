@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block titre %}PEA - {{ 'Modifier' if mouvement_id else 'Ajouter' }} un mouvement{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <h1>{{ 'Modifier le mouvement' if mouvement_id else 'Ajouter un mouvement' }}</h1>
+</div>
+
+<section class="panneau formulaire">
+  <form method="post">
+    <div class="champs">
+      <div class="champ">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{ valeurs.get('date', '') }}" required>
+      </div>
+      <div class="champ">
+        <label for="type">Opération</label>
+        <select id="type" name="type" data-selecteur-type>
+          {% for code, libelle in TYPES_MOUVEMENT_PEA.items() %}
+            <option value="{{ code }}" {{ 'selected' if valeurs.get('type') == code }}>{{ libelle }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# Les blocs "data-types" ne sont affichés que pour les types d'opération listés #}
+      <div class="champ champ-large" data-types="achat vente dividende">
+        <label for="action">Action</label>
+        <input type="text" id="action" name="action" list="liste-actions" autocomplete="off"
+               value="{{ valeurs.get('action', '') }}" placeholder="Choisir ou saisir un nom">
+        <datalist id="liste-actions">
+          {% for action in actions %}<option value="{{ action.nom }}">{% endfor %}
+        </datalist>
+        <span class="aide">Une action qui n'existe pas encore sera créée automatiquement.</span>
+      </div>
+      <div class="champ" data-types="achat vente dividende">
+        <label for="quantite">Nombre de titres</label>
+        <input type="text" inputmode="decimal" id="quantite" name="quantite" value="{{ valeurs.get('quantite', '') }}">
+      </div>
+      <div class="champ" data-types="achat vente">
+        <label for="cours">Cours (€)</label>
+        <input type="text" inputmode="decimal" id="cours" name="cours" value="{{ valeurs.get('cours', '') }}">
+      </div>
+      <div class="champ" data-types="achat vente">
+        <label for="frais">Frais (€)</label>
+        <input type="text" inputmode="decimal" id="frais" name="frais" value="{{ valeurs.get('frais', '') }}">
+      </div>
+      <div class="champ" data-types="dividende">
+        <label for="dividende_par_action">Dividende par action (€)</label>
+        <input type="text" inputmode="decimal" id="dividende_par_action" name="dividende_par_action"
+               value="{{ valeurs.get('dividende_par_action', '') }}">
+        <span class="aide">Facultatif : sert uniquement à calculer le montant.</span>
+      </div>
+      <div class="champ">
+        <label for="montant">Montant (€)</label>
+        <input type="text" inputmode="decimal" id="montant" name="montant" value="{{ valeurs.get('montant', '') }}">
+        <span class="aide" data-types="achat">Vide = nombre × cours + frais</span>
+        <span class="aide" data-types="vente">Vide = nombre × cours − frais</span>
+        <span class="aide" data-types="dividende">Vide = nombre × dividende par action</span>
+      </div>
+      <div class="champ champ-large">
+        <label for="commentaire">Commentaire</label>
+        <input type="text" id="commentaire" name="commentaire" value="{{ valeurs.get('commentaire', '') }}">
+      </div>
+    </div>
+
+    <div class="boutons-formulaire">
+      <button type="submit" class="bouton">Enregistrer</button>
+      {% if not mouvement_id %}
+        <button type="submit" name="continuer" value="1" class="bouton bouton-secondaire">Enregistrer et saisir un autre</button>
+      {% endif %}
+      <a class="bouton bouton-secondaire" href="{{ url_for('pea.historique') }}">Annuler</a>
+    </div>
+  </form>
+
+  {% if mouvement_id %}
+    {# Formulaire séparé : un formulaire ne peut pas en contenir un autre #}
+    <form method="post" action="{{ url_for('pea.supprimer_mouvement', mouvement_id=mouvement_id) }}"
+          data-confirmation="Supprimer définitivement ce mouvement ?" class="boutons-formulaire">
+      <button type="submit" class="bouton bouton-danger">Supprimer ce mouvement</button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

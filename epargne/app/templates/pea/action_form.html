@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% from "macros.html" import bouton_actualiser %}
+{% block titre %}PEA - {{ action.nom if action else 'Nouvelle action' }}{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <h1>{{ action.nom if action else 'Nouvelle action' }}</h1>
+  {% if action and action.ticker %}
+    <div class="actions-page">
+      {{ bouton_actualiser(url_for('pea.modifier_action', action_id=action.id), cours.date_maj if cours else none, action.id) }}
+    </div>
+  {% endif %}
+</div>
+
+<div class="grille-2">
+  <section class="panneau formulaire">
+    <form method="post">
+      <div class="champs">
+        <div class="champ champ-large">
+          <label for="nom">Nom</label>
+          <input type="text" id="nom" name="nom" value="{{ valeurs.get('nom', '') }}" required>
+        </div>
+        <div class="champ champ-large">
+          <label for="ticker">Symbole Yahoo Finance</label>
+          <input type="text" id="ticker" name="ticker" value="{{ valeurs.get('ticker', '') }}" placeholder="ex. TTE.PA">
+          <span class="aide">
+            Pour la bourse de Paris, le symbole se termine par « .PA » (TotalEnergies = TTE.PA).
+            Il se trouve sur <a href="https://fr.finance.yahoo.com" target="_blank" rel="noopener">fr.finance.yahoo.com</a>.
+          </span>
+        </div>
+        <div class="champ champ-large case-a-cocher">
+          <input type="checkbox" id="suivie" name="suivie" {{ 'checked' if valeurs.get('suivie') }}>
+          <label for="suivie">Suivre dans « Actions à rendement » même quand je ne la possède pas</label>
+        </div>
+        <div class="champ champ-large case-a-cocher">
+          <input type="checkbox" id="en_evidence" name="en_evidence" {{ 'checked' if valeurs.get('en_evidence') }}>
+          <label for="en_evidence">Mettre en évidence (surlignée en jaune)</label>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 22px;">Dividende par action, par exercice (€)</h2>
+      <p class="aide">Laisser vide si inconnu. Les années futures peuvent recevoir une estimation.</p>
+      <div class="grille-dividendes">
+        {% for annee in annees %}
+          <div class="champ">
+            <label for="dividende_{{ annee }}">{{ annee }}</label>
+            <input type="text" inputmode="decimal" id="dividende_{{ annee }}" name="dividende_{{ annee }}"
+                   value="{{ valeurs.get('dividende_' ~ annee, '') }}">
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="champs" style="margin-top: 16px;">
+        <div class="champ champ-large">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3">{{ valeurs.get('notes', '') }}</textarea>
+        </div>
+      </div>
+
+      <div class="boutons-formulaire">
+        <button type="submit" class="bouton">Enregistrer</button>
+        <a class="bouton bouton-secondaire" href="{{ url_for('pea.actions') }}">Annuler</a>
+      </div>
+    </form>
+
+    {% if action %}
+      {% if nb_mouvements %}
+        <p class="aide" style="margin-top: 16px;">
+          {{ nb_mouvements }} mouvement(s) dans l'historique : l'action ne peut pas être supprimée.
+          <a href="{{ url_for('pea.historique', action=action.id) }}">Voir ces mouvements</a>
+        </p>
+      {% else %}
+        <form method="post" action="{{ url_for('pea.supprimer_action', action_id=action.id) }}"
+              data-confirmation="Supprimer l'action « {{ action.nom }} » et ses dividendes saisis ?"
+              class="boutons-formulaire">
+          <button type="submit" class="bouton bouton-danger">Supprimer cette action</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  {% if action %}
+    <section class="panneau">
+      <h2>Données Yahoo Finance</h2>
+      {% if not action.ticker %}
+        <p class="vide">Renseigne le symbole Yahoo pour récupérer le cours et les dividendes.</p>
+      {% elif not cours or not cours.date_maj %}
+        <p class="vide">Pas encore de données : clique sur « Actualiser les cours ».</p>
+        {% if cours and cours.erreur %}<div class="message message-erreur">{{ cours.erreur }}</div>{% endif %}
+      {% else %}
+        {% if cours.erreur %}
+          <div class="message message-erreur">Dernière actualisation en échec : {{ cours.erreur }}</div>
+        {% endif %}
+        <table class="tableau">
+          <tbody>
+            <tr><td>Cours actuel</td><td class="nombre"><strong>{{ cours.cours_actuel|nombre(3) }} {{ cours.devise or '' }}</strong></td></tr>
+            <tr><td>Plus bas / plus haut 1 an</td><td class="nombre">{{ cours.min_1an|nombre }} / {{ cours.max_1an|nombre }}</td></tr>
+            <tr><td>Plus bas / plus haut 5 ans</td><td class="nombre">{{ cours.min_5ans|nombre }} / {{ cours.max_5ans|nombre }}</td></tr>
+            <tr><td>Plus bas / plus haut 10 ans</td><td class="nombre">{{ cours.min_10ans|nombre }} / {{ cours.max_10ans|nombre }}</td></tr>
+            <tr><td>Dividendes détachés sur 12 mois</td><td class="nombre">{{ cours.dividendes_12_mois|nombre(3) }}</td></tr>
+          </tbody>
+        </table>
+
+        <h2 style="margin-top: 22px;">Dividendes détachés (par année civile)</h2>
+        <p class="aide">
+          Attention : Yahoo date les dividendes au jour de leur détachement. Le dividende d'un exercice
+          est souvent versé l'année suivante, parfois en plusieurs fois (acomptes) : à toi de choisir
+          les montants à reporter dans les exercices ci-contre.
+        </p>
+        {% if detaches_par_annee %}
+          <table class="tableau">
+            <thead><tr><th>Année</th><th>Détachements</th><th class="nombre">Total</th></tr></thead>
+            <tbody>
+              {% for annee, lignes in detaches_par_annee.items() %}
+                <tr>
+                  <td>{{ annee }}</td>
+                  <td class="commentaire">
+                    {% for ligne in lignes|reverse %}{{ ligne.date|date_fr }} : {{ ligne.montant|nombre(3) }}{{ ' · ' if not loop.last }}{% endfor %}
+                  </td>
+                  <td class="nombre">{{ lignes|sum(attribute='montant')|nombre(3) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="vide">Aucun dividende détaché connu de Yahoo.</p>
+        {% endif %}
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

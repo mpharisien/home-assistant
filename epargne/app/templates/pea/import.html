@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block titre %}PEA - Import{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <div>
+    <h1>Import depuis le Google Sheet</h1>
+    <p class="sous-titre">Pour reprendre ton historique sans tout ressaisir.</p>
+  </div>
+</div>
+
+{% if erreurs %}
+  <div class="message message-erreur">
+    <strong>{{ titre_erreurs }}</strong> Corrige ces lignes dans le tableur puis recommence :
+    <ul>{% for erreur in erreurs %}<li>{{ erreur }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+
+<section class="panneau">
+  <h2>Comment exporter un onglet en CSV ?</h2>
+  <ol class="explications">
+    <li>Dans Google Sheets, ouvre l'onglet à importer.</li>
+    <li>Menu <strong>Fichier › Télécharger › Valeurs séparées par des virgules (.csv)</strong>
+      (seul l'onglet affiché est exporté).</li>
+    <li>Choisis ce fichier ci-dessous. Les colonnes sont reconnues grâce à leur titre :
+      les colonnes supplémentaires sont ignorées.</li>
+  </ol>
+  <p class="aide">Conseil : importe d'abord la liste des actions (2), puis les mouvements (1), pour que
+    les actions soient créées avec leur symbole Yahoo.</p>
+</section>
+
+<div class="grille-2">
+  <section class="panneau">
+    <h2>1. Mouvements (onglet « Bourse - Mouvements »)</h2>
+    <p class="aide">
+      Colonnes utilisées : <strong>Date</strong>, <strong>Opération</strong>, <strong>Montant</strong>
+      (obligatoires), Nombre, Action, Cours, Dividende, Frais.<br>
+      Opérations reconnues : Achat, Vente, Coupons, Ajout de liquidités, Retrait de liquidités, Frais.
+    </p>
+    <form method="post" action="{{ url_for('pea.importer_mouvements') }}" enctype="multipart/form-data"
+          {% if nb_mouvements %}data-confirmation="L'historique contient déjà {{ nb_mouvements }} mouvement(s). Continuer l'import ?"{% endif %}>
+      <div class="champs">
+        <div class="champ champ-large">
+          <input type="file" name="fichier" accept=".csv,text/csv" required>
+        </div>
+        {% if nb_mouvements %}
+          <div class="champ champ-large case-a-cocher">
+            <input type="checkbox" id="remplacer" name="remplacer">
+            <label for="remplacer">Remplacer l'historique existant ({{ nb_mouvements }} mouvement(s) supprimés avant l'import)</label>
+          </div>
+        {% endif %}
+      </div>
+      <div class="boutons-formulaire">
+        <button type="submit" class="bouton">Importer les mouvements</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panneau">
+    <h2>2. Actions (onglet « Actions a rendement »)</h2>
+    <p class="aide">
+      Colonnes utilisées : <strong>Action</strong> (obligatoire), EPA (ex. « EPA:TTE », converti en
+      symbole Yahoo « TTE.PA »), et les colonnes « Dividende 2022 », « Dividende 2023 »…<br>
+      Les actions déjà présentes (même nom) sont mises à jour, les autres sont créées.
+    </p>
+    <form method="post" action="{{ url_for('pea.importer_actions') }}" enctype="multipart/form-data">
+      <div class="champs">
+        <div class="champ champ-large">
+          <input type="file" name="fichier" accept=".csv,text/csv" required>
+        </div>
+      </div>
+      <div class="boutons-formulaire">
+        <button type="submit" class="bouton">Importer les actions</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

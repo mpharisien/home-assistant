@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% from "macros.html" import bouton_actualiser, classe_signe, valeur_tri %}
+{% block titre %}PEA - Portefeuille{% endblock %}
+
+{% block contenu %}
+{% set p = portefeuille %}
+<div class="titre-page">
+  <div>
+    <h1>Portefeuille PEA</h1>
+    <p class="sous-titre">Situation calculée à partir de l'historique des mouvements.</p>
+  </div>
+  <div class="actions-page">
+    {{ bouton_actualiser(url_for('pea.portefeuille'), p.date_maj_cours) }}
+    <a class="bouton" href="{{ url_for('pea.nouveau_mouvement') }}">+ Ajouter un mouvement</a>
+  </div>
+</div>
+
+{% if p.anomalies %}
+  <div class="message message-avertissement">
+    Incohérences dans l'historique :
+    <ul>{% for anomalie in p.anomalies %}<li>{{ anomalie }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+{% if p.liquidites < -0.005 %}
+  <div class="message message-avertissement">
+    Les liquidités calculées sont négatives : il manque probablement des « Ajouts de liquidités »
+    dans l'historique (par exemple les versements faits avant le début de ton suivi).
+  </div>
+{% endif %}
+{% if p.cours_manquants %}
+  <div class="message message-avertissement">
+    Cours inconnu pour : {{ p.cours_manquants|join(', ') }}. Ces actions sont comptées à leur prix
+    de revient. Vérifie leur symbole Yahoo dans « Actions à rendement », puis actualise les cours.
+  </div>
+{% endif %}
+
+<section class="cartes">
+  <div class="carte carte-principale">
+    <div class="carte-titre">Valeur totale du PEA</div>
+    <div class="carte-valeur">{{ p.valeur_totale|euros }}</div>
+    <div class="carte-detail">Titres + liquidités</div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Valeur des titres</div>
+    <div class="carte-valeur">{{ p.valeur_titres|euros }}</div>
+    <div class="carte-detail">Prix de revient : {{ p.cout_titres|euros }}</div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Plus-value latente</div>
+    <div class="carte-valeur {{ classe_signe(p.plus_value_latente) }}">{{ p.plus_value_latente|euros }}</div>
+    <div class="carte-detail">{{ p.plus_value_latente_ratio|pourcent }}</div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Liquidités</div>
+    <div class="carte-valeur">{{ p.liquidites|euros }}</div>
+    <div class="carte-detail">Versements nets : {{ p.apports_nets|euros }}</div>
+  </div>
+  <div class="carte">
+    <div class="carte-titre">Dividendes reçus</div>
+    <div class="carte-valeur">{{ p.dividendes_annee|euros }}</div>
+    <div class="carte-detail">cette année · {{ p.dividendes_total|euros }} au total</div>
+  </div>
+</section>
+
+<section class="panneau">
+  <h2>Actions détenues</h2>
+  {% if p.positions %}
+    <div class="defilement">
+      <table class="tableau triable">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th class="nombre">Nombre</th>
+            <th class="nombre">PRU</th>
+            <th class="nombre">Cours</th>
+            <th class="nombre">Prix de revient</th>
+            <th class="nombre">Valeur</th>
+            <th class="nombre">+/- latente</th>
+            <th class="nombre">+/- %</th>
+            <th class="nombre">Poids</th>
+            <th class="nombre" title="Total des dividendes reçus depuis le début">Dividendes reçus</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for position in p.positions %}
+            <tr>
+              <td><a class="lien-discret" href="{{ url_for('pea.modifier_action', action_id=position.action_id) }}">{{ position.nom }}</a></td>
+              <td class="nombre" data-valeur="{{ position.quantite }}">{{ position.quantite|quantite }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(position.pru) }}">{{ position.pru|nombre(3) }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(position.cours_actuel) }}">{{ position.cours_actuel|nombre(3) }}</td>
+              <td class="nombre" data-valeur="{{ position.cout_total }}">{{ position.cout_total|euros }}</td>
+              <td class="nombre" data-valeur="{{ valeur_tri(position.valeur) }}">{{ position.valeur|euros }}</td>
+              <td class="nombre {{ classe_signe(position.plus_value_latente) }}" data-valeur="{{ valeur_tri(position.plus_value_latente) }}">{{ position.plus_value_latente|euros }}</td>
+              <td class="nombre {{ classe_signe(position.plus_value_latente_ratio) }}" data-valeur="{{ valeur_tri(position.plus_value_latente_ratio) }}">{{ position.plus_value_latente_ratio|pourcent }}</td>
+              <td class="nombre" data-valeur="{{ position.valeur_retenue }}">{{ (position.valeur_retenue / p.valeur_titres if p.valeur_titres else none)|pourcent(1) }}</td>
+              <td class="nombre" data-valeur="{{ position.dividendes }}">{{ position.dividendes|euros }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td></td><td></td><td></td>
+            <td class="nombre">{{ p.cout_titres|euros }}</td>
+            <td class="nombre">{{ p.valeur_titres|euros }}</td>
+            <td class="nombre {{ classe_signe(p.plus_value_latente) }}">{{ p.plus_value_latente|euros }}</td>
+            <td class="nombre {{ classe_signe(p.plus_value_latente_ratio) }}">{{ p.plus_value_latente_ratio|pourcent }}</td>
+            <td></td>
+            <td class="nombre">{{ p.positions|sum(attribute='dividendes')|euros }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="aide">PRU = prix de revient unitaire, frais d'achat inclus. Cliquer sur un titre de colonne pour trier.</p>
+  {% else %}
+    <p class="vide">Aucune action détenue. Ajoute des mouvements ou importe ton historique (menu Import).</p>
+  {% endif %}
+</section>
+
+{% if p.positions_soldees %}
+  <section class="panneau">
+    <details>
+      <summary>Actions vendues ({{ p.positions_soldees|length }})</summary>
+      <div class="defilement">
+        <table class="tableau triable">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th class="nombre">Plus-value réalisée</th>
+              <th class="nombre">Dividendes reçus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for position in p.positions_soldees %}
+              <tr>
+                <td>{{ position.nom }}</td>
+                <td class="nombre {{ classe_signe(position.plus_value_realisee) }}" data-valeur="{{ position.plus_value_realisee }}">{{ position.plus_value_realisee|euros }}</td>
+                <td class="nombre" data-valeur="{{ position.dividendes }}">{{ position.dividendes|euros }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+{% endif %}
+{% endblock %}

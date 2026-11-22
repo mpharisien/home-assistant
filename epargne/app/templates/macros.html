@@ -1,0 +1,37 @@
+{#
+  « Macros » : petits morceaux de page réutilisables, comme des fonctions.
+  Utilisation dans une page : {% from "macros.html" import bouton_actualiser %}
+#}
+
+{# Bouton « Actualiser les cours » + date de la dernière mise à jour.
+   `retour` : adresse de la page à réafficher ensuite.
+   `action_id` : pour n'actualiser qu'une action (sinon toutes). #}
+{% macro bouton_actualiser(retour, date_maj=None, action_id=None) %}
+  <form method="post" action="{{ url_for('pea.actualiser_cours') }}" class="formulaire-actualiser"
+        data-patience="Actualisation en cours…">
+    <input type="hidden" name="retour" value="{{ retour }}">
+    {% if action_id %}<input type="hidden" name="action_id" value="{{ action_id }}">{% endif %}
+    <span class="date-maj">
+      {% if date_maj %}Cours du {{ date_maj|date_heure_fr }}{% else %}Cours jamais actualisés{% endif %}
+    </span>
+    <button type="submit" class="bouton bouton-secondaire">↻ Actualiser les cours</button>
+  </form>
+{% endmacro %}
+
+{# Classe CSS selon le signe d'un nombre (vert si positif, rouge si négatif) #}
+{% macro classe_signe(valeur) -%}
+  {%- if valeur is not none and valeur > 0.005 %}positif{% elif valeur is not none and valeur < -0.005 %}negatif{% endif -%}
+{%- endmacro %}
+
+{# Fond vert d'autant plus foncé que `ratio` est proche de `plafond`
+   (même principe que la mise en forme conditionnelle du Google Sheet). #}
+{% macro fond_degrade(ratio, plafond) -%}
+  {%- if ratio is not none and ratio > 0 -%}
+    background: rgba(22, 163, 74, {{ '%.2f'|format([ratio / plafond, 1]|min * 0.55) }});
+  {%- endif -%}
+{%- endmacro %}
+
+{# Valeur brute pour le tri des tableaux (vide si absente) #}
+{% macro valeur_tri(valeur) -%}
+  {{ '' if valeur is none else valeur }}
+{%- endmacro %}

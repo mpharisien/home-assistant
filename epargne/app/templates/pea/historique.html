@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block titre %}PEA - Historique{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+  <div>
+    <h1>Historique du PEA</h1>
+    <p class="sous-titre">{{ mouvements|length }} mouvement(s) affiché(s) sur {{ nb_total }}.</p>
+  </div>
+  <div class="actions-page">
+    <a class="bouton" href="{{ url_for('pea.nouveau_mouvement') }}">+ Ajouter un mouvement</a>
+  </div>
+</div>
+
+<section class="panneau">
+  <form method="get" class="filtres">
+    <select name="annee" aria-label="Année">
+      <option value="">Toutes les années</option>
+      {% for annee in annees %}
+        <option value="{{ annee }}" {{ 'selected' if filtres.annee == annee }}>{{ annee }}</option>
+      {% endfor %}
+    </select>
+    <select name="action" aria-label="Action">
+      <option value="">Toutes les actions</option>
+      {% for action in actions %}
+        <option value="{{ action.id }}" {{ 'selected' if filtres.action == action.id }}>{{ action.nom }}</option>
+      {% endfor %}
+    </select>
+    <select name="type" aria-label="Opération">
+      <option value="">Toutes les opérations</option>
+      {% for code, libelle in TYPES_MOUVEMENT_PEA.items() %}
+        <option value="{{ code }}" {{ 'selected' if filtres.type == code }}>{{ libelle }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="bouton bouton-secondaire">Filtrer</button>
+    <a href="{{ url_for('pea.historique') }}">Réinitialiser</a>
+  </form>
+
+  {% if mouvements %}
+    <div class="defilement">
+      <table class="tableau">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Opération</th>
+            <th>Action</th>
+            <th class="nombre">Nombre</th>
+            <th class="nombre">Cours</th>
+            <th class="nombre" title="Montant ÷ nombre de titres">Div. / action</th>
+            <th class="nombre">Frais</th>
+            <th class="nombre">Montant</th>
+            <th>Commentaire</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in mouvements %}
+            <tr>
+              <td>{{ m.date|date_fr }}</td>
+              <td><span class="etiquette etiquette-{{ m.type }}">{{ TYPES_MOUVEMENT_PEA[m.type] }}</span></td>
+              <td>{{ m.nom_action or '' }}</td>
+              <td class="nombre">{{ m.quantite|quantite if m.quantite is not none else '' }}</td>
+              <td class="nombre">{{ m.cours|nombre(3) if m.cours is not none else '' }}</td>
+              <td class="nombre">
+                {%- if m.type == 'dividende' and m.quantite -%}{{ (m.montant / m.quantite)|nombre(3) }}{%- endif -%}
+              </td>
+              <td class="nombre">{{ m.frais|euros if m.frais else '' }}</td>
+              <td class="nombre">{{ m.montant|euros }}</td>
+              <td class="commentaire">{{ m.commentaire or '' }}</td>
+              <td class="boutons">
+                <a class="bouton bouton-secondaire bouton-petit" href="{{ url_for('pea.modifier_mouvement', mouvement_id=m.id) }}">Modifier</a>
+                <form method="post" action="{{ url_for('pea.supprimer_mouvement', mouvement_id=m.id) }}"
+                      data-confirmation="Supprimer ce mouvement du {{ m.date|date_fr }} ?">
+                  <button type="submit" class="bouton bouton-danger bouton-petit">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="vide">Aucun mouvement{% if nb_total %} pour ces filtres{% endif %}.</p>
+  {% endif %}
+</section>
+{% endblock %}
